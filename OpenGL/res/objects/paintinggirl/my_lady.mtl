@@ -1,0 +1,206 @@
+# Blender 3.4.0 MTL File: 'my_lady.blend'
+# www.blender.org
+
+newmtl m0_hat
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hat_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hat_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hat_n.png
+
+newmtl m10__11__BDclothes
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m11_head
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_head_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_head_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_head_n.png
+
+newmtl m12_eye
+Ka 1.000000 1.000000 1.000000
+Ks 0.112727 0.112727 0.112727
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_eye_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_eye_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_eye_n.png
+
+newmtl m13_mayuge
+Ns 360.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl m14_matsuge
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_mayu_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_mayu_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_mayu_n.png
+
+newmtl m15_hairs
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hair_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hair_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_hair_n.png
+
+newmtl m16_skins
+Ka 1.000000 1.000000 1.000000
+Ks 0.001000 0.001000 0.001000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_skin_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_skin_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_skin_n.png
+
+newmtl m1_BDclothes
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m2_cape_cloth
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m3_sleeve_cloth
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m4__01__coat_cloth
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m5__01__smok_cloth
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+
+newmtl m6_BDpants
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_pants_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_pants_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_pants_n.png
+
+newmtl m7__01__BDclothes
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m8__11__coat_cloth
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_a.png
+map_Ns C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_r.png
+map_Bump -bm 1.000000 C:/Users/胡新磊/Desktop/npc模型/绘画大小姐/c6120-png/c6120_cloth_n.png
+
+newmtl m9__11__smok_cloth
+Ns 360.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl 座垫材质
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+
+newmtl 椅子腿材质
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2

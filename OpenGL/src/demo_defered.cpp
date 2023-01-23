@@ -837,7 +837,7 @@ int main(void)
             ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
             ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
             ImGui::SliderFloat("LightColor", &keyinput.SunColor, 0.0f, 100.0f);
-            ImGui::SliderFloat("LightIntensity", &keyinput.SunIntensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("LightIntensity", &keyinput.SunIntensity, 0.0f, 5.0f);
             ImGui::SliderFloat("exposure", &keyinput.exposure, 0.0f, 100.0f);
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
             static int counter = 0;

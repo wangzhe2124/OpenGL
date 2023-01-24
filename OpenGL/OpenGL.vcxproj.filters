@@ -67,6 +67,7 @@
     <None Include="res\shaders\EnvCubeMap.shader" />
     <None Include="res\shaders\EnvCubeMap_Convolution.shader" />
     <None Include="res\shaders\DeferedPreShadow.shader" />
+    <None Include="src\config.ini" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -142,6 +143,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\vender\imgui\imgui_impl_glfw.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Config.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

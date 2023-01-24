@@ -179,9 +179,11 @@
     <None Include="res\shaders\SpotLightShadow.shader" />
     <None Include="res\shaders\SSAO.shader" />
     <None Include="res\shaders\SSAOblur.shader" />
+    <None Include="src\config.ini" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\CSM.h" />
     <ClInclude Include="src\IndexBuffer.h" />
     <ClInclude Include="src\KeyInput.h" />

@@ -1,6 +1,8 @@
+#pragma once
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <random>
+#include <vector>
 
 #include "Debugger.h"
 #include "Shader.h"
@@ -18,6 +20,7 @@
 #include "vender/imgui/imgui.h"
 #include "vender/imgui/imgui_impl_glfw.h"
 #include "vender/imgui/imgui_impl_opengl3.h"
+#include "Config.h"
 //鼠标回调
 unsigned int screenWidth = 960;
 unsigned int screenHeight = 640;
@@ -77,6 +80,21 @@ int main(void)
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    //config
+    std::string strConfigFileName("src/config.ini");
+    std::fstream out(strConfigFileName);
+
+    Config config(strConfigFileName);
+    // 初始化写入注释
+    out.open(strConfigFileName, std::ios::app);
+    if (out.is_open()) {
+        //读取config.ini
+        out >> config;
+        out.close();
+    }   
+    std::string skybox_vertex_attr = "skybox_vertex_attr";
+    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
+   
     //鼠标回调函数
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback); 
@@ -246,7 +264,7 @@ int main(void)
          1.0f, -1.0f,  1.0f
     };
     VertexArray skyboxVa;
-    VertexBuffer skyboxVb(skyboxVertices, sizeof(skyboxVertices));
+    VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
     VertexBufferLayout skyboxLayout;
     skyboxLayout.Push<float>(3);
     skyboxVa.AddBuffer(skyboxVb, skyboxLayout);

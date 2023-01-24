@@ -187,6 +187,7 @@ std::vector<float> Config::ReadVector(const std::string& key) const
 	{
 		string preword = word.substr(0, word.find(','));
 		Trim(preword);
+		preword.erase(preword.find_last_not_of("f") + 1);
 		t.push_back(std::stof(preword));
 		word = word.substr(word.find(',')+1);
 	}
@@ -355,7 +356,7 @@ std::istream& operator>>(std::istream& is, Config& cf)
 
 				string nlcopy = nextline;
 				Config::Trim(nlcopy);
-				if (nlcopy == "") continue;
+				if (nlcopy == "***") continue;
 
 				nextline = nextline.substr(0, nextline.find(comm));
 				if (nextline.find(delim) != string::npos)

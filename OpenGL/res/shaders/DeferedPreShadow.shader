@@ -102,6 +102,7 @@ uniform float far_plane;
 uniform float near_plane;
 uniform float split_distance[SPLITNUM];
 uniform float z_distance[SPLITNUM];
+uniform float xy_distance[SPLITNUM];
 
 uniform mat4 DirlightCSMMatrix[SPLITNUM];
 uniform mat4 SpotlightSpaceMatrix;
@@ -158,10 +159,16 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	float currentDepth = projCoords.z;//光源视角下当前片元的深度
 	float costheta = max(dot(normal, -lightDir), 0);
 	float theta = clamp(acos(costheta), 0.0, 89 * 3.14 / 180);
-	float texSize = 1.0 / textureSize(shadowMap.csm_map[index], 0).x;
-	//float view_distance = clamp(length(camera.viewPos - FragPos), 1.0, 2.0);
-	float bias = 1.0 * texSize * tan(theta) / z_distance[index];// *view_distance;//根据视锥体z高度调整bias
+	float texSize = 1.0 / textureSize(shadowMap.csm_map[index], 0).x ;
+	float view_distance = clamp(length(camera.viewPos - FragPos), 1.0, 2.0);
+	float bias = 1.0 * texSize * tan(theta) / z_distance[index] *view_distance;//根据视锥体z高度调整bias
 	float shadow = 0.0;
+
+/*	float mean = texture(shadowMap.csm_map[index], projCoords.xy, 3).r;
+	float square = texture(shadowMap.csm_map[index], projCoords.xy, 3).g;
+	float var = square - mean * mean;
+	float prob = 1 - var / (var + pow(closestDepth - mean, 2));
+	float blocker = (mean - prob * currentDepth) / (1 - prob);*///vssm
 
 	vec2 poissonDisk[25];
 	int L = 2;
@@ -179,7 +186,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 		for (int x = 0; x < 25; x++)
 		{
 			//int index = int(25.0 * random(fs_in.TexCoord.xyy, x)) % 25;
-			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + 5 * poissonDisk[x]).r;
+			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + 5 * poissonDisk[x] / pow(xy_distance[index],0.5)).r;
 			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 			count += 1;			
 		}

@@ -51,6 +51,7 @@ private:
     float lambda;//划分权重
     std::vector<Frustum> camera_frustums = std::vector<Frustum>(splitNum);
     std::vector<float> z_distance = std::vector<float>(splitNum);
+    std::vector<float> xy_distance = std::vector<float>(splitNum);
 public:
     CSM_Dirlight(Camera& camera, int splitnum, float weight);
     ~CSM_Dirlight();
@@ -69,6 +70,7 @@ public:
     void light_projection();
     void Get_light_projection(Camera& camera, const glm::vec3& DirlightPosition);
     float Get_z_distance(int i) { return z_distance[i]; }
+    float Get_xy_distance(int i) { return xy_distance[i]; }
 };
 CSM_Dirlight::CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.99f) :splitNum(splitnum), lambda(weight)
 {
@@ -176,6 +178,7 @@ void CSM_Dirlight::light_projection()
             if (t_transf.y < tmin.y) { tmin.y = t_transf.y; }
         }
         glm::vec2 tscale((tmax.x - tmin.x)/ 2.0, (tmax.y - tmin.y)/2.0);
+        xy_distance[i] = tscale.x * tscale.y;
         glm::vec2 toffset(0.5f * (tmax.x + tmin.x), 0.5f * (tmax.y + tmin.y));
         glm::mat4 scale_move = glm::mat4(1.0);
         scale_move[0][0] = tscale.x;

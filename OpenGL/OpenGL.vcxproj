@@ -173,6 +173,7 @@
     <None Include="res\shaders\blooming_highlight.shader" />
     <None Include="res\shaders\screen.shader" />
     <None Include="res\shaders\DirLightShadow.shader" />
+    <None Include="res\shaders\shadow_blur.shader" />
     <None Include="res\shaders\single.shader" />
     <None Include="res\shaders\SkyBox.shader" />
     <None Include="res\shaders\source.shader" />

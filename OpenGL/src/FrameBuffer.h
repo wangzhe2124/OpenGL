@@ -574,8 +574,8 @@ public:
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			GLfloat max_TexAni;    //查询允许的各向异性数量
@@ -832,6 +832,7 @@ class DirLightDepthMapFBO
 private:
 	unsigned int frameBufferId;
 	unsigned int DepthTextureId;
+	unsigned int RenderBufferId;
 	unsigned int screenWidth;//分辨率
 	unsigned int screenHeight;
 public:
@@ -840,8 +841,9 @@ public:
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		glDrawBuffer(GL_NONE);
-		glReadBuffer(GL_NONE);
+		//glDrawBuffer(GL_NONE);
+		//glReadBuffer(GL_NONE);
+		BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -851,15 +853,21 @@ public:
 	{
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthTextureId, 0);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, DepthTextureId, 0);
 	}
-
+	void BindRenderBuffer()
+	{
+		glGenRenderbuffers(1, &RenderBufferId);
+		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+	};
 	~DirLightDepthMapFBO()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);

@@ -19,6 +19,7 @@ public:
     bool NormalMap;
     bool useSSAO;
     bool ui;
+    bool blur_shadow;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
@@ -35,7 +36,8 @@ KeyInput::KeyInput()
     metallic(0.5f),
     roughness(0.5f),
     SunIntensity(5.0f),
-    SunColor(10.0f)
+    SunColor(10.0f),
+    blur_shadow(true)
 {}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
 {

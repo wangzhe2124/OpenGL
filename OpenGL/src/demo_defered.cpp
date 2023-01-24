@@ -32,8 +32,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 template <typename T1, typename T2, typename T3>
-void Gaussian_Blured_Texture(int j, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
+void Gaussian_Blured_Texture(int j, int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
     T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa);
+struct SSAO_DATA
+{
+    std::vector<glm::vec3> ssaokernel;
+    std::vector<glm::vec3> ssaonoise;
+};
+SSAO_DATA Get_SSAO_SAMPLE();
 float deltaTime = 0.0f;	// 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
 //创建相机
@@ -92,9 +98,6 @@ int main(void)
         out >> config;
         out.close();
     }   
-    std::string skybox_vertex_attr = "skybox_vertex_attr";
-    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
-   
     //鼠标回调函数
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback); 
@@ -102,56 +105,15 @@ int main(void)
     glfwSetKeyCallback(window, keys_callback);
     
     //点光源属性
-    float pointlights[] = {
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 0.0f, 0.0f,//前
-    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, 1.0f, 0.0f, 0.0f,
-
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,//后
-     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
-    -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,//左
-    -0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-
-     0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,//右
-     0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-     0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-
-    -0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,//下
-     0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-
-    -0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,//上
-    -0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f
-    };
-    VertexArray pointlightVa;
-    VertexBuffer pointlightVb(pointlights, sizeof(pointlights));
-    VertexBufferLayout pointlightLayout;
-    pointlightLayout.Push<float>(3);
-    pointlightLayout.Push<float>(3);
-    pointlightLayout.Push<float>(2);
-    pointlightVa.AddBuffer(pointlightVb, pointlightLayout);
+    std::string cube_vertex_attr = "cube_vertex_attr";
+    std::vector<float> cube_vertex = config.ReadVector(cube_vertex_attr);
+    VertexArray cubeVa;
+    VertexBuffer cubeVb(&cube_vertex[0], cube_vertex.size() * sizeof(float));
+    VertexBufferLayout cubeLayout;
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(2);
+    cubeVa.AddBuffer(cubeVb, cubeLayout);
     //点光源属性
     #define POINT_LIGHTS_NUM 4
     glm::vec3 pointLightPositions[POINT_LIGHTS_NUM];
@@ -171,18 +133,10 @@ int main(void)
         pointLightColors[i] = glm::vec3(50.0f);
     }
     //地板
-    float floorVertices[] = {
-        // positions                        // texture Coords //tangent    //bitangent
-         -30.0f, -30.0f, 0.0f, 0.0, 0.0,1.0,   0.0f,  0.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-          30.0f, -30.0f, 0.0f, 0.0, 0.0,1.0,  30.0f,  0.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-          30.0f,  30.0f, 0.0f, 0.0, 0.0,1.0,  30.0f, 30.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-
-          30.0f,  30.0f, 0.0f, 0.0, 0.0,1.0,  30.0f, 30.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-         -30.0f,  30.0f, 0.0f, 0.0, 0.0,1.0,   0.0f, 30.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-         -30.0f, -30.0f, 0.0f, 0.0, 0.0,1.0,   0.0f,  0.0f,  1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-    };
+    std::string floor_vertex_attr = "floor_vertex_attr";
+    std::vector<float> floor_vertex = config.ReadVector(floor_vertex_attr);
     VertexArray floorVa;
-    VertexBuffer floorVb(floorVertices, sizeof(floorVertices));
+    VertexBuffer floorVb(&floor_vertex[0], floor_vertex.size() * sizeof(float));
     VertexBufferLayout floorLayout;
     floorLayout.Push<float>(3);
     floorLayout.Push<float>(3);
@@ -201,6 +155,7 @@ int main(void)
     Shader screenShader("res/shaders/screen.shader");
     Shader blooming_highlightshader("res/shaders/blooming_highlight.shader");
     Shader blooming_blurshader("res/shaders/blooming_blur.shader");
+    Shader shadow_blurshader("res/shaders/shadow_blur.shader");
     Shader DeferedShader("res/shaders/Defered.shader");
     Shader DeferedPreShadowShader("res/shaders/DeferedPreShadow.shader");
     Shader SSAOShader("res/shaders/SSAO.shader");
@@ -219,50 +174,8 @@ int main(void)
     Shader SpotLightShadowshader("res/shaders/SpotLightShadow.shader");
 
     //天空盒
-    float skyboxVertices[] = {
-        // positions          
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
-
-        -1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
-
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f
-    };
+    std::string skybox_vertex_attr = "skybox_vertex_attr";
+    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
     VertexArray skyboxVa;
     VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
     VertexBufferLayout skyboxLayout;
@@ -331,7 +244,7 @@ int main(void)
         EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(pointlightVa, EnvCubeMapShader);
+        renderer.DrawArray(cubeVa, EnvCubeMapShader);
     }
     envcubemapFBO.UnBind();
     //cubeenv convolution
@@ -344,24 +257,16 @@ int main(void)
         envcubemap_convolutionFBO.Bind(i);
         EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(pointlightVa, EnvCubeMap_ConvolutionShader);
+        renderer.DrawArray(cubeVa, EnvCubeMap_ConvolutionShader);
     }
     envcubemapFBO.UnBind();
     glViewport(0, 0, screenWidth, screenHeight);
     //后期处理 + 多重采样 + HDR + bloom + defer
         //quadVa后期处理
-    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-        // positions   // texCoords
-        -1.0f,  1.0f,0.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,0.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,0.0f,  1.0f, 0.0f,
-                     
-        -1.0f,  1.0f,0.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,0.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,0.0f,  1.0f, 1.0f
-    };
+    std::string quad_vertex_attr = "quad_vertex_attr";
+    std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
     VertexArray quadVa;
-    VertexBuffer quadVb(quadVertices, sizeof(quadVertices));
+    VertexBuffer quadVb(&quad_vertex[0], quad_vertex.size() * sizeof(float));
     VertexBufferLayout quadLayout;
     quadLayout.Push<float>(3);
     quadLayout.Push<float>(2);
@@ -395,32 +300,8 @@ int main(void)
     //gamma校正
     //glEnable(GL_FRAMEBUFFER_SRGB); 
     //SSAO采样样本
-    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // 随机浮点数，范围0.0 - 1.0
-    std::default_random_engine generator;
-    std::vector<glm::vec3> ssaoKernel;
-    for (GLuint i = 0; i < 64; ++i)
-    {
-        glm::vec3 sample(
-            randomFloats(generator) * 2.0 - 1.0,
-            randomFloats(generator) * 2.0 - 1.0,
-            randomFloats(generator)
-        );
-        sample = glm::normalize(sample);
-        sample *= randomFloats(generator);
-        float scale = float(i) / 64.0;
-        scale = 0.1 + 0.9 * scale;
-        sample *= scale;
-        ssaoKernel.push_back(sample);
-    }
-    std::vector<glm::vec3> ssaoNoise;
-    for (GLuint i = 0; i < 16; i++)
-    {
-        glm::vec3 noise(
-            randomFloats(generator) * 2.0 - 1.0,
-            randomFloats(generator) * 2.0 - 1.0,
-            0.0f);
-        ssaoNoise.push_back(noise);
-    }
+    std::vector<glm::vec3> ssaoKernel = Get_SSAO_SAMPLE().ssaokernel;
+    std::vector<glm::vec3> ssaoNoise = Get_SSAO_SAMPLE().ssaonoise;
     SSAOFBO ssaoFBO(screenWidth, screenHeight, ssaoNoise);
     SSAOBlurFBO ssaoblurFBO(screenWidth, screenHeight);
     //模型位置
@@ -676,6 +557,7 @@ int main(void)
         {
             DeferedPreShadowShader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
             DeferedPreShadowShader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
+            DeferedPreShadowShader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
             csm_mapFBO[i].BindTexture(i + 8);
             DeferedPreShadowShader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
             if(i ==split_num-1)
@@ -697,9 +579,9 @@ int main(void)
         PreShadowFBO.UnBind();
         glViewport(0, 0, screenWidth, screenHeight);
 //对preshdow模糊处理
-        for (int j = 0;j<3;j++)
+        for (int j = 0; j<3; j++)
         {
-            Gaussian_Blured_Texture(j, blooming_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
+            Gaussian_Blured_Texture(j, 6,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
             shadow_blur_verticalFBO.Bind();
             shadow_blur_verticalFBO.ReadTexture();
             PreShadowFBO.WriteTexture(j);
@@ -775,7 +657,7 @@ int main(void)
         {
             pointlightshader.SetUniform3f("material.color", pointLightColors[i]);
             pointlightshader.SetUniformmatri4fv("model", pointlightspace[i].GetModelSpace());
-            renderer.DrawArray(pointlightVa, pointlightshader);
+            renderer.DrawArray(cubeVa, pointlightshader);
         }
         pointlightshader.SetUniform3f("material.color", glm::vec3(keyinput.SunColor));
         ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
@@ -805,7 +687,7 @@ int main(void)
         renderer.DrawArray(quadVa, blooming_highlightshader);
         blooming_hightlightFBO.UnBind();
         //将高亮贴图进行高斯模糊
-        Gaussian_Blured_Texture(1, blooming_blurshader, blooming_hightlightFBO, blooming_blur_horizontalFBO, blooming_blur_verticalFBO, renderer, quadVa);
+        Gaussian_Blured_Texture(1,10, blooming_blurshader, blooming_hightlightFBO, blooming_blur_horizontalFBO, blooming_blur_verticalFBO, renderer, quadVa);
 
         //结合原画和模糊后的图片形成泛光
         screenShader.Bind();
@@ -877,6 +759,7 @@ int main(void)
         
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);//解锁鼠标
             glfwSetCursorPosCallback(window, nullptr);
+            firstMouse = true;
         }
         else
         {
@@ -947,15 +830,14 @@ void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mo
     keyinput.ProcessKey(window, key, action);
 }
 template <typename T1, typename T2, typename T3>
-void Gaussian_Blured_Texture(int j, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
+void Gaussian_Blured_Texture(int j, int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
     T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa)
 {
     bool horizontal = true, first_iteration = true;
-    int amount = 6;
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     blooming_blurshader.Bind();
-    for (unsigned int i = 0; i < amount; i++)
+    for (unsigned int i = 0; i <times; i++)
     {
         blooming_blurshader.SetUniform1i("horizontal", horizontal);
         if (first_iteration)
@@ -979,4 +861,35 @@ void Gaussian_Blured_Texture(int j, Shader& blooming_blurshader, T1& PreShadowFB
         horizontal = !horizontal;
     }   
     shadow_blur_verticalFBO.UnBind();
+}
+SSAO_DATA Get_SSAO_SAMPLE()
+{
+    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // 随机浮点数，范围0.0 - 1.0
+    std::default_random_engine generator;
+    std::vector<glm::vec3> ssaoKernel;
+    for (GLuint i = 0; i < 64; ++i)
+    {
+        glm::vec3 sample(
+            randomFloats(generator) * 2.0 - 1.0,
+            randomFloats(generator) * 2.0 - 1.0,
+            randomFloats(generator)
+        );
+        sample = glm::normalize(sample);
+        sample *= randomFloats(generator);
+        float scale = float(i) / 64.0;
+        scale = 0.1 + 0.9 * scale;
+        sample *= scale;
+        ssaoKernel.push_back(sample);
+    }
+    std::vector<glm::vec3> ssaoNoise;
+    for (GLuint i = 0; i < 16; i++)
+    {
+        glm::vec3 noise(
+            randomFloats(generator) * 2.0 - 1.0,
+            randomFloats(generator) * 2.0 - 1.0,
+            0.0f);
+        ssaoNoise.push_back(noise);
+    }
+    SSAO_DATA ssaodata = { ssaoKernel, ssaoNoise };
+    return ssaodata;
 }

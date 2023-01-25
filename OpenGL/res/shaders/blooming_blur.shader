@@ -18,8 +18,8 @@ in vec2 fragTexcoord;
 uniform sampler2D image;
 
 uniform bool horizontal;
-uniform float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-//uniform float weight[5] = float[](0.3, 0.15, 0.07, 0.05, 0.03);
+//uniform float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+uniform float weight[5] = float[](0.3, 0.15, 0.07, 0.05, 0.03);
 
 void main()
 {
@@ -41,5 +41,5 @@ void main()
             result += texture(image, fragTexcoord - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
         }
     }
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(pow(result, vec3(0.8)), 1.0);//²úÉú¹âÔÎ
 }

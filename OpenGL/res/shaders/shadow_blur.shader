@@ -19,7 +19,7 @@ uniform sampler2D image;
 
 uniform bool horizontal;
 //uniform float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-uniform float weight[5] = float[](0.3, 0.15, 0.07, 0.05, 0.03);
+uniform float weight[5] = float[](0.3, 0.15, 0.08, 0.06, 0.06);
 
 void main()
 {

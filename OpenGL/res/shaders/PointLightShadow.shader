@@ -32,7 +32,6 @@ void main()
 
 #shader fragment
 #version 420 core
-out vec4 fragcolor;
 in vec4 FragPos;
 
 uniform vec3 lightPos;
@@ -43,5 +42,5 @@ void main()
     float lightDistance = length(FragPos.xyz - lightPos);
     lightDistance = lightDistance / far_plane;//线性深度
     gl_FragDepth = lightDistance;
-    fragcolor = vec4(lightDistance, 0.0, 0.0, 0.0);
+    //fragcolor = vec4(lightDistance, 0.0, 0.0, 0.0);
 }

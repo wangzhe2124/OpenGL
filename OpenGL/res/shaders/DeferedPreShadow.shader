@@ -198,7 +198,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 
 float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 {
-	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 1.3);
+	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 0.5);
 	vec3 lightDir = normalize(FragPos - pointlight[i].position);
 	float closestDepth = texture(shadowMap.PointShadow[i], lightDir).r;
 	closestDepth *= pointlight[i].far_plane;
@@ -213,7 +213,7 @@ float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 		vec3 up = vec3(0.0, 0.0, 1.0);
 		vec3 offset1 = normalize(cross(up, lightDir));
 		vec3 offset2 = normalize(cross(offset1, lightDir));
-		float radius = 4 * (currentDepth - bias - closestDepth) / closestDepth / textureSize(shadowMap.PointShadow[i], 0).x;
+		float radius = 40.0 / textureSize(shadowMap.PointShadow[i], 0).x;
 		int sampleNum = 25;
 		vec3 poissonDisk[25];
 		int L = 2;
@@ -228,8 +228,8 @@ float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 		}
 		for (int t = 0; t < sampleNum; t++)
 		{
-			int index = int(25.0 * random(fs_in.TexCoord.xyy, t)) % 25;
-			float pcfDepth = texture(shadowMap.PointShadow[i], lightDir + poissonDisk[index]).r;
+			//int index = int(25.0 * random(fs_in.TexCoord.xyy, t)) % 25;
+			float pcfDepth = texture(shadowMap.PointShadow[i], lightDir + poissonDisk[t]).r;
 			pcfDepth *= pointlight[i].far_plane;  // Undo mapping [0;1]
 			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 		}

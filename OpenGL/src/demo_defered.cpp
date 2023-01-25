@@ -579,9 +579,9 @@ int main(void)
         PreShadowFBO.UnBind();
         glViewport(0, 0, screenWidth, screenHeight);
 //对preshdow模糊处理
-        for (int j = 0; j<3; j++)
+        for (int j = 0; j<1; j++)
         {
-            Gaussian_Blured_Texture(j, 6,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
+            Gaussian_Blured_Texture(j, 2,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
             shadow_blur_verticalFBO.Bind();
             shadow_blur_verticalFBO.ReadTexture();
             PreShadowFBO.WriteTexture(j);
@@ -623,7 +623,7 @@ int main(void)
         //点光
         for (int i = 0; i < 4; i++)
         {
-            float lightintensity = 0.0;
+            float lightintensity = 1.0;
             DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointLightColors[i] * lightintensity);
             DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
             DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", lightintensity);
@@ -659,7 +659,7 @@ int main(void)
             pointlightshader.SetUniformmatri4fv("model", pointlightspace[i].GetModelSpace());
             renderer.DrawArray(cubeVa, pointlightshader);
         }
-        pointlightshader.SetUniform3f("material.color", glm::vec3(keyinput.SunColor));
+        pointlightshader.SetUniform3f("material.color", glm::vec3(keyinput.SunColor) * keyinput.SunIntensity);
         ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
         dirlightspace.Translate(DirlightPosition);
         dirlightspace.Scale(glm::vec3(0.3f));

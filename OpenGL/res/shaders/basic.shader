@@ -31,6 +31,6 @@ uniform Material material;
 void main()
 {
 	vec3 result = vec3(1.0) * material.color;
-	result += vec3(texture(Texture, fs_in.TexCoord));
+	//result += vec3(texture(Texture, fs_in.TexCoord));
 	FragColor = vec4(result, 1.0); // 将向量的四个分量全部设置为1.0
 }

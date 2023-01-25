@@ -257,7 +257,7 @@ int main(void)
     DirLightDepthMapFBO(4096, 4096)
 
     };
-    DirLightCSM csm2dmap(2048, 2048);
+
     PointLightDepthMapFBO PointlightMapFBO[4] = { 
          PointLightDepthMapFBO(1024, 1024),
          PointLightDepthMapFBO(1024, 1024),
@@ -497,7 +497,7 @@ int main(void)
             modelshader.SetUniform3f("pointlight[" + std::to_string(i) + "].diffuse", pointLightColors[i]);
             modelshader.SetUniform3f("pointlight[" + std::to_string(i) + "].specular", pointLightColors[i]);
             modelshader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
-            modelshader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", 0.0f);
+            modelshader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", 20.0f);
             modelshader.SetUniform1f("pointlight[" + std::to_string(i) + "].constant", 1.0f);
             modelshader.SetUniform1f("pointlight[" + std::to_string(i) + "].linear", 0.14f);
             modelshader.SetUniform1f("pointlight[" + std::to_string(i) + "].quadratic", 0.07f);

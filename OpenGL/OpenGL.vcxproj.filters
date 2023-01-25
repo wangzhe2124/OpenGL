@@ -69,6 +69,8 @@
     <None Include="res\shaders\DeferedPreShadow.shader" />
     <None Include="src\config.ini" />
     <None Include="res\shaders\shadow_blur.shader" />
+    <None Include="res\shaders\EnvCubeMap_spec_Convolution.shader" />
+    <None Include="res\shaders\EnvCubeMap_spec_BRDF.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">

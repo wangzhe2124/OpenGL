@@ -1157,3 +1157,160 @@ public:
 		glViewport(0, 0, screenWidth, screenHeight);
 	}
 };
+class EnvCubeMap_spec_ConvolutionFBO
+{
+private:
+	unsigned int frameBufferId;
+	unsigned int TextureId;
+	unsigned int RenderBufferId;
+	unsigned int screenWidth;//分辨率 128
+	unsigned int screenHeight;
+public:
+	EnvCubeMap_spec_ConvolutionFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	{
+		glGenFramebuffers(1, &frameBufferId);
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+		BindTextureBuffer();
+		//BindRenderbuffer();
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	}
+	void BindTextureBuffer()
+	{
+		glGenTextures(1, &TextureId);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, TextureId);
+		for (GLuint i = 0; i < 6; ++i)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
+
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, TextureId, 0);//先绑定一个防止报错
+
+		//glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, TextureId, 0);
+	}
+	void BindRenderbuffer()
+	{
+		glGenRenderbuffers(1, &RenderBufferId);
+		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frameBufferId);
+	}
+	void Bindmip_Renderbuffer(unsigned int width, unsigned int height)
+	{
+		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, width, height);
+	}
+	~EnvCubeMap_spec_ConvolutionFBO()
+	{
+		glDeleteFramebuffers(1, &frameBufferId);
+		glDeleteFramebuffers(1, &TextureId);
+		glDeleteFramebuffers(1, &RenderBufferId);
+	}
+	void Bind(int i = 0, int j =0)
+	{
+		if (i == 0)
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, TextureId, j);
+
+	}
+	void UnBind()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+	void BindTexture(unsigned int slot = 0)
+	{
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, TextureId);
+	}
+	void SetViewPort(unsigned int width, unsigned int height)
+	{
+		glViewport(0, 0, width, height);
+	}
+};
+class EnvCubeMap_spec_BRDF_FBO
+{
+private:
+	unsigned int frameBufferId;
+	unsigned int textureColorId[1];
+
+	unsigned int screenWidth;
+	unsigned int screenHeight;
+public:
+	EnvCubeMap_spec_BRDF_FBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	{
+		glGenFramebuffers(1, &frameBufferId);
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+		BindTextureBuffer();
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	};
+	void BindTextureBuffer()
+	{
+		glGenTextures(1, textureColorId);
+		for (int i = 0; i < 1; i++)
+		{
+			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, screenWidth, screenHeight, 0, GL_RG, GL_FLOAT, NULL);
+			glGenerateMipmap(GL_TEXTURE_2D);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureColorId[i], 0);
+		}
+		GLuint colorattachments[1] = { GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, colorattachments);
+	};
+	~EnvCubeMap_spec_BRDF_FBO()
+	{
+		glDeleteFramebuffers(1, &frameBufferId);
+		glDeleteFramebuffers(1, textureColorId);
+	};
+	void Bind()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+	};
+	void UnBind()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	};
+	void BindTexture(unsigned int slot = 0, int i = 0)
+	{
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
+	};
+
+	void Write()
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
+	};
+	void unWrite()
+	{
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	};
+	void Read()
+	{
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBufferId);
+	}
+	void unRead()
+	{
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	}
+	void BlitDepthBuffer()
+	{
+		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	};
+
+	void SetViewPort()
+	{
+		glViewport(0, 0, screenWidth, screenHeight);
+	}
+};

@@ -88,6 +88,8 @@ uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
 uniform samplerCube EnvLight;
+uniform samplerCube EnvLight_spec;
+uniform sampler2D EnvLight_spec_BRDF;
 
 uniform sampler2D predirshadow;
 uniform sampler2D prepointshadow;
@@ -96,7 +98,7 @@ uniform sampler2D prespotshadow;
 uniform mat4 globallightSpaceMatrix;
 uniform sampler2D ssao;
 uniform bool useSSAO;
-
+uniform bool use_EnvLight_spec;
 void main()
 {
 	vec2 Texcoord = fs_in.TexCoord;
@@ -246,19 +248,27 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 }
 vec3 CalcEnvLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 {
-	vec3 Albedo = texture(gAlbedoSpec, Texcoord).rgb;
+	vec3 Albedo = pow(texture(gAlbedoSpec, Texcoord).rgb, vec3(1/2.2));
 	vec3 viewDir = normalize(camera.viewPos - FragPos);
-	vec3 lightDir = normalize(FragPos - spotlight.position);
-	vec3 halfwayDir = normalize(-lightDir + viewDir);
+	//vec3 lightDir = normalize(FragPos - spotlight.position);
+	//vec3 halfwayDir = normalize(-lightDir + viewDir);
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, Albedo, material.metallic);
-	vec3 F = fresnelSchlickRoughness(max(dot(halfwayDir, viewDir), 0.0), F0, material.roughness);
+	vec3 F = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, material.roughness);
 	vec3 kS = F;
 	vec3 kD = vec3(1.0) - kS;
 	vec3 irradiance = texture(EnvLight, normal).rgb;
 	vec3 diffuse = irradiance * Albedo;
-	vec3 ambient = (kD * diffuse) * occlusion;
-	//float shadow = SpotShadowCalculation(normal, FragPos);
+	//spec
+	vec3 R = reflect(-viewDir, normal);
+	const float MAX_REFLECTION_LOD = 4.0;
+	vec3 prefilteredColor = textureLod(EnvLight_spec, R, material.roughness * MAX_REFLECTION_LOD).rgb;
+
+	vec2 envBRDF = texture(EnvLight_spec_BRDF, vec2(max(dot(normal, viewDir), 0.0), material.roughness)).rg;
+	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+
+	vec3 ambient = use_EnvLight_spec == true ? (kD * diffuse + specular) * occlusion : (kD * diffuse) * occlusion;
+
 	vec3 color = ambient / (vec3(1.0) + ambient);
 	return color;
 }

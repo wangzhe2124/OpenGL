@@ -163,6 +163,8 @@ int main(void)
     Shader pointlightshader("res/shaders/basic.shader");
     Shader EnvCubeMapShader("res/shaders/EnvCubeMap.shader");
     Shader EnvCubeMap_ConvolutionShader("res/shaders/EnvCubeMap_Convolution.shader");
+    Shader EnvCubeMap_spec_ConvolutionShader("res/shaders/EnvCubeMap_spec_Convolution.shader");
+    Shader EnvCubeMap_spec_BRDF_Shader("res/shaders/EnvCubeMap_spec_BRDF.shader");
     Shader DeferedLighting_shader("res/shaders/DeferedLighting.shader");
     //D3Shader model_geometry_shader("res/shaders/model_geomrtry.shader");
     Shader model_instance_shader("res/shaders/model_instance.shader");
@@ -223,6 +225,8 @@ int main(void)
     //环境光照
     EnvCubeMapFBO envcubemapFBO(1024, 1024);
     EnvCubeMap_ConvolutionFBO envcubemap_convolutionFBO(32, 32);
+    EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO(256, 256);
+    EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO(512, 512);
     //cubeenv
     glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
     glm::mat4 captureViews[] =
@@ -248,19 +252,46 @@ int main(void)
     }
     envcubemapFBO.UnBind();
     //cubeenv convolution
-    EnvCubeMap_ConvolutionShader.Bind();
-    EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
-    envcubemap_convolutionFBO.SetViewPort();
-    skybox.Bind();
-    for (unsigned int i = 0; i < 6; ++i)
     {
-        envcubemap_convolutionFBO.Bind(i);
-        EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(cubeVa, EnvCubeMap_ConvolutionShader);
+        EnvCubeMap_ConvolutionShader.Bind();
+        EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+        envcubemap_convolutionFBO.SetViewPort();
+        skybox.Bind();
+        for (unsigned int i = 0; i < 6; ++i)
+        {
+            envcubemap_convolutionFBO.Bind(i);
+            EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderer.DrawArray(cubeVa, EnvCubeMap_ConvolutionShader);
+        }
+        envcubemap_convolutionFBO.UnBind();
+        glViewport(0, 0, screenWidth, screenHeight);
     }
-    envcubemapFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
+    //cubeenv specular convolution
+    {
+        EnvCubeMap_spec_ConvolutionShader.Bind();
+        EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+        unsigned int maxMipLevels = 5;
+        skybox.Bind();
+        for (unsigned int i = 0; i < maxMipLevels; ++i)
+        {
+            unsigned int mipWidth = 256 * std::pow(0.5, i);
+            unsigned int mipHeight = 256 * std::pow(0.5, i);
+            envcubemap_spec_convolutionFBO.Bindmip_Renderbuffer(mipWidth, mipHeight);
+            envcubemap_spec_convolutionFBO.SetViewPort(mipWidth, mipHeight);
+            float roughness = (float)i / (float)(maxMipLevels - 1);
+            EnvCubeMap_spec_ConvolutionShader.SetUniform1f("roughness", roughness);
+            for (int j = 0; j < 6; j++)
+            {
+                envcubemap_spec_convolutionFBO.Bind(j , i);
+                EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                renderer.DrawArray(cubeVa, EnvCubeMap_spec_ConvolutionShader);
+            }
+        }
+        envcubemap_spec_convolutionFBO.UnBind();
+        glViewport(0, 0, screenWidth, screenHeight);
+    }
     //后期处理 + 多重采样 + HDR + bloom + defer
         //quadVa后期处理
     std::string quad_vertex_attr = "quad_vertex_attr";
@@ -271,6 +302,19 @@ int main(void)
     quadLayout.Push<float>(3);
     quadLayout.Push<float>(2);
     quadVa.AddBuffer(quadVb, quadLayout);
+    //       //cubeenv specular BRDF
+    {
+        EnvCubeMap_spec_BRDF_Shader.Bind();
+        envcubemap_spec_BRDF_FBO.Bind();
+        envcubemap_spec_BRDF_FBO.SetViewPort();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+        renderer.DrawArray(quadVa, EnvCubeMap_spec_BRDF_Shader);
+        glEnable(GL_DEPTH_TEST);
+        envcubemap_spec_BRDF_FBO.UnBind();
+        glViewport(0, 0, screenWidth, screenHeight);
+
+    }
     MSAAFrameBuffer msaa(screenWidth, screenHeight, 4);
     HDRFBO hdrfbo(screenWidth, screenHeight);
     CameraDepthFBO cameradepthFBO(screenWidth, screenHeight);
@@ -532,7 +576,6 @@ int main(void)
         DeferedPreShadowShader.SetUniform1f("camera.far_plane", camera.far_plane);
         DeferedPreShadowShader.SetUniform1f("camera.near_plane", camera.near_plane);
         DeferedPreShadowShader.SetUniform3f("dirlight.direction", DirlightDir);
-        DeferedPreShadowShader.SetUniform3f("dirlight.position", -DirlightDir);
         for (int i = 0; i < 4; i++)
         {
             DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
@@ -599,22 +642,29 @@ int main(void)
         DeferedLighting_shader.SetUniform1i("gNormal", 2);
         gbuffer.BindTexture(3, 2);
         DeferedLighting_shader.SetUniform1i("gAlbedoSpec", 3);
-        DeferedLighting_shader.SetUniform1i("useSSAO", keyinput.useSSAO);
-        //shadow_blur_verticalFBO.BindTexture(8);
+        envcubemap_convolutionFBO.BindTexture(4);
+        DeferedLighting_shader.SetUniform1i("EnvLight", 4);
+        envcubemap_spec_convolutionFBO.BindTexture(5);
+        DeferedLighting_shader.SetUniform1i("EnvLight_spec", 5);
+        envcubemap_spec_BRDF_FBO.BindTexture(6);
+        DeferedLighting_shader.SetUniform1i("EnvLight_spec_BRDF", 6);
+        DeferedLighting_shader.SetUniform1i("use_EnvLight_spec", keyinput.EnvLight_spec);
+
+
         PreShadowFBO.BindTexture(8, 0);
-        DeferedLighting_shader.SetUniform1i("predirshadow", 8);
+        DeferedLighting_shader.SetUniform1i("predirshadow", 8);//平行光
 
         PreShadowFBO.BindTexture(9, 1);
-        DeferedLighting_shader.SetUniform1i("prepointshadow", 9);
+        DeferedLighting_shader.SetUniform1i("prepointshadow", 9);//点光
         PreShadowFBO.BindTexture(10, 2);
-        DeferedLighting_shader.SetUniform1i("prespotshadow", 10);
+        DeferedLighting_shader.SetUniform1i("prespotshadow", 10);//聚光
+        DeferedLighting_shader.SetUniform1i("useSSAO", keyinput.useSSAO);
         if (keyinput.useSSAO)
         {
             ssaoblurFBO.BindTexture(13);
             DeferedLighting_shader.SetUniform1i("ssao", 13);
         }
-        envcubemap_convolutionFBO.BindTexture(14);
-        DeferedLighting_shader.SetUniform1i("EnvLight", 14);
+        
         //平行光
         DeferedLighting_shader.SetUniform3f("dirlight.color", glm::vec3(keyinput.SunColor));
         DeferedLighting_shader.SetUniform1f("dirlight.LightIntensity", keyinput.SunIntensity);
@@ -638,7 +688,6 @@ int main(void)
         DeferedLighting_shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
        
         hdrfbo.Bind();//使用非默认帧缓冲来提供HDR
-        //三个颜色附件，0：原画，1：rgb:环境光,a:blocker_distance，2：in_shadow
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
         renderer.DrawArray(quadVa, DeferedLighting_shader);
@@ -671,7 +720,7 @@ int main(void)
         projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
         skyboxShader.SetUniformmatri4fv("projection", projection);
         skybox.Bind();
-        //envcubemap_convolutionFBO.BindTexture();
+        //envcubemap_spec_convolutionFBO.BindTexture();
         renderer.DrawArray(skyboxVa, skyboxShader);
         hdrfbo.UnBind();
 
@@ -713,7 +762,8 @@ int main(void)
         //global_dirshadowfbo.BindTexture();
         //shadow_blur_verticalFBO.BindTexture();
         //PreShadowFBO.BindTexture(0, 2);
-        csm_mapFBO[3].BindTexture();
+        //csm_mapFBO[3].BindTexture();
+        envcubemap_spec_BRDF_FBO.BindTexture();
         renderer.DrawArray(quadVa, screenShader);
         */
 
@@ -732,6 +782,7 @@ int main(void)
             ImGui::Checkbox("HeightMap", &keyinput.useheight);
             ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
             ImGui::Checkbox("SSAO", &keyinput.useSSAO);
+            ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
             ImGui::SliderFloat("ObjectColor", &keyinput.objectColor, 0.0f, 1.0f); 
             ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
             ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);

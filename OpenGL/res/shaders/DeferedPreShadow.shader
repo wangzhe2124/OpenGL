@@ -29,7 +29,6 @@ struct Material//材质信息
 };
 struct DirLight//平行光
 {
-	vec3 position;
 	vec3 color;
 	vec3 direction;
 	float LightIntensity;

@@ -535,7 +535,6 @@ int main(void)
         DeferedPreShadowShader.SetUniform3f("dirlight.position", -DirlightDir);
         for (int i = 0; i < 4; i++)
         {
-            float lightintensity = 0.0;
             DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
             DeferedPreShadowShader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight_far_plane);
         }
@@ -581,7 +580,7 @@ int main(void)
 //对preshdow模糊处理
         for (int j = 0; j<1; j++)
         {
-            Gaussian_Blured_Texture(j, 2,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
+            Gaussian_Blured_Texture(j, 4,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
             shadow_blur_verticalFBO.Bind();
             shadow_blur_verticalFBO.ReadTexture();
             PreShadowFBO.WriteTexture(j);
@@ -623,7 +622,7 @@ int main(void)
         //点光
         for (int i = 0; i < 4; i++)
         {
-            float lightintensity = 1.0;
+            float lightintensity = 0.0;
             DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointLightColors[i] * lightintensity);
             DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
             DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", lightintensity);

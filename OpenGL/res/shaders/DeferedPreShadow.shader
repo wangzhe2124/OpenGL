@@ -160,7 +160,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	float costheta = max(dot(normal, -lightDir), 0);
 	float theta = clamp(acos(costheta), 0.0, 89 * 3.14 / 180);
 	float texSize = 1.0 / textureSize(shadowMap.csm_map[index], 0).x ;
-	float view_distance = clamp(length(camera.viewPos - FragPos), 1.0, 2.0);
+	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 1.0);
 	float bias = 1.0 * texSize * tan(theta) / z_distance[index] *view_distance;//根据视锥体z高度调整bias
 	float shadow = 0.0;
 
@@ -180,17 +180,15 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 			poissonDisk[temp] = texSize * vec2(j, t);
 		}
 	}
-	int count = 0;
 	if (currentDepth - bias > closestDepth)
 	{
 		for (int x = 0; x < 25; x++)
 		{
 			//int index = int(25.0 * random(fs_in.TexCoord.xyy, x)) % 25;
-			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + 5 * poissonDisk[x] / pow(xy_distance[index],0.5)).r;
-			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
-			count += 1;			
+			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + 2 * poissonDisk[x] / pow(xy_distance[index],0.5)).r;
+			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;		
 		}
-		shadow /= count;
+		shadow /= 25;
 	}
 	//shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
 	return shadow;

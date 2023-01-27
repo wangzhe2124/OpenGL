@@ -88,7 +88,7 @@ public:
             Position -= Right * velocity;
         if (direction == 3)
             Position += Right * velocity;
-        //Position.y = 0;
+        //Position.y = 1.0;
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.

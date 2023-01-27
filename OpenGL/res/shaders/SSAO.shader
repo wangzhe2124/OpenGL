@@ -22,6 +22,8 @@ in VS_OUT{
 struct Camera
 {
 	sampler2D Depth;
+	vec3 position;
+	float far_plane;
 };
 uniform Camera camera;
 uniform sampler2D gPosition;
@@ -34,7 +36,7 @@ const vec2 noiseScale = vec2(960.0 / 4.0, 640.0 / 4.0);
 float LinearizeDepth(float depth)
 {
 	float NEAR = 0.1f;
-	float FAR = 100.0f;
+	float FAR = camera.far_plane;
 	float z = depth * 2.0 - 1.0; // 回到NDC
 	return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));
 }
@@ -51,6 +53,7 @@ void main()
 	float occlusion = 0.0;
 	float radius = 0.2f;
 	int kernelSize = 64;
+	float bias = 0.05 / camera.far_plane;
 	for (int i = 0; i < kernelSize; ++i)
 	{
 		// 获取样本位置
@@ -62,9 +65,9 @@ void main()
 		offset.xyz /= offset.w; // 透视划分
 		offset.xyz = offset.xyz * 0.5 + 0.5; // 变换到0.0 - 1.0的值域
 		float sampleDepth = texture(camera.Depth, offset.xy).x;
-		float rangeCheck = smoothstep(0.0, 1.0, radius / abs(LinearizeDepth(Depth) - LinearizeDepth(sampleDepth)));
-		occlusion += (sampleDepth >= Depth - 0.000025 ? 1.0 : 0.0) *rangeCheck;
+		float rangeCheck = smoothstep(0.0, 1.0, radius* 100 / LinearizeDepth(abs(Depth - sampleDepth)));
+		occlusion += (sampleDepth >= Depth - bias ? 1.0 : 0.0) *rangeCheck;
 	}
 	occlusion /= kernelSize;
-	color = occlusion;
+	color = pow(occlusion,2);
 };

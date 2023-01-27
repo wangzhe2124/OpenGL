@@ -35,6 +35,16 @@ public:
 };
 
 
-
+class ModelSpaces
+{
+private:
+	
+public:
+	ModelSpace nano_position;
+	ModelSpace Marry_position;
+	ModelSpace Planet_position;
+	ModelSpace sphere_position;
+	ModelSpace floor_Position;
+};
 
 

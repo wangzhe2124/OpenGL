@@ -231,7 +231,13 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
 
     return textureID;
 }
-
+class Models
+{
+public:
+    Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
+    Model Marry = Model("res/objects/Marry/Marry.obj");
+    Model Planet = Model("res/objects/planet/planet.obj");
+};
 struct sphere_data
 {
     std::vector<float> vertex;

@@ -60,3 +60,10 @@ void VertexArray::Unbind() const
 	glBindVertexArray(0);
 
 }
+
+class VertexArrays
+{
+public:
+	VertexArray floorVa;
+
+};

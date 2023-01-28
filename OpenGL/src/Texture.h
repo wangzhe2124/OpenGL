@@ -78,6 +78,7 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	};
 };
+
 class HDRTexture
 {
 private:
@@ -200,5 +201,13 @@ public:
 		glDeleteTextures(1, &CubeMapId);
 	};
 };
-
+class Textures
+{
+public:
+	Texture floor_diffuse = Texture("res/textures/bricks.jpg", 3);
+	Texture floor_specular = Texture("res/textures/bricks.jpg", 3);
+	Texture floor_normal = Texture("res/textures/bricks_normal.jpg", 3);
+	Texture floor_height = Texture("res/textures/bricks_height.jpg", 3);
+	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 3);
+};
 #pragma endregion

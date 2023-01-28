@@ -35,7 +35,7 @@ VertexArray::~VertexArray()
 
 void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout)
 {
-
+	Bind();
 	vb.Bind();
 	const auto& elements = layout.GetElements();
 	unsigned int offset = 0;
@@ -48,6 +48,7 @@ void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& la
 	}
 	j += elements.size();
 	Number += vb.Get_Number()/layout.GetStride();
+	vb.Unbind();
 }
 
 void VertexArray::Bind() const
@@ -65,5 +66,8 @@ class VertexArrays
 {
 public:
 	VertexArray floorVa;
-
+	VertexArray sphereVa;
+	VertexArray quadVa;
+	VertexArray cubeVa;
+	VertexArray skyboxVa;
 };

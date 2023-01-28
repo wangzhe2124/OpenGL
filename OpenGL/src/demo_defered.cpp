@@ -38,16 +38,58 @@ struct Sun_DATA
 {
     glm::vec3 Sun_Position;
     glm::vec3 Sun_Direction;
-};
+}sun;
 Sun_DATA GetSunPosition(Camera& camera);
 struct SSAO_DATA
 {
     std::vector<glm::vec3> ssaokernel;
     std::vector<glm::vec3> ssaonoise;
 };
+struct SpotLight_DATA
+{
+    float spotlight_near_plane = 0.1f;
+    float spotlight_far_plane = 20.0f;
+    glm::vec3 bias_direction;
+    glm::vec3 spotlight_position;
+    glm::vec3 spotlight_direction;
+    glm::mat4 SpotlightSpaceMatrix;
+}spotlight;
+#define CSM_SPLIT_NUM 4
+#define POINT_LIGHTS_NUM 4
+struct PointLight_DATA
+{
+    float lightintensity = 0.0;
+    float pointlight_near_plane = 0.1f;
+    float pointlight_far_plane = 10.0f;
+    glm::vec3 pointLightPositions[POINT_LIGHTS_NUM];
+    ModelSpace pointlightspace[POINT_LIGHTS_NUM];
+    glm::vec3 pointLightColors[POINT_LIGHTS_NUM];
+} pointlight;
 SSAO_DATA Get_SSAO_SAMPLE();
-void Generate_Dir_CSM(int update_split_num, Shader& dircsmshader, CSM_Dirlight& csm_dirlight, DirLightDepthMapFBO* csm_mapFBO,
-    Models&models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_Dir_CSM(int update_CSM_SPLIT_NUM, Shader& dircsmshader, CSM_Dirlight& csm_dirlight, DirLightDepthMapFBO csm_mapFBO[4],
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_Point_SM(D3Shader& Point_sm_shader, PointLightDepthMapFBO* PointlightMapfbo,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3* pointLightPositions);
+void Generate_Spot_SM(Shader& Spot_sm_shader, SpotLightDepthMapFBO& SpotlightMapfbo,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3& spot_position,glm::vec3& spot_direction );
+void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, GBuffer& gbuffer,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures, IndexBuffers& index_buffers);
+void Generate_SSAO(Shader& ssaoshader, Camera&camera, SSAOFBO& ssaoFBO, CameraDepthFBO& cameradepthFBO, std::vector<glm::vec3>& ssaoKernel,
+    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer);
+void Generate_SSAO_blur(Shader& SSAOBlurShader, SSAOBlurFBO& ssaoblurFBO, SSAOFBO& ssaoFBO, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_PreShadow(Shader& DeferedPreShadowShader, Camera&camera, CameraDepthFBO& cameradepthFBO, GBuffer& gbuffer, GBuffer& PreShadowFBO,
+    DirLightDepthMapFBO* csm_mapFBO, CSM_Dirlight& csm_dirlight,PointLightDepthMapFBO* PointlightMapfbo, SpotLightDepthMapFBO& SpotlightMapfbo,
+    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, GBuffer& gbuffer, GBuffer& PreShadowFBO,
+    EnvCubeMap_ConvolutionFBO& envcubemap_convolutionFBO, EnvCubeMap_spec_ConvolutionFBO& envcubemap_spec_convolutionFBO,
+    EnvCubeMap_spec_BRDF_FBO& envcubemap_spec_BRDF_FBO, HDRFBO& hdrfbo, SSAOBlurFBO& ssaoblurFBO,
+    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader,GBuffer& gbuffer, HDRFBO& hdrfbo, Camera& camera, KeyInput& keyinput,
+    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, CubeMapTexture& skybox);
+void Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader,
+    Blooming_HighlightFBO& blooming_hightlightFBO, HDRFBO& hdrfbo, Blooming_Blur_HorizontalFBO& blooming_blur_horizontalFBO,
+    Blooming_Blur_VerticalFBO& blooming_blur_verticalFBO, Renderer& renderer, VertexArrays& vertex_arrays);
+void Generate_CubeTexture(Shader& EnvCubeMapShader, EnvCubeMapFBO& envcubemapFBO, Textures& textures, VertexArrays& vertex_arrays, Renderer& renderer);
 float deltaTime = 0.0f;	// 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
 //创建相机
@@ -111,39 +153,9 @@ int main(void)
     glfwSetCursorPosCallback(window, mouse_callback); 
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, keys_callback);
-    
-    //点光源属性
-    std::string cube_vertex_attr = "cube_vertex_attr";
-    std::vector<float> cube_vertex = config.ReadVector(cube_vertex_attr);
-    VertexArray cubeVa;
-    VertexBuffer cubeVb(&cube_vertex[0], cube_vertex.size() * sizeof(float));
-    VertexBufferLayout cubeLayout;
-    cubeLayout.Push<float>(3);
-    cubeLayout.Push<float>(3);
-    cubeLayout.Push<float>(2);
-    cubeVa.AddBuffer(cubeVb, cubeLayout);
-    //点光源属性
-    #define POINT_LIGHTS_NUM 4
-    glm::vec3 pointLightPositions[POINT_LIGHTS_NUM];
-    for(int i = 0; i< POINT_LIGHTS_NUM; i++)
-    {
-        pointLightPositions[i] = glm::vec3(i * 3, 2, 0);
-    }
-    ModelSpace pointlightspace[POINT_LIGHTS_NUM];
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointlightspace[i].Translate(pointLightPositions[i]);
-        pointlightspace[i].Scale(glm::vec3(0.3f));
-    }
-    glm::vec3 pointLightColors[POINT_LIGHTS_NUM];
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointLightColors[i] = glm::vec3(50.0f);
-    }
-    //地板
+    VertexArrays vertex_arrays;
     std::string floor_vertex_attr = "floor_vertex_attr";
     std::vector<float> floor_vertex = config.ReadVector(floor_vertex_attr);
-    VertexArray floorVa;
     VertexBuffer floorVb(&floor_vertex[0], floor_vertex.size() * sizeof(float));
     VertexBufferLayout floorLayout;
     floorLayout.Push<float>(3);
@@ -151,16 +163,60 @@ int main(void)
     floorLayout.Push<float>(2);
     floorLayout.Push<float>(3);
     floorLayout.Push<float>(3);
-
-    floorVa.AddBuffer(floorVb, floorLayout);
-    VertexArrays vertex_arrays;
     vertex_arrays.floorVa.AddBuffer(floorVb, floorLayout);
-    Texture floor_diffuse("res/textures/bricks.jpg", 3);
-    Texture floor_specular("res/textures/bricks.jpg", 3);
-    Texture floor_normal("res/textures/bricks_normal.jpg", 3);
-    Texture floor_height("res/textures/bricks_height.jpg", 3);
-    HDRTexture equirectangularMap("res/textures/Ice_Lake_HiRes_TMap.jpg", 3);
+    //sphere
+    sphere_data sphere = SphereData();
+    IndexBuffer sphereIb(&sphere.index[0], sphere.index.size());
+    VertexBuffer sphereVb(&sphere.vertex[0], sizeof(float) * sphere.vertex.size());
+    VertexBufferLayout sphereLayout;
+    sphereLayout.Push<float>(3);//position
+    sphereLayout.Push<float>(3);//normal
+    sphereLayout.Push<float>(2);//texcoord
+    vertex_arrays.sphereVa.AddBuffer(sphereVb, sphereLayout);
+    //quad
+    std::string quad_vertex_attr = "quad_vertex_attr";
+    std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
+    VertexBuffer quadVb(&quad_vertex[0], quad_vertex.size() * sizeof(float));
+    VertexBufferLayout quadLayout;
+    quadLayout.Push<float>(3);
+    quadLayout.Push<float>(2);
+    vertex_arrays.quadVa.AddBuffer(quadVb, quadLayout);
+    //天空盒
+    std::string skybox_vertex_attr = "skybox_vertex_attr";
+    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
+    VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
+    VertexBufferLayout skyboxLayout;
+    skyboxLayout.Push<float>(3);
+    vertex_arrays.skyboxVa.AddBuffer(skyboxVb, skyboxLayout);
+    IndexBuffers index_buffers;
+    //点光源属性
+    std::string cube_vertex_attr = "cube_vertex_attr";
+    std::vector<float> cube_vertex = config.ReadVector(cube_vertex_attr);
+    VertexBuffer cubeVb(&cube_vertex[0], cube_vertex.size() * sizeof(float));
+    VertexBufferLayout cubeLayout;
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(2);
+    vertex_arrays.cubeVa.AddBuffer(cubeVb, cubeLayout);
 
+    //点光源属性
+    
+    for(int i = 0; i< POINT_LIGHTS_NUM; i++)
+    {
+        pointlight.pointLightPositions[i] = glm::vec3(i * 3, 2, 0);
+    }
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        pointlight.pointlightspace[i].Translate(pointlight.pointLightPositions[i]);
+        pointlight.pointlightspace[i].Scale(glm::vec3(0.3f));
+    }
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        pointlight.pointLightColors[i] = glm::vec3(50.0f);
+    }
+    //地板
+
+    Textures textures;
     //shaders
     Shader screenShader("res/shaders/screen.shader");
     Shader blooming_highlightshader("res/shaders/blooming_highlight.shader");
@@ -170,7 +226,7 @@ int main(void)
     Shader DeferedPreShadowShader("res/shaders/DeferedPreShadow.shader");
     Shader SSAOShader("res/shaders/SSAO.shader");
     Shader SSAOBlurShader("res/shaders/SSAOblur.shader");
-    Shader pointlightshader("res/shaders/basic.shader");
+    Shader basic_shader("res/shaders/basic.shader");
     Shader EnvCubeMapShader("res/shaders/EnvCubeMap.shader");
     Shader EnvCubeMap_ConvolutionShader("res/shaders/EnvCubeMap_Convolution.shader");
     Shader EnvCubeMap_spec_ConvolutionShader("res/shaders/EnvCubeMap_spec_Convolution.shader");
@@ -185,14 +241,7 @@ int main(void)
     D3Shader PointLightShadowshader("res/shaders/PointLightShadow.shader");
     Shader SpotLightShadowshader("res/shaders/SpotLightShadow.shader");
 
-    //天空盒
-    std::string skybox_vertex_attr = "skybox_vertex_attr";
-    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
-    VertexArray skyboxVa;
-    VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
-    VertexBufferLayout skyboxLayout;
-    skyboxLayout.Push<float>(3);
-    skyboxVa.AddBuffer(skyboxVb, skyboxLayout);
+
     std::vector<std::string> faces
     {
         "res/textures/skybox/right.jpg",
@@ -208,16 +257,10 @@ int main(void)
     //投影矩阵
     glm::mat4 projection = glm::mat4(1.0f);
     //models
-    Model Nano("res/objects/nanosuit_upgrade/nanosuit.obj");
-    Model Marry("res/objects/Marry/Marry.obj");
-    Model Planet("res/objects/planet/planet.obj");
-    Model Rock("res/objects/rock/rock.obj");
-    Model sakura("res/objects/sakura/sakura.obj");
     Models models;
     //光阴影贴图
     DirLightDepthMapFBO global_dirshadowfbo(4096, 4096);
-    int split_num = 4;
-    CSM_Dirlight csm_dirlight(camera, split_num);
+    CSM_Dirlight csm_dirlight(camera, CSM_SPLIT_NUM);
     DirLightDepthMapFBO csm_mapFBO[4] =
     {
     DirLightDepthMapFBO(4096, 4096),
@@ -252,14 +295,14 @@ int main(void)
     EnvCubeMapShader.Bind();
     EnvCubeMapShader.SetUniformmatri4fv("projection", captureProjection);
     envcubemapFBO.SetViewPort();
-    equirectangularMap.Bind();
+    textures.equirectangularMap.Bind();
     for (unsigned int i = 0; i < 6; ++i)
     {
         envcubemapFBO.Bind(i);
         EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(cubeVa, EnvCubeMapShader);
+        renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMapShader);
     }
     envcubemapFBO.UnBind();
     //cubeenv convolution
@@ -273,7 +316,7 @@ int main(void)
             envcubemap_convolutionFBO.Bind(i);
             EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            renderer.DrawArray(cubeVa, EnvCubeMap_ConvolutionShader);
+            renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_ConvolutionShader);
         }
         envcubemap_convolutionFBO.UnBind();
         glViewport(0, 0, screenWidth, screenHeight);
@@ -297,7 +340,7 @@ int main(void)
                 envcubemap_spec_convolutionFBO.Bind(j , i);
                 EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                renderer.DrawArray(cubeVa, EnvCubeMap_spec_ConvolutionShader);
+                renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_spec_ConvolutionShader);
             }
         }
         envcubemap_spec_convolutionFBO.UnBind();
@@ -305,14 +348,7 @@ int main(void)
     }
     //后期处理 + 多重采样 + HDR + bloom + defer
         //quadVa后期处理
-    std::string quad_vertex_attr = "quad_vertex_attr";
-    std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
-    VertexArray quadVa;
-    VertexBuffer quadVb(&quad_vertex[0], quad_vertex.size() * sizeof(float));
-    VertexBufferLayout quadLayout;
-    quadLayout.Push<float>(3);
-    quadLayout.Push<float>(2);
-    quadVa.AddBuffer(quadVb, quadLayout);
+
     //       //cubeenv specular BRDF
     {
         EnvCubeMap_spec_BRDF_Shader.Bind();
@@ -320,7 +356,7 @@ int main(void)
         envcubemap_spec_BRDF_FBO.SetViewPort();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
-        renderer.DrawArray(quadVa, EnvCubeMap_spec_BRDF_Shader);
+        renderer.DrawArray(vertex_arrays.quadVa, EnvCubeMap_spec_BRDF_Shader);
         glEnable(GL_DEPTH_TEST);
         envcubemap_spec_BRDF_FBO.UnBind();
         glViewport(0, 0, screenWidth, screenHeight);
@@ -370,32 +406,9 @@ int main(void)
     model_positions.floor_Position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     model_positions.sphere_position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
 
-
-    ModelSpace nano_position;
-    nano_position.Scale(glm::vec3(0.1f));
-    nano_position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
-
-    nano_position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
-
-    ModelSpace Marry_position;
-    Marry_position.Translate(glm::vec3(5.0f, 0.0f, 0.0f));
-    Marry_position.Scale(0.5f);
-    ModelSpace Planet_position;
-    Planet_position.Translate(glm::vec3(10.0f, 0, 0));
-    ModelSpace floorPosition;
-    floorPosition.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     //sphere
-    sphere_data sphere = SphereData();
-    IndexBuffer sphereIb(&sphere.index[0], sphere.index.size());
-    VertexArray sphereVa;
-    VertexBuffer sphereVb(&sphere.vertex[0], sizeof(float) * sphere.vertex.size());
-    VertexBufferLayout sphereLayout;
-    sphereLayout.Push<float>(3);//position
-    sphereLayout.Push<float>(3);//normal
-    sphereLayout.Push<float>(2);//texcoord
-    sphereVa.AddBuffer(sphereVb, sphereLayout);
-    ModelSpace spherePosition;
-    spherePosition.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
+
+    
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = float(glfwGetTime());
@@ -409,246 +422,62 @@ int main(void)
         // 
         //绘制阴影贴图
         //平行光阴影贴图
-        Sun_DATA sun_data = GetSunPosition(camera);
-        csm_dirlight.Get_light_projection(camera, sun_data.Sun_Position);//得到光空间投影矩阵
+        sun = GetSunPosition(camera);
+        csm_dirlight.Get_light_projection(camera, sun.Sun_Position);//得到光空间投影矩阵
         
-        int update_split_num = split_num-1;//每两帧更新一次3级csm
+        int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM-1;//每两帧更新一次3级csm
         if (Last_CSM_update)
         {
-            update_split_num = split_num; 
+            update_CSM_SPLIT_NUM = CSM_SPLIT_NUM; 
             Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
         }
         Last_CSM_update = !Last_CSM_update;
-       // Generate_Dir_CSM(update_split_num, DirLightShadowshader, csm_dirlight,
-         //   csm_mapFBO, models, model_positions, renderer, vertex_arrays);
-        for (int i = 0; i < update_split_num; i++)
-        {
-            DirLightShadowshader.Bind();
-            DirLightShadowshader.SetUniformmatri4fv("LightSpace", csm_dirlight.light_projection_matrix[i]);
+        Generate_Dir_CSM(update_CSM_SPLIT_NUM, DirLightShadowshader, csm_dirlight,
+            csm_mapFBO, models, model_positions, renderer, vertex_arrays);
 
-            csm_mapFBO[i].Bind();//帧缓冲存储贴图
-            csm_mapFBO[i].SetViewPort();
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            //绘制       
-            DirLightShadowshader.SetUniformmatri4fv("model", nano_position.GetModelSpace());
-            Nano.DrawShadow(DirLightShadowshader);
-
-            DirLightShadowshader.SetUniformmatri4fv("model", Marry_position.GetModelSpace());
-            Marry.DrawShadow(DirLightShadowshader);
-
-            DirLightShadowshader.SetUniformmatri4fv("model", Planet_position.GetModelSpace());
-            Planet.DrawShadow(DirLightShadowshader);
-
-            DirLightShadowshader.SetUniformmatri4fv("model", floorPosition.GetModelSpace());
-            renderer.DrawArray(floorVa, DirLightShadowshader);
-            csm_mapFBO[i].UnBind();
-        }
         //点光阴影贴图
+
         float pointlight_near_plane = 0.1f;
         float pointlight_far_plane = 10.0f;
-        glm::mat4 PointlightProjection = glm::perspective(glm::radians(90.0f), 1.0f, pointlight_near_plane, pointlight_far_plane);//aspect应为阴影宽高比
-        for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-        {
-            std::vector<glm::mat4> shadowTransforms;
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//右
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//左
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));//上
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));//下
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));//前
-            shadowTransforms.push_back(PointlightProjection *
-                glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));//后
-            PointLightShadowshader.Bind();
-            for (int face = 0; face < 6; face++)
-            {
-                PointLightShadowshader.SetUniformmatri4fv("shadowMatrices[" + std::to_string(face) + "]", shadowTransforms[face]);
-            }
-            PointLightShadowshader.SetUniform3f("lightPos", pointLightPositions[i]);
-            PointLightShadowshader.SetUniform1f("far_plane", pointlight_far_plane);
-            PointlightMapfbo[i].Bind();//帧缓冲存储贴图
-            PointlightMapfbo[i].SetViewPort();
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            //绘制
-            PointLightShadowshader.SetUniformmatri4fv("model", nano_position.GetModelSpace());
-            Nano.DrawShadow(PointLightShadowshader);
-
-            PointLightShadowshader.SetUniformmatri4fv("model", Marry_position.GetModelSpace());
-            Marry.DrawShadow(PointLightShadowshader);
-
-            PointLightShadowshader.SetUniformmatri4fv("model", Planet_position.GetModelSpace());
-            Planet.DrawShadow(PointLightShadowshader);
-
-            PointLightShadowshader.SetUniformmatri4fv("model", floorPosition.GetModelSpace());
-            renderer.DrawArray(floorVa, PointLightShadowshader);
-            PointlightMapfbo[i].UnBind();
-        }   
+        Generate_Point_SM(PointLightShadowshader, PointlightMapfbo,
+            models, model_positions, renderer, vertex_arrays, pointlight.pointLightPositions);
+ 
         //聚光阴影贴图
-        float spotlight_near_plane = 0.1f;
-        float spotlight_far_plane = 20.0f;
-        glm::vec3 bias_direction = glm::vec3(0.15) * (glm::cross(camera.Front, glm::vec3(0.0f, 1.0f, 0.0f)) - camera.Front);
-        glm::vec3 spotlight_position = camera.Position + bias_direction;
-        glm::vec3 spotlight_direction = camera.Front - bias_direction;
-        glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight_near_plane, spotlight_far_plane);
-        glm::mat4 SpotlightView = glm::lookAt(spotlight_position, spotlight_position + spotlight_direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
+
+        spotlight.bias_direction = glm::vec3(0.15) * (glm::cross(camera.Front, glm::vec3(0.0f, 1.0f, 0.0f)) - camera.Front);
+        spotlight.spotlight_position = camera.Position + spotlight.bias_direction;
+        spotlight.spotlight_direction = camera.Front - spotlight.bias_direction;
+        Generate_Spot_SM(SpotLightShadowshader, SpotlightMapfbo,
+            models, model_positions, renderer, vertex_arrays, spotlight.spotlight_position, spotlight.spotlight_direction);
+        glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.spotlight_near_plane, spotlight.spotlight_far_plane);
+        glm::mat4 SpotlightView = glm::lookAt(spotlight.spotlight_position, spotlight.spotlight_position + spotlight.spotlight_direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
         glm::mat4 SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
-        SpotLightShadowshader.Bind();
-        SpotLightShadowshader.SetUniformmatri4fv("LightSpace", SpotlightSpaceMatrix);
-        SpotlightMapfbo.Bind();//帧缓冲存储贴图
-        SpotlightMapfbo.SetViewPort();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //绘制
-        SpotLightShadowshader.SetUniformmatri4fv("model", nano_position.GetModelSpace());
-        Nano.DrawShadow(SpotLightShadowshader);
-
-        SpotLightShadowshader.SetUniformmatri4fv("model", Marry_position.GetModelSpace());
-        Marry.DrawShadow(SpotLightShadowshader);
-
-        SpotLightShadowshader.SetUniformmatri4fv("model", Planet_position.GetModelSpace());
-        Planet.DrawShadow(SpotLightShadowshader);
-
-        SpotLightShadowshader.SetUniformmatri4fv("model", floorPosition.GetModelSpace());
-        renderer.DrawArray(floorVa, SpotLightShadowshader);
-        SpotlightMapfbo.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
-//defered shading 绘制基本信息           
-        DeferedShader.Bind();
-        DeferedShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-        DeferedShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-        DeferedShader.SetUniform3f("viewPos", camera.Position);
-        gbuffer.Bind();
-        gbuffer.SetViewPort();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        DeferedShader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
-        DeferedShader.SetUniform1i("use_HeightMap", keyinput.useheight);
-        DeferedShader.SetUniformmatri4fv("model", nano_position.GetModelSpace());
-        Nano.Draw(DeferedShader);
-        DeferedShader.SetUniform1i("use_NormalMap", 0);
-        DeferedShader.SetUniform1i("use_HeightMap", 0);
-        DeferedShader.SetUniformmatri4fv("model", Marry_position.GetModelSpace());
-        Marry.Draw(DeferedShader);
-        DeferedShader.SetUniformmatri4fv("model", Planet_position.GetModelSpace());
-        Planet.Draw(DeferedShader);
-        //地板  
-        DeferedShader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
-        DeferedShader.SetUniform1i("use_HeightMap", keyinput.useheight);
-        floor_diffuse.Bind(0);
-        DeferedShader.SetUniform1i("material.texture_diffuse1", 0);
-        floor_specular.Bind(1);
-        DeferedShader.SetUniform1i("material.texture_specular1", 1);
-        floor_normal.Bind(2);
-        DeferedShader.SetUniform1i("material.texture_normal1", 2);
-        floor_height.Bind(3);
-        DeferedShader.SetUniform1i("material.texture_height1", 3);
-        DeferedShader.SetUniformmatri4fv("model", floorPosition.GetModelSpace());
-        renderer.DrawArray(floorVa, DeferedShader);
-        //球体
-        DeferedShader.SetUniform1i("use_NormalMap", 0);
-        DeferedShader.SetUniform1i("use_HeightMap", 0);
-        DeferedShader.SetUniformmatri4fv("model", spherePosition.GetModelSpace());
-        renderer.DrawElement(sphereVa,sphereIb, DeferedShader);
-
-        gbuffer.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
-        //SSAO
+        
+//defered shading 绘制基本信息    
+        Generate_Defered_basicDATA(DeferedShader, camera, gbuffer,
+            models, model_positions, renderer, vertex_arrays, textures, index_buffers);
+        //deliver depth
         gbuffer.Read();
         cameradepthFBO.Write();
         gbuffer.BlitDepthBuffer();
         gbuffer.UnBind();
+        //SSAO       
         if (keyinput.useSSAO)
         {
-            ssaoFBO.Bind();
-            ssaoFBO.SetViewPort();
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            SSAOShader.Bind();
-            SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-            SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-            SSAOShader.SetUniform3f("camera.position", camera.Position);
-            SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
-
-            cameradepthFBO.BindTexture(0);
-            SSAOShader.SetUniform1i("camera.Depth", 0);
-            gbuffer.BindTexture(1, 0);
-            SSAOShader.SetUniform1i("gPosition", 1);
-            gbuffer.BindTexture(2, 1);
-            SSAOShader.SetUniform1i("gNormal", 2);
-            ssaoFBO.BindNoiseTexture(3);
-            SSAOShader.SetUniform1i("Noise", 3);
-            for (int i = 0; i < 64; i++)
-            {
-                SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
-            }
-            renderer.DrawArray(quadVa, SSAOShader);
-            ssaoFBO.UnBind();
+            Generate_SSAO(SSAOShader, camera, ssaoFBO, cameradepthFBO, ssaoKernel,
+                renderer, vertex_arrays, gbuffer);
             //blur
-            ssaoblurFBO.Bind();
-            ssaoblurFBO.SetViewPort();
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            SSAOBlurShader.Bind();
-            ssaoFBO.BindTexture(0);
-            SSAOBlurShader.SetUniform1i("ssaoInput", 0);
-            renderer.DrawArray(quadVa, SSAOBlurShader);
-            ssaoblurFBO.UnBind();
-        }
-        glViewport(0, 0, screenWidth, screenHeight);
+            Generate_SSAO_blur(SSAOBlurShader, ssaoblurFBO, ssaoFBO, renderer, vertex_arrays);
+        }       
 //预处理shadow     ,注意cameradepthFBO是在ssao处绑定的，所以要在ssao之后做shadow 
-        DeferedPreShadowShader.Bind();
-        DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
-        DeferedPreShadowShader.SetUniform1f("camera.far_plane", camera.far_plane);
-        DeferedPreShadowShader.SetUniform1f("camera.near_plane", camera.near_plane);
-        DeferedPreShadowShader.SetUniform3f("dirlight.direction", sun_data.Sun_Direction);
-        for (int i = 0; i < 4; i++)
-        {
-            DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
-            DeferedPreShadowShader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight_far_plane);
-        }
-        DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
-        cameradepthFBO.BindTexture(0);
-        DeferedPreShadowShader.SetUniform1i("camera.Depth", 0);
-        gbuffer.BindTexture(1, 0);
-        DeferedPreShadowShader.SetUniform1i("gPosition", 1);
-        gbuffer.BindTexture(2, 1);
-        DeferedPreShadowShader.SetUniform1i("gNormal", 2);
-        gbuffer.BindTexture(3, 2);
+        Generate_PreShadow(DeferedPreShadowShader, camera, cameradepthFBO, gbuffer, PreShadowFBO,
+            csm_mapFBO, csm_dirlight, PointlightMapfbo, SpotlightMapfbo,
+            sun, pointlight, spotlight, renderer, vertex_arrays);
 
-        for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-        {
-            PointlightMapfbo[i].BindTexture(i + 4);
-            DeferedPreShadowShader.SetUniform1i("shadowMap.PointShadow[" + std::to_string(i) + "]", i + 4);
-        }
-        for (int i = 0; i < split_num; i++)
-        {
-            DeferedPreShadowShader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
-            DeferedPreShadowShader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
-            DeferedPreShadowShader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
-            csm_mapFBO[i].BindTexture(i + 8);
-            DeferedPreShadowShader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
-            if(i ==split_num-1)
-                DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", Last_CSM_update_matrix);
-            else
-                DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", csm_dirlight.light_projection_matrix[i]);
-
-        }
-
-        SpotlightMapfbo.BindTexture(12);
-        DeferedPreShadowShader.SetUniform1i("shadowMap.SpotShadow", 12);
-        DeferedPreShadowShader.SetUniformmatri4fv("SpotlightSpaceMatrix", SpotlightSpaceMatrix);
-
-        PreShadowFBO.Bind();//
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-        renderer.DrawArray(quadVa, DeferedPreShadowShader);
-        glEnable(GL_DEPTH_TEST);
-        PreShadowFBO.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
 //对preshdow模糊处理
         for (int j = 0; j<1; j++)
         {
-            Gaussian_Blured_Texture(j, 4,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, quadVa);
+            Gaussian_Blured_Texture(j, 4,shadow_blurshader, PreShadowFBO, shadow_blur_horizontalFBO, shadow_blur_verticalFBO, renderer, vertex_arrays.quadVa);
             shadow_blur_verticalFBO.Bind();
             shadow_blur_verticalFBO.ReadTexture();
             PreShadowFBO.WriteTexture(j);
@@ -656,125 +485,20 @@ int main(void)
         }
 
 //设置uniform      着色
-        DeferedLighting_shader.Bind();
-        DeferedLighting_shader.SetUniform3f("objectColor", glm::vec3(keyinput.objectColor));
-        DeferedLighting_shader.SetUniform1f("material.metallic", keyinput.metallic);
-        DeferedLighting_shader.SetUniform1f("material.roughness", keyinput.roughness);
-        DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position);
-        gbuffer.BindTexture(1, 0);
-        DeferedLighting_shader.SetUniform1i("gPosition", 1);
-        gbuffer.BindTexture(2, 1);
-        DeferedLighting_shader.SetUniform1i("gNormal", 2);
-        gbuffer.BindTexture(3, 2);
-        DeferedLighting_shader.SetUniform1i("gAlbedoSpec", 3);
-        envcubemap_convolutionFBO.BindTexture(4);
-        DeferedLighting_shader.SetUniform1i("EnvLight", 4);
-        envcubemap_spec_convolutionFBO.BindTexture(5);
-        DeferedLighting_shader.SetUniform1i("EnvLight_spec", 5);
-        envcubemap_spec_BRDF_FBO.BindTexture(6);
-        DeferedLighting_shader.SetUniform1i("EnvLight_spec_BRDF", 6);
-        DeferedLighting_shader.SetUniform1i("use_EnvLight_spec", keyinput.EnvLight_spec);
-
-
-        PreShadowFBO.BindTexture(8, 0);
-        DeferedLighting_shader.SetUniform1i("predirshadow", 8);//平行光
-
-        PreShadowFBO.BindTexture(9, 1);
-        DeferedLighting_shader.SetUniform1i("prepointshadow", 9);//点光
-        PreShadowFBO.BindTexture(10, 2);
-        DeferedLighting_shader.SetUniform1i("prespotshadow", 10);//聚光
-        DeferedLighting_shader.SetUniform1i("useSSAO", keyinput.useSSAO);
-        if (keyinput.useSSAO)
-        {
-            ssaoblurFBO.BindTexture(13);
-            DeferedLighting_shader.SetUniform1i("ssao", 13);
-        }
-        
-        //平行光
-        DeferedLighting_shader.SetUniform3f("dirlight.color", glm::vec3(keyinput.SunColor));
-        DeferedLighting_shader.SetUniform1f("dirlight.LightIntensity", keyinput.SunIntensity);
-        DeferedLighting_shader.SetUniform3f("dirlight.direction", sun_data.Sun_Direction);
-        //点光
-        for (int i = 0; i < 4; i++)
-        {
-            float lightintensity = 0.0;
-            DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointLightColors[i] * lightintensity);
-            DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointLightPositions[i]);
-            DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", lightintensity);
-            DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight_far_plane);
-            DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].near_plane", pointlight_near_plane);
-        }
-        //聚光手电
-        DeferedLighting_shader.SetUniform3f("spotlight.color", glm::vec3(30.0f));
-        DeferedLighting_shader.SetUniform3f("spotlight.direction", spotlight_direction);
-        DeferedLighting_shader.SetUniform3f("spotlight.position", spotlight_position);
-        DeferedLighting_shader.SetUniform1f("spotlight.LightIntensity", 1.0f * keyinput.TorchOn);
-        DeferedLighting_shader.SetUniform1f("spotlight.inner_CutOff", glm::cos(glm::radians(10.5f)));//spotlight范围
-        DeferedLighting_shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
-       
-        hdrfbo.Bind();//使用非默认帧缓冲来提供HDR
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-        renderer.DrawArray(quadVa, DeferedLighting_shader);
-        glEnable(GL_DEPTH_TEST);
+        Generate_Origin_Screen(DeferedLighting_shader, keyinput, gbuffer, PreShadowFBO,
+            envcubemap_convolutionFBO, envcubemap_spec_convolutionFBO,
+            envcubemap_spec_BRDF_FBO, hdrfbo, ssaoblurFBO,
+            sun, pointlight, spotlight, renderer, vertex_arrays);
         //点光源模型 
-        //读取gbuffer的深度信息以结合正向渲染       
-        gbuffer.Read();
-        hdrfbo.Write();
-        gbuffer.BlitDepthBuffer();
-
-        pointlightshader.Bind();
-        pointlightshader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-        pointlightshader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-        for (unsigned int i = 0; i < POINT_LIGHTS_NUM; i++)
-        {
-            pointlightshader.SetUniform3f("material.color", pointLightColors[i]);
-            pointlightshader.SetUniformmatri4fv("model", pointlightspace[i].GetModelSpace());
-            renderer.DrawArray(cubeVa, pointlightshader);
-        }
-        pointlightshader.SetUniform3f("material.color", glm::vec3(keyinput.SunColor) * keyinput.SunIntensity);
-        ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
-        dirlightspace.Translate(sun_data.Sun_Position);
-        dirlightspace.Scale(glm::vec3(0.3f));
-        pointlightshader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
-        renderer.DrawElement(sphereVa, sphereIb, pointlightshader);
-        //天空盒       
-        skyboxShader.Bind();
-        glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));//降维移除第四列的位移
-        skyboxShader.SetUniformmatri4fv("view", view);
-        projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
-        skyboxShader.SetUniformmatri4fv("projection", projection);
-        skybox.Bind();
-        //envcubemapFBO.BindTexture();
-        //envcubemap_spec_convolutionFBO.BindTexture();
-        renderer.DrawArray(skyboxVa, skyboxShader);
-        hdrfbo.UnBind();
+        //读取gbuffer的深度信息以结合正向渲染    
+        Generate_SkyBox(basic_shader, skyboxShader, gbuffer, hdrfbo, camera, keyinput,
+            vertex_arrays, index_buffers, renderer, skybox);
 
         //传入原画
-        blooming_hightlightFBO.Bind();
-        glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
-        blooming_highlightshader.Bind();
-        hdrfbo.BindTexture(0, 0);;//原画
-        blooming_highlightshader.SetUniform1i("screenTexture", 0);
-        renderer.DrawArray(quadVa, blooming_highlightshader);
-        blooming_hightlightFBO.UnBind();
-        //将高亮贴图进行高斯模糊
-        Gaussian_Blured_Texture(1,10, blooming_blurshader, blooming_hightlightFBO, blooming_blur_horizontalFBO, blooming_blur_verticalFBO, renderer, quadVa);
-        //结合原画和模糊后的图片形成泛光
-        screenShader.Bind();
-        screenShader.SetUniform1i("gamma", keyinput.gamma);
-        screenShader.SetUniform1f("exposure", keyinput.exposure);
+        Generate_PostProcess(screenShader, blooming_highlightshader, blooming_blurshader,
+            blooming_hightlightFBO, hdrfbo, blooming_blur_horizontalFBO,
+            blooming_blur_verticalFBO, renderer, vertex_arrays);
 
-        glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        blooming_hightlightFBO.BindTexture(0);
-        screenShader.SetUniform1i("screenTexture", 0);
-        blooming_blur_verticalFBO.BindTexture(1);
-        screenShader.SetUniform1i("blooming_screenTexture", 1);
-        glDisable(GL_BLEND);
-        renderer.DrawArray(quadVa, screenShader);
 
         /*
         glDisable(GL_DEPTH_TEST);
@@ -979,4 +703,402 @@ Sun_DATA GetSunPosition(Camera& camera)
     glm::vec3 SunDireciton = -glm::vec3(east_x, west_y, 1.0f);
     Sun_DATA sundata = { SunPosition, SunDireciton };
     return sundata;
+}
+void Generate_Dir_CSM(int update_CSM_SPLIT_NUM, Shader& dircsmshader, CSM_Dirlight& csm_dirlight,
+    DirLightDepthMapFBO csm_mapFBO[4], Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays)
+{
+
+    for (int i = 0; i < update_CSM_SPLIT_NUM; i++)
+    {
+        dircsmshader.Bind();
+        dircsmshader.SetUniformmatri4fv("LightSpace", csm_dirlight.light_projection_matrix[i]);
+
+        csm_mapFBO[i].Bind();//帧缓冲存储贴图
+        csm_mapFBO[i].SetViewPort();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //绘制       
+        dircsmshader.SetUniformmatri4fv("model", model_positions.nano_position.GetModelSpace());
+        models.Nano.DrawShadow(dircsmshader);
+
+        dircsmshader.SetUniformmatri4fv("model", model_positions.Marry_position.GetModelSpace());
+        models.Marry.DrawShadow(dircsmshader);
+
+        dircsmshader.SetUniformmatri4fv("model", model_positions.Planet_position.GetModelSpace());
+        models.Planet.DrawShadow(dircsmshader);
+
+        dircsmshader.SetUniformmatri4fv("model", model_positions.floor_Position.GetModelSpace());
+        renderer.DrawArray(vertex_arrays.floorVa, dircsmshader);
+        csm_mapFBO[i].UnBind();
+
+    }
+    glViewport(0, 0, screenWidth, screenHeight);
+
+}
+void Generate_Point_SM(D3Shader& Point_sm_shader,  PointLightDepthMapFBO* PointlightMapfbo,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3* pointLightPositions)
+{
+    float pointlight_near_plane = 0.1f;
+    float pointlight_far_plane = 10.0f;
+    glm::mat4 PointlightProjection = glm::perspective(glm::radians(90.0f), 1.0f, pointlight_near_plane, pointlight_far_plane);//aspect应为阴影宽高比
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        std::vector<glm::mat4> shadowTransforms;
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//右
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//左
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));//上
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));//下
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));//前
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(pointLightPositions[i], pointLightPositions[i] + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));//后
+        Point_sm_shader.Bind();
+        for (int face = 0; face < 6; face++)
+        {
+            Point_sm_shader.SetUniformmatri4fv("shadowMatrices[" + std::to_string(face) + "]", shadowTransforms[face]);
+        }
+        Point_sm_shader.SetUniform3f("lightPos", pointLightPositions[i]);
+        Point_sm_shader.SetUniform1f("far_plane", pointlight_far_plane);
+        PointlightMapfbo[i].Bind();//帧缓冲存储贴图
+        PointlightMapfbo[i].SetViewPort();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //绘制
+        Point_sm_shader.SetUniformmatri4fv("model", model_positions.nano_position.GetModelSpace());
+        models.Nano.DrawShadow(Point_sm_shader);
+
+        Point_sm_shader.SetUniformmatri4fv("model", model_positions.Marry_position.GetModelSpace());
+        models.Marry.DrawShadow(Point_sm_shader);
+
+        Point_sm_shader.SetUniformmatri4fv("model", model_positions.Planet_position.GetModelSpace());
+        models.Planet.DrawShadow(Point_sm_shader);
+
+        Point_sm_shader.SetUniformmatri4fv("model", model_positions.floor_Position.GetModelSpace());
+        renderer.DrawArray(vertex_arrays.floorVa, Point_sm_shader);
+        PointlightMapfbo[i].UnBind();      
+    }
+    glViewport(0, 0, screenWidth, screenHeight);
+
+}
+void Generate_Spot_SM(Shader& Spot_sm_shader, SpotLightDepthMapFBO& SpotlightMapfbo,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3& spotlight_position, glm::vec3& spotlight_direction)
+{
+    float spotlight_near_plane = 0.1f;
+    float spotlight_far_plane = 20.0f;
+    glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight_near_plane, spotlight_far_plane);
+    glm::mat4 SpotlightView = glm::lookAt(spotlight_position, spotlight_position + spotlight_direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
+    glm::mat4 SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
+    Spot_sm_shader.Bind();
+    Spot_sm_shader.SetUniformmatri4fv("LightSpace", SpotlightSpaceMatrix);
+    SpotlightMapfbo.Bind();//帧缓冲存储贴图
+    SpotlightMapfbo.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //绘制
+    Spot_sm_shader.SetUniformmatri4fv("model", model_positions.nano_position.GetModelSpace());
+    models.Nano.DrawShadow(Spot_sm_shader);
+
+    Spot_sm_shader.SetUniformmatri4fv("model", model_positions.Marry_position.GetModelSpace());
+    models.Marry.DrawShadow(Spot_sm_shader);
+
+    Spot_sm_shader.SetUniformmatri4fv("model", model_positions.Planet_position.GetModelSpace());
+    models.Planet.DrawShadow(Spot_sm_shader);
+
+    Spot_sm_shader.SetUniformmatri4fv("model", model_positions.floor_Position.GetModelSpace());
+    renderer.DrawArray(vertex_arrays.floorVa, Spot_sm_shader);
+    SpotlightMapfbo.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, GBuffer& gbuffer,
+    Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures, IndexBuffers& index_buffers)
+{
+    DeferedShader.Bind();
+    DeferedShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    DeferedShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    DeferedShader.SetUniform3f("viewPos", camera.Position);
+    gbuffer.Bind();
+    gbuffer.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    DeferedShader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
+    DeferedShader.SetUniform1i("use_HeightMap", keyinput.useheight);
+    DeferedShader.SetUniformmatri4fv("model", model_positions.nano_position.GetModelSpace());
+    models.Nano.Draw(DeferedShader);
+    DeferedShader.SetUniform1i("use_NormalMap", 0);
+    DeferedShader.SetUniform1i("use_HeightMap", 0);
+    DeferedShader.SetUniformmatri4fv("model", model_positions.Marry_position.GetModelSpace());
+    models.Marry.Draw(DeferedShader);
+    DeferedShader.SetUniformmatri4fv("model", model_positions.Planet_position.GetModelSpace());
+    models.Planet.Draw(DeferedShader);
+    //地板  
+    DeferedShader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
+    DeferedShader.SetUniform1i("use_HeightMap", keyinput.useheight);
+    textures.floor_diffuse.Bind(0);
+    DeferedShader.SetUniform1i("material.texture_diffuse1", 0);
+    textures.floor_specular.Bind(1);
+    DeferedShader.SetUniform1i("material.texture_specular1", 1);
+    textures.floor_normal.Bind(2);
+    DeferedShader.SetUniform1i("material.texture_normal1", 2);
+    textures.floor_height.Bind(3);
+    DeferedShader.SetUniform1i("material.texture_height1", 3);
+    DeferedShader.SetUniformmatri4fv("model", model_positions.floor_Position.GetModelSpace());
+    renderer.DrawArray(vertex_arrays.floorVa, DeferedShader);
+    //球体
+    DeferedShader.SetUniform1i("use_NormalMap", 0);
+    DeferedShader.SetUniform1i("use_HeightMap", 0);
+    DeferedShader.SetUniformmatri4fv("model", model_positions.sphere_position.GetModelSpace());
+    renderer.DrawElement(vertex_arrays.sphereVa, index_buffers.sphereIb, DeferedShader);
+
+    gbuffer.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Generate_SSAO(Shader& SSAOShader, Camera& camera, SSAOFBO& ssaoFBO, CameraDepthFBO& cameradepthFBO, std::vector<glm::vec3>& ssaoKernel,
+    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer)
+{
+    ssaoFBO.Bind();
+    ssaoFBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    SSAOShader.Bind();
+    SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    SSAOShader.SetUniform3f("camera.position", camera.Position);
+    SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
+
+    cameradepthFBO.BindTexture(0);
+    SSAOShader.SetUniform1i("camera.Depth", 0);
+    gbuffer.BindTexture(1, 0);
+    SSAOShader.SetUniform1i("gPosition", 1);
+    gbuffer.BindTexture(2, 1);
+    SSAOShader.SetUniform1i("gNormal", 2);
+    ssaoFBO.BindNoiseTexture(3);
+    SSAOShader.SetUniform1i("Noise", 3);
+    for (int i = 0; i < 64; i++)
+    {
+        SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
+    }
+    renderer.DrawArray(vertex_arrays.quadVa, SSAOShader);
+    ssaoFBO.UnBind();
+}
+void Generate_SSAO_blur(Shader& SSAOBlurShader, SSAOBlurFBO& ssaoblurFBO, SSAOFBO& ssaoFBO, Renderer& renderer, VertexArrays& vertex_arrays)
+{
+    ssaoblurFBO.Bind();
+    ssaoblurFBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    SSAOBlurShader.Bind();
+    ssaoFBO.BindTexture(0);
+    SSAOBlurShader.SetUniform1i("ssaoInput", 0);
+    renderer.DrawArray(vertex_arrays.quadVa, SSAOBlurShader);
+    ssaoblurFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Generate_PreShadow(Shader& DeferedPreShadowShader, Camera& camera, CameraDepthFBO& cameradepthFBO, GBuffer& gbuffer, GBuffer& PreShadowFBO,
+    DirLightDepthMapFBO* csm_mapFBO, CSM_Dirlight& csm_dirlight, PointLightDepthMapFBO* PointlightMapfbo, SpotLightDepthMapFBO& SpotlightMapfbo,
+    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays)
+{
+    DeferedPreShadowShader.Bind();
+    DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
+    DeferedPreShadowShader.SetUniform1f("camera.far_plane", camera.far_plane);
+    DeferedPreShadowShader.SetUniform1f("camera.near_plane", camera.near_plane);
+    DeferedPreShadowShader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
+    for (int i = 0; i < 4; i++)
+    {
+        DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.pointLightPositions[i]);
+        DeferedPreShadowShader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.pointlight_far_plane);
+    }
+    DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
+    cameradepthFBO.BindTexture(0);
+    DeferedPreShadowShader.SetUniform1i("camera.Depth", 0);
+    gbuffer.BindTexture(1, 0);
+    DeferedPreShadowShader.SetUniform1i("gPosition", 1);
+    gbuffer.BindTexture(2, 1);
+    DeferedPreShadowShader.SetUniform1i("gNormal", 2);
+    gbuffer.BindTexture(3, 2);
+
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        PointlightMapfbo[i].BindTexture(i + 4);
+        DeferedPreShadowShader.SetUniform1i("shadowMap.PointShadow[" + std::to_string(i) + "]", i + 4);
+    }
+    for (int i = 0; i < CSM_SPLIT_NUM; i++)
+    {
+        DeferedPreShadowShader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
+        DeferedPreShadowShader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
+        DeferedPreShadowShader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
+        csm_mapFBO[i].BindTexture(i + 8);
+        DeferedPreShadowShader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
+        if (i == CSM_SPLIT_NUM - 1)
+            DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", Last_CSM_update_matrix);
+        else
+            DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", csm_dirlight.light_projection_matrix[i]);
+
+    }
+
+    SpotlightMapfbo.BindTexture(12);
+    DeferedPreShadowShader.SetUniform1i("shadowMap.SpotShadow", 12);
+    DeferedPreShadowShader.SetUniformmatri4fv("SpotlightSpaceMatrix", spotlight.SpotlightSpaceMatrix);
+
+    PreShadowFBO.Bind();//
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays.quadVa, DeferedPreShadowShader);
+    glEnable(GL_DEPTH_TEST);
+    PreShadowFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, GBuffer& gbuffer, GBuffer& PreShadowFBO,
+    EnvCubeMap_ConvolutionFBO& envcubemap_convolutionFBO, EnvCubeMap_spec_ConvolutionFBO& envcubemap_spec_convolutionFBO,
+    EnvCubeMap_spec_BRDF_FBO& envcubemap_spec_BRDF_FBO, HDRFBO& hdrfbo, SSAOBlurFBO& ssaoblurFBO,
+    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays)
+{
+    DeferedLighting_shader.Bind();
+    DeferedLighting_shader.SetUniform3f("objectColor", glm::vec3(keyinput.objectColor));
+    DeferedLighting_shader.SetUniform1f("material.metallic", keyinput.metallic);
+    DeferedLighting_shader.SetUniform1f("material.roughness", keyinput.roughness);
+    DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position);
+    gbuffer.BindTexture(1, 0);
+    DeferedLighting_shader.SetUniform1i("gPosition", 1);
+    gbuffer.BindTexture(2, 1);
+    DeferedLighting_shader.SetUniform1i("gNormal", 2);
+    gbuffer.BindTexture(3, 2);
+    DeferedLighting_shader.SetUniform1i("gAlbedoSpec", 3);
+    envcubemap_convolutionFBO.BindTexture(4);
+    DeferedLighting_shader.SetUniform1i("EnvLight", 4);
+    envcubemap_spec_convolutionFBO.BindTexture(5);
+    DeferedLighting_shader.SetUniform1i("EnvLight_spec", 5);
+    envcubemap_spec_BRDF_FBO.BindTexture(6);
+    DeferedLighting_shader.SetUniform1i("EnvLight_spec_BRDF", 6);
+    DeferedLighting_shader.SetUniform1i("use_EnvLight_spec", keyinput.EnvLight_spec);
+
+    PreShadowFBO.BindTexture(8, 0);
+    DeferedLighting_shader.SetUniform1i("predirshadow", 8);//平行光
+
+    PreShadowFBO.BindTexture(9, 1);
+    DeferedLighting_shader.SetUniform1i("prepointshadow", 9);//点光
+    PreShadowFBO.BindTexture(10, 2);
+    DeferedLighting_shader.SetUniform1i("prespotshadow", 10);//聚光
+    DeferedLighting_shader.SetUniform1i("useSSAO", keyinput.useSSAO);
+    if (keyinput.useSSAO)
+    {
+        ssaoblurFBO.BindTexture(13);
+        DeferedLighting_shader.SetUniform1i("ssao", 13);
+    }
+
+    //平行光
+    DeferedLighting_shader.SetUniform3f("dirlight.color", glm::vec3(keyinput.SunColor));
+    DeferedLighting_shader.SetUniform1f("dirlight.LightIntensity", keyinput.SunIntensity);
+    DeferedLighting_shader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
+    //点光
+    for (int i = 0; i < 4; i++)
+    {
+        DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointlight.pointLightColors[i] * pointlight.lightintensity);
+        DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.pointLightPositions[i]);
+        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", pointlight.lightintensity);
+        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.pointlight_far_plane);
+        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].near_plane", pointlight.pointlight_near_plane);
+    }
+    //聚光手电
+    DeferedLighting_shader.SetUniform3f("spotlight.color", glm::vec3(30.0f));
+    DeferedLighting_shader.SetUniform3f("spotlight.direction", spotlight.spotlight_direction);
+    DeferedLighting_shader.SetUniform3f("spotlight.position", spotlight.spotlight_position);
+    DeferedLighting_shader.SetUniform1f("spotlight.LightIntensity", 1.0f * keyinput.TorchOn);
+    DeferedLighting_shader.SetUniform1f("spotlight.inner_CutOff", glm::cos(glm::radians(10.5f)));//spotlight范围
+    DeferedLighting_shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
+
+    hdrfbo.Bind();//使用非默认帧缓冲来提供HDR
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays.quadVa, DeferedLighting_shader);
+    glEnable(GL_DEPTH_TEST);
+}
+void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, GBuffer& gbuffer, HDRFBO& hdrfbo, Camera& camera, KeyInput& keyinput,
+    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, CubeMapTexture& skybox)
+{
+    //读取深度信息
+    gbuffer.Read();
+    hdrfbo.Write();
+    gbuffer.BlitDepthBuffer();
+
+    basic_shader.Bind();
+    basic_shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    basic_shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    for (unsigned int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        basic_shader.SetUniform3f("material.color", pointlight.pointLightColors[i]);
+        basic_shader.SetUniformmatri4fv("model", pointlight.pointlightspace[i].GetModelSpace());
+        renderer.DrawElement(vertex_arrays.sphereVa, index_buffers.sphereIb, basic_shader);
+    }
+    basic_shader.SetUniform3f("material.color", glm::vec3(keyinput.SunColor) * keyinput.SunIntensity);
+    ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
+    dirlightspace.Translate(sun.Sun_Position);
+    dirlightspace.Scale(glm::vec3(0.3f));
+    basic_shader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
+    renderer.DrawElement(vertex_arrays.sphereVa, index_buffers.sphereIb, basic_shader);
+    //天空盒       
+    skyboxShader.Bind();
+    glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));//降维移除第四列的位移
+    skyboxShader.SetUniformmatri4fv("view", view);
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
+    skyboxShader.SetUniformmatri4fv("projection", projection);
+    skybox.Bind();
+    //envcubemapFBO.BindTexture();
+    //envcubemap_spec_convolutionFBO.BindTexture();
+    renderer.DrawArray(vertex_arrays.skyboxVa, skyboxShader);
+    hdrfbo.UnBind();
+}
+void Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader,
+    Blooming_HighlightFBO& blooming_hightlightFBO, HDRFBO& hdrfbo, Blooming_Blur_HorizontalFBO& blooming_blur_horizontalFBO,
+    Blooming_Blur_VerticalFBO& blooming_blur_verticalFBO, Renderer& renderer, VertexArrays& vertex_arrays)
+{
+    blooming_hightlightFBO.Bind();
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
+    blooming_highlightshader.Bind();
+    hdrfbo.BindTexture(0, 0);;//原画
+    blooming_highlightshader.SetUniform1i("screenTexture", 0);
+    renderer.DrawArray(vertex_arrays.quadVa, blooming_highlightshader);
+    blooming_hightlightFBO.UnBind();
+    //将高亮贴图进行高斯模糊
+    Gaussian_Blured_Texture(1, 10, blooming_blurshader, blooming_hightlightFBO, blooming_blur_horizontalFBO, blooming_blur_verticalFBO, renderer, vertex_arrays.quadVa);
+    //结合原画和模糊后的图片形成泛光
+    screenShader.Bind();
+    screenShader.SetUniform1i("gamma", keyinput.gamma);
+    screenShader.SetUniform1f("exposure", keyinput.exposure);
+
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    blooming_hightlightFBO.BindTexture(0);
+    screenShader.SetUniform1i("screenTexture", 0);
+    blooming_blur_verticalFBO.BindTexture(1);
+    screenShader.SetUniform1i("blooming_screenTexture", 1);
+    glDisable(GL_BLEND);
+    renderer.DrawArray(vertex_arrays.quadVa, screenShader);
+}
+
+void Generate_CubeTexture(Shader& EnvCubeMapShader, EnvCubeMapFBO& envcubemapFBO, Textures& textures, VertexArrays& vertex_arrays, Renderer& renderer)
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    EnvCubeMapShader.Bind();
+    EnvCubeMapShader.SetUniformmatri4fv("projection", captureProjection);
+    envcubemapFBO.SetViewPort();
+    textures.equirectangularMap.Bind();
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        envcubemapFBO.Bind(i);
+        EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMapShader);
+    }
+    envcubemapFBO.UnBind();
 }

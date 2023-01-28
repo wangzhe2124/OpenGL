@@ -1,4 +1,5 @@
 #pragma once
+#include "Model.h"
 class IndexBuffer
 {
 private:
@@ -58,3 +59,10 @@ void IndexBuffer::Unbind() const
 {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
+
+sphere_data sphere = SphereData();
+class IndexBuffers
+{
+public:
+	IndexBuffer sphereIb = IndexBuffer(&sphere.index[0], sphere.index.size());
+};

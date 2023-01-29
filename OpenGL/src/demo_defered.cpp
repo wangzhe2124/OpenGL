@@ -69,7 +69,7 @@ Sun_DATA GetSunPosition(Camera& camera);
 
 SSAO_DATA Get_SSAO_SAMPLE();
 
-void Generate_Dir_CSM(int update_CSM_SPLIT_NUM, Shader& dircsmshader, CSM_Dirlight& csm_dirlight, DirLightDepthMapFBO csm_mapFBO[4],
+void Generate_Dir_CSM(Shader& dircsmshader, CSM_Dirlight& csm_dirlight, DirLightDepthMapFBO csm_mapFBO[4],
     Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays);
 
 void Generate_Point_SM(D3Shader& Point_sm_shader, PointLightDepthMapFBO* PointlightMapfbo,
@@ -115,7 +115,11 @@ void Generate_EnvLight_Specular_BRDF(Shader& EnvCubeMap_spec_BRDF_Shader, EnvCub
 
 void Initialize_Models_Positions(ModelSpaces& ms);
 
+void GUI_Initialize(GLFWwindow* window);
+
 void GUI_Process(GLFWwindow* window,KeyInput& keyinput);
+
+void Initialize_Vertex_Arrays(VertexArrays& vertex_arrays, Config& config);
 //鼠标回调
 unsigned int screenWidth = 960;
 unsigned int screenHeight = 640;
@@ -155,25 +159,12 @@ int main(void)
         std::cout << "error" << std::endl;
     std::cout << glGetString(GL_VERSION) << std::endl;
     // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
-    // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    const char* glsl_version = "#version 130";
-    ImGui_ImplOpenGL3_Init(glsl_version);
-    bool show_demo_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
+    GUI_Initialize(window);
     //config
     std::string strConfigFileName("src/config.ini");
     std::fstream out(strConfigFileName);
     Config config(strConfigFileName);
-    // 初始化写入注释
+    // 初始化写入config
     out.open(strConfigFileName, std::ios::app);
     if (out.is_open()) {
         //读取config.ini
@@ -186,50 +177,9 @@ int main(void)
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, keys_callback);
     VertexArrays vertex_arrays;
-    std::string floor_vertex_attr = "floor_vertex_attr";
-    std::vector<float> floor_vertex = config.ReadVector(floor_vertex_attr);
-    VertexBuffer floorVb(&floor_vertex[0], floor_vertex.size() * sizeof(float));
-    VertexBufferLayout floorLayout;
-    floorLayout.Push<float>(3);
-    floorLayout.Push<float>(3);
-    floorLayout.Push<float>(2);
-    floorLayout.Push<float>(3);
-    floorLayout.Push<float>(3);
-    vertex_arrays.floorVa.AddBuffer(floorVb, floorLayout);
-    //sphere
-    sphere_data sphere = SphereData();
-    IndexBuffer sphereIb(&sphere.index[0], sphere.index.size());
-    VertexBuffer sphereVb(&sphere.vertex[0], sizeof(float) * sphere.vertex.size());
-    VertexBufferLayout sphereLayout;
-    sphereLayout.Push<float>(3);//position
-    sphereLayout.Push<float>(3);//normal
-    sphereLayout.Push<float>(2);//texcoord
-    vertex_arrays.sphereVa.AddBuffer(sphereVb, sphereLayout);
-    //quad
-    std::string quad_vertex_attr = "quad_vertex_attr";
-    std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
-    VertexBuffer quadVb(&quad_vertex[0], quad_vertex.size() * sizeof(float));
-    VertexBufferLayout quadLayout;
-    quadLayout.Push<float>(3);
-    quadLayout.Push<float>(2);
-    vertex_arrays.quadVa.AddBuffer(quadVb, quadLayout);
-    //天空盒
-    std::string skybox_vertex_attr = "skybox_vertex_attr";
-    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
-    VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
-    VertexBufferLayout skyboxLayout;
-    skyboxLayout.Push<float>(3);
-    vertex_arrays.skyboxVa.AddBuffer(skyboxVb, skyboxLayout);
+    Initialize_Vertex_Arrays(vertex_arrays, config);
+
     IndexBuffers index_buffers;
-    //点光源属性
-    std::string cube_vertex_attr = "cube_vertex_attr";
-    std::vector<float> cube_vertex = config.ReadVector(cube_vertex_attr);
-    VertexBuffer cubeVb(&cube_vertex[0], cube_vertex.size() * sizeof(float));
-    VertexBufferLayout cubeLayout;
-    cubeLayout.Push<float>(3);
-    cubeLayout.Push<float>(3);
-    cubeLayout.Push<float>(2);
-    vertex_arrays.cubeVa.AddBuffer(cubeVb, cubeLayout);
 
     //点光源属性
     
@@ -365,14 +315,8 @@ int main(void)
         sun = GetSunPosition(camera);
         csm_dirlight.Get_light_projection(camera, sun.Sun_Position);//得到光空间投影矩阵
         
-        int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM-1;//每两帧更新一次3级csm
-        if (Last_CSM_update)
-        {
-            update_CSM_SPLIT_NUM = CSM_SPLIT_NUM; 
-            Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
-        }
-        Last_CSM_update = !Last_CSM_update;
-        Generate_Dir_CSM(update_CSM_SPLIT_NUM, DirLightShadowshader, csm_dirlight,
+        
+        Generate_Dir_CSM(DirLightShadowshader, csm_dirlight,
             csm_mapFBO, models, model_positions, renderer, vertex_arrays);
 
         //点光阴影贴图
@@ -463,8 +407,23 @@ int main(void)
         GUI_Process(window, keyinput);
         //GUI
         // Rendering
-
+        if (keyinput.ui) 
+        {
+            ImGui::Render();
+            int display_w, display_h;
+            glfwGetFramebufferSize(window, &display_w, &display_h);
+            glViewport(0, 0, screenWidth, screenWidth);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);//解锁鼠标
+            glfwSetCursorPosCallback(window, nullptr);
+            firstMouse = true;
+        }
+        else
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
+            glfwSetCursorPosCallback(window, mouse_callback);
+        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);//储存着GLFW窗口每一个像素颜色值的大缓冲（双缓冲）
@@ -477,6 +436,7 @@ int main(void)
 
     glfwDestroyWindow(window);
     glfwTerminate();
+    system("pause");
     return 0;
 }
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
@@ -602,10 +562,16 @@ Sun_DATA GetSunPosition(Camera& camera)
     Sun_DATA sundata = { SunPosition, SunDireciton };
     return sundata;
 }
-void Generate_Dir_CSM(int update_CSM_SPLIT_NUM, Shader& dircsmshader, CSM_Dirlight& csm_dirlight,
+void Generate_Dir_CSM(Shader& dircsmshader, CSM_Dirlight& csm_dirlight,
     DirLightDepthMapFBO csm_mapFBO[4], Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays)
 {
-
+    int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM - 1;//每两帧更新一次3级csm
+    if (Last_CSM_update)
+    {
+        update_CSM_SPLIT_NUM = CSM_SPLIT_NUM;
+        Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
+    }
+    Last_CSM_update = !Last_CSM_update;
     for (int i = 0; i < update_CSM_SPLIT_NUM; i++)
     {
         dircsmshader.Bind();
@@ -1128,21 +1094,67 @@ void GUI_Process(GLFWwindow* window,KeyInput& keyinput)
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
-    if (keyinput.ui)
-    {
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, screenWidth, screenWidth);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
 
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);//解锁鼠标
-        glfwSetCursorPosCallback(window, nullptr);
-        firstMouse = true;
-    }
-    else
-    {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
-        glfwSetCursorPosCallback(window, mouse_callback);
-    }
+void GUI_Initialize(GLFWwindow* window)
+{
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    const char* glsl_version = "#version 130";
+    ImGui_ImplOpenGL3_Init(glsl_version);
+}
+
+void Initialize_Vertex_Arrays(VertexArrays& vertex_arrays, Config& config)
+{
+    std::string floor_vertex_attr = "floor_vertex_attr";
+    std::vector<float> floor_vertex = config.ReadVector(floor_vertex_attr);
+    VertexBuffer floorVb(&floor_vertex[0], floor_vertex.size() * sizeof(float));
+    VertexBufferLayout floorLayout;
+    floorLayout.Push<float>(3);
+    floorLayout.Push<float>(3);
+    floorLayout.Push<float>(2);
+    floorLayout.Push<float>(3);
+    floorLayout.Push<float>(3);
+    vertex_arrays.floorVa.AddBuffer(floorVb, floorLayout);
+    //sphere
+    sphere_data sphere = SphereData();
+    IndexBuffer sphereIb(&sphere.index[0], sphere.index.size());
+    VertexBuffer sphereVb(&sphere.vertex[0], sizeof(float) * sphere.vertex.size());
+    VertexBufferLayout sphereLayout;
+    sphereLayout.Push<float>(3);//position
+    sphereLayout.Push<float>(3);//normal
+    sphereLayout.Push<float>(2);//texcoord
+    vertex_arrays.sphereVa.AddBuffer(sphereVb, sphereLayout);
+    //quad
+    std::string quad_vertex_attr = "quad_vertex_attr";
+    std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
+    VertexBuffer quadVb(&quad_vertex[0], quad_vertex.size() * sizeof(float));
+    VertexBufferLayout quadLayout;
+    quadLayout.Push<float>(3);
+    quadLayout.Push<float>(2);
+    vertex_arrays.quadVa.AddBuffer(quadVb, quadLayout);
+    //天空盒
+    std::string skybox_vertex_attr = "skybox_vertex_attr";
+    std::vector<float> skybox_vertex = config.ReadVector(skybox_vertex_attr);
+    VertexBuffer skyboxVb(&skybox_vertex[0], skybox_vertex.size() * sizeof(float));
+    VertexBufferLayout skyboxLayout;
+    skyboxLayout.Push<float>(3);
+    vertex_arrays.skyboxVa.AddBuffer(skyboxVb, skyboxLayout);
+    //点光源属性
+    std::string cube_vertex_attr = "cube_vertex_attr";
+    std::vector<float> cube_vertex = config.ReadVector(cube_vertex_attr);
+    VertexBuffer cubeVb(&cube_vertex[0], cube_vertex.size() * sizeof(float));
+    VertexBufferLayout cubeLayout;
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(3);
+    cubeLayout.Push<float>(2);
+    vertex_arrays.cubeVa.AddBuffer(cubeVb, cubeLayout);
+
 }

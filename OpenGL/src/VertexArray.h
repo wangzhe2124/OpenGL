@@ -49,6 +49,7 @@ void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& la
 	j += elements.size();
 	Number += vb.Get_Number()/layout.GetStride();
 	vb.Unbind();
+	Unbind();
 }
 
 void VertexArray::Bind() const

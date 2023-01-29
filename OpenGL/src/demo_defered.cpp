@@ -21,25 +21,14 @@
 #include "vender/imgui/imgui_impl_glfw.h"
 #include "vender/imgui/imgui_impl_opengl3.h"
 #include "Config.h"
-//鼠标回调
-unsigned int screenWidth = 960;
-unsigned int screenHeight = 640;
-float lastX = screenWidth / 2.0f;
-float lastY = screenHeight / 2.0f;
-bool firstMouse = true;
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
-template <typename T1, typename T2, typename T3>
-void Gaussian_Blured_Texture(int j, int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
-    T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa);
+#define CSM_SPLIT_NUM 4
+#define POINT_LIGHTS_NUM 4
 struct Sun_DATA
 {
     glm::vec3 Sun_Position;
     glm::vec3 Sun_Direction;
 }sun;
-Sun_DATA GetSunPosition(Camera& camera);
+
 struct SSAO_DATA
 {
     std::vector<glm::vec3> ssaokernel;
@@ -54,8 +43,7 @@ struct SpotLight_DATA
     glm::vec3 spotlight_direction;
     glm::mat4 SpotlightSpaceMatrix;
 }spotlight;
-#define CSM_SPLIT_NUM 4
-#define POINT_LIGHTS_NUM 4
+
 struct PointLight_DATA
 {
     float lightintensity = 0.0;
@@ -65,37 +53,82 @@ struct PointLight_DATA
     ModelSpace pointlightspace[POINT_LIGHTS_NUM];
     glm::vec3 pointLightColors[POINT_LIGHTS_NUM];
 } pointlight;
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
+
+template <typename T1, typename T2, typename T3>
+void Gaussian_Blured_Texture(int j, int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
+    T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa);
+
+Sun_DATA GetSunPosition(Camera& camera);
+
 SSAO_DATA Get_SSAO_SAMPLE();
+
 void Generate_Dir_CSM(int update_CSM_SPLIT_NUM, Shader& dircsmshader, CSM_Dirlight& csm_dirlight, DirLightDepthMapFBO csm_mapFBO[4],
     Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays);
+
 void Generate_Point_SM(D3Shader& Point_sm_shader, PointLightDepthMapFBO* PointlightMapfbo,
     Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3* pointLightPositions);
+
 void Generate_Spot_SM(Shader& Spot_sm_shader, SpotLightDepthMapFBO& SpotlightMapfbo,
     Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, glm::vec3& spot_position,glm::vec3& spot_direction );
+
 void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, GBuffer& gbuffer,
     Models& models, ModelSpaces& model_positions, Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures, IndexBuffers& index_buffers);
+
 void Generate_SSAO(Shader& ssaoshader, Camera&camera, SSAOFBO& ssaoFBO, CameraDepthFBO& cameradepthFBO, std::vector<glm::vec3>& ssaoKernel,
-    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer);
+    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer, KeyInput& keyinput);
+
 void Generate_SSAO_blur(Shader& SSAOBlurShader, SSAOBlurFBO& ssaoblurFBO, SSAOFBO& ssaoFBO, Renderer& renderer, VertexArrays& vertex_arrays);
+
 void Generate_PreShadow(Shader& DeferedPreShadowShader, Camera&camera, CameraDepthFBO& cameradepthFBO, GBuffer& gbuffer, GBuffer& PreShadowFBO,
     DirLightDepthMapFBO* csm_mapFBO, CSM_Dirlight& csm_dirlight,PointLightDepthMapFBO* PointlightMapfbo, SpotLightDepthMapFBO& SpotlightMapfbo,
     Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays);
+
 void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, GBuffer& gbuffer, GBuffer& PreShadowFBO,
     EnvCubeMap_ConvolutionFBO& envcubemap_convolutionFBO, EnvCubeMap_spec_ConvolutionFBO& envcubemap_spec_convolutionFBO,
     EnvCubeMap_spec_BRDF_FBO& envcubemap_spec_BRDF_FBO, HDRFBO& hdrfbo, SSAOBlurFBO& ssaoblurFBO,
     Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays);
+
 void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader,GBuffer& gbuffer, HDRFBO& hdrfbo, Camera& camera, KeyInput& keyinput,
-    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, CubeMapTexture& skybox);
+    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, Textures& textures);
+
 void Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader,
     Blooming_HighlightFBO& blooming_hightlightFBO, HDRFBO& hdrfbo, Blooming_Blur_HorizontalFBO& blooming_blur_horizontalFBO,
     Blooming_Blur_VerticalFBO& blooming_blur_verticalFBO, Renderer& renderer, VertexArrays& vertex_arrays);
+
 void Generate_CubeTexture(Shader& EnvCubeMapShader, EnvCubeMapFBO& envcubemapFBO, Textures& textures, VertexArrays& vertex_arrays, Renderer& renderer);
+
+void Generate_EnvLight_Diffuse(Shader& EnvCubeMap_ConvolutionShader, EnvCubeMap_ConvolutionFBO& envcubemap_convolutionFBO,
+    Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures);
+
+void Generate_EnvLight_Specular(Shader& EnvCubeMap_spec_ConvolutionShader, EnvCubeMap_spec_ConvolutionFBO& envcubemap_spec_convolutionFBO,
+    Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures);
+
+void Generate_EnvLight_Specular_BRDF(Shader& EnvCubeMap_spec_BRDF_Shader, EnvCubeMap_spec_BRDF_FBO& envcubemap_spec_BRDF_FBO,
+    Renderer& renderer, VertexArrays& vertex_arrays);
+
+void Initialize_Models_Positions(ModelSpaces& ms);
+
+void GUI_Process(GLFWwindow* window,KeyInput& keyinput);
+//鼠标回调
+unsigned int screenWidth = 960;
+unsigned int screenHeight = 640;
+float lastX = screenWidth / 2.0f;
+float lastY = screenHeight / 2.0f;
+bool firstMouse = true;
 float deltaTime = 0.0f;	// 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
 //创建相机
 Camera camera(glm::vec3(0.0f, 1.0f, 3.0f));
 //键盘输入
 KeyInput keyinput;
+//逐级更新CSM
 bool Last_CSM_update = true;
 glm::mat4 Last_CSM_update_matrix;
 int main(void)
@@ -139,7 +172,6 @@ int main(void)
     //config
     std::string strConfigFileName("src/config.ini");
     std::fstream out(strConfigFileName);
-
     Config config(strConfigFileName);
     // 初始化写入注释
     out.open(strConfigFileName, std::ios::app);
@@ -214,8 +246,7 @@ int main(void)
     {
         pointlight.pointLightColors[i] = glm::vec3(50.0f);
     }
-    //地板
-
+    //texture
     Textures textures;
     //shaders
     Shader screenShader("res/shaders/screen.shader");
@@ -241,23 +272,13 @@ int main(void)
     D3Shader PointLightShadowshader("res/shaders/PointLightShadow.shader");
     Shader SpotLightShadowshader("res/shaders/SpotLightShadow.shader");
 
-
-    std::vector<std::string> faces
-    {
-        "res/textures/skybox/right.jpg",
-        "res/textures/skybox/left.jpg",
-        "res/textures/skybox/top.jpg",
-        "res/textures/skybox/bottom.jpg",
-        "res/textures/skybox/front.jpg",
-        "res/textures/skybox/back.jpg"
-    };
-    CubeMapTexture skybox(faces);
     //创建Renderer
     Renderer renderer;
-    //投影矩阵
-    glm::mat4 projection = glm::mat4(1.0f);
     //models
     Models models;
+    //模型位置
+    ModelSpaces model_positions;
+    Initialize_Models_Positions(model_positions);
     //光阴影贴图
     DirLightDepthMapFBO global_dirshadowfbo(4096, 4096);
     CSM_Dirlight csm_dirlight(camera, CSM_SPLIT_NUM);
@@ -282,86 +303,18 @@ int main(void)
     EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO(256, 256);
     EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO(512, 512);
     //cubeenv
-    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-    glm::mat4 captureViews[] =
-    {
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
-    EnvCubeMapShader.Bind();
-    EnvCubeMapShader.SetUniformmatri4fv("projection", captureProjection);
-    envcubemapFBO.SetViewPort();
-    textures.equirectangularMap.Bind();
-    for (unsigned int i = 0; i < 6; ++i)
-    {
-        envcubemapFBO.Bind(i);
-        EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMapShader);
-    }
-    envcubemapFBO.UnBind();
+    Generate_CubeTexture(EnvCubeMapShader, envcubemapFBO, textures, vertex_arrays, renderer);
+    //textures.skybox.CopyId(envcubemapFBO.GetTextureId());
     //cubeenv convolution
-    {
-        EnvCubeMap_ConvolutionShader.Bind();
-        EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
-        envcubemap_convolutionFBO.SetViewPort();
-        skybox.Bind();
-        for (unsigned int i = 0; i < 6; ++i)
-        {
-            envcubemap_convolutionFBO.Bind(i);
-            EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_ConvolutionShader);
-        }
-        envcubemap_convolutionFBO.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
-    }
+    Generate_EnvLight_Diffuse(EnvCubeMap_ConvolutionShader, envcubemap_convolutionFBO,
+        renderer, vertex_arrays, textures);
     //cubeenv specular convolution
-    {
-        EnvCubeMap_spec_ConvolutionShader.Bind();
-        EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
-        unsigned int maxMipLevels = 5;
-        skybox.Bind();
-        for (unsigned int i = 0; i < maxMipLevels; ++i)
-        {
-            unsigned int mipWidth = 256 * std::pow(0.5, i);
-            unsigned int mipHeight = 256 * std::pow(0.5, i);
-            envcubemap_spec_convolutionFBO.Bindmip_Renderbuffer(mipWidth, mipHeight);
-            envcubemap_spec_convolutionFBO.SetViewPort(mipWidth, mipHeight);
-            float roughness = (float)i / (float)(maxMipLevels - 1);
-            EnvCubeMap_spec_ConvolutionShader.SetUniform1f("roughness", roughness);
-            for (int j = 0; j < 6; j++)
-            {
-                envcubemap_spec_convolutionFBO.Bind(j , i);
-                EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_spec_ConvolutionShader);
-            }
-        }
-        envcubemap_spec_convolutionFBO.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
-    }
+    Generate_EnvLight_Specular(EnvCubeMap_spec_ConvolutionShader, envcubemap_spec_convolutionFBO,
+        renderer, vertex_arrays, textures);
+    //cubeenv specular BRDF
+    Generate_EnvLight_Specular_BRDF(EnvCubeMap_spec_BRDF_Shader, envcubemap_spec_BRDF_FBO,
+        renderer, vertex_arrays);
     //后期处理 + 多重采样 + HDR + bloom + defer
-        //quadVa后期处理
-
-    //       //cubeenv specular BRDF
-    {
-        EnvCubeMap_spec_BRDF_Shader.Bind();
-        envcubemap_spec_BRDF_FBO.Bind();
-        envcubemap_spec_BRDF_FBO.SetViewPort();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-        renderer.DrawArray(vertex_arrays.quadVa, EnvCubeMap_spec_BRDF_Shader);
-        glEnable(GL_DEPTH_TEST);
-        envcubemap_spec_BRDF_FBO.UnBind();
-        glViewport(0, 0, screenWidth, screenHeight);
-
-    }
     MSAAFrameBuffer msaa(screenWidth, screenHeight, 4);
     HDRFBO hdrfbo(screenWidth, screenHeight);
     CameraDepthFBO cameradepthFBO(screenWidth, screenHeight);
@@ -372,6 +325,11 @@ int main(void)
     Shadow_Blur_VerticalFBO shadow_blur_verticalFBO(screenWidth, screenHeight);
     GBuffer gbuffer(screenWidth, screenHeight);
     GBuffer PreShadowFBO(screenWidth, screenHeight);
+    //SSAO采样样本
+    std::vector<glm::vec3> ssaoKernel = Get_SSAO_SAMPLE().ssaokernel;
+    std::vector<glm::vec3> ssaoNoise = Get_SSAO_SAMPLE().ssaonoise;
+    SSAOFBO ssaoFBO(screenWidth, screenHeight, ssaoNoise);
+    SSAOBlurFBO ssaoblurFBO(screenWidth, screenHeight);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -390,25 +348,7 @@ int main(void)
     /* Loop until the user closes the window */
     //gamma校正
     //glEnable(GL_FRAMEBUFFER_SRGB); 
-    //SSAO采样样本
-    std::vector<glm::vec3> ssaoKernel = Get_SSAO_SAMPLE().ssaokernel;
-    std::vector<glm::vec3> ssaoNoise = Get_SSAO_SAMPLE().ssaonoise;
-    SSAOFBO ssaoFBO(screenWidth, screenHeight, ssaoNoise);
-    SSAOBlurFBO ssaoblurFBO(screenWidth, screenHeight);
-    //模型位置
-    ModelSpaces model_positions;
-    model_positions.nano_position.Scale(glm::vec3(0.1f));
-    model_positions.nano_position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
-    model_positions.nano_position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
-    model_positions.Marry_position.Translate(glm::vec3(5.0f, 0.0f, 0.0f));
-    model_positions.Marry_position.Scale(0.5f);
-    model_positions.Planet_position.Translate(glm::vec3(10.0f, 0, 0));
-    model_positions.floor_Position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
-    model_positions.sphere_position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
 
-    //sphere
-
-    
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = float(glfwGetTime());
@@ -465,7 +405,7 @@ int main(void)
         if (keyinput.useSSAO)
         {
             Generate_SSAO(SSAOShader, camera, ssaoFBO, cameradepthFBO, ssaoKernel,
-                renderer, vertex_arrays, gbuffer);
+                renderer, vertex_arrays, gbuffer, keyinput);
             //blur
             Generate_SSAO_blur(SSAOBlurShader, ssaoblurFBO, ssaoFBO, renderer, vertex_arrays);
         }       
@@ -492,7 +432,7 @@ int main(void)
         //点光源模型 
         //读取gbuffer的深度信息以结合正向渲染    
         Generate_SkyBox(basic_shader, skyboxShader, gbuffer, hdrfbo, camera, keyinput,
-            vertex_arrays, index_buffers, renderer, skybox);
+            vertex_arrays, index_buffers, renderer, textures);
 
         //传入原画
         Generate_PostProcess(screenShader, blooming_highlightshader, blooming_blurshader,
@@ -500,73 +440,31 @@ int main(void)
             blooming_blur_verticalFBO, renderer, vertex_arrays);
 
 
-        /*
-        glDisable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        screenShader.Bind();
-        glBindTexture(GL_TEXTURE_2D, 0);
-        //cameradepth.BindTexture();
-        //blooming_hightlightFBO.BindTexture(0,1);
-        //blooming_blur_verticalFBO.BindTexture();
-        //hdrfbo.BindTexture(0,2);
-        //global_dirshadowfbo.BindTexture();
-        //shadow_blur_verticalFBO.BindTexture();
-        //PreShadowFBO.BindTexture(0, 2);
-        //csm_mapFBO[3].BindTexture();
-        //envcubemap_spec_BRDF_FBO.BindTexture();
-        ssaoblurFBO.BindTexture();
-        renderer.DrawArray(quadVa, screenShader);
-        */
+        
+        //glDisable(GL_DEPTH_TEST);
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        //screenShader.Bind();
+        //glBindTexture(GL_TEXTURE_2D, 0);
+        ////cameradepthFBO.BindTexture();
+        ////blooming_hightlightFBO.BindTexture(0,1);
+        ////blooming_blur_verticalFBO.BindTexture();
+        ////hdrfbo.BindTexture(0,2);
+        ////global_dirshadowfbo.BindTexture();
+        ////shadow_blur_verticalFBO.BindTexture();
+        ////PreShadowFBO.BindTexture(0, 2);
+        ////csm_mapFBO[3].BindTexture();
+        ////envcubemap_spec_BRDF_FBO.BindTexture();
+        //ssaoFBO.BindTexture();
+        //renderer.DrawArray(vertex_arrays.quadVa, screenShader);
+        //
 
         
              //GUI
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        GUI_Process(window, keyinput);
         //GUI
         // Rendering
-        {
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Torch", &keyinput.TorchOn);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Gamma", &keyinput.gamma);
-            ImGui::Checkbox("HeightMap", &keyinput.useheight);
-            ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
-            ImGui::Checkbox("SSAO", &keyinput.useSSAO);
-            ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
-            ImGui::SliderFloat("ObjectColor", &keyinput.objectColor, 0.0f, 1.0f); 
-            ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
-            ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
-            ImGui::SliderFloat("LightColor", &keyinput.SunColor, 0.0f, 100.0f);
-            ImGui::SliderFloat("LightIntensity", &keyinput.SunIntensity, 0.0f, 5.0f);
-            ImGui::SliderFloat("exposure", &keyinput.exposure, 0.0f, 100.0f);
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-            static int counter = 0;
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
 
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-        if (keyinput.ui) 
-        {
-            ImGui::Render();
-            int display_w, display_h;
-            glfwGetFramebufferSize(window, &display_w, &display_h);
-            glViewport(0, 0, screenWidth, screenWidth);
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);//解锁鼠标
-            glfwSetCursorPosCallback(window, nullptr);
-            firstMouse = true;
-        }
-        else
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
-            glfwSetCursorPosCallback(window, mouse_callback);
-        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);//储存着GLFW窗口每一个像素颜色值的大缓冲（双缓冲）
@@ -853,7 +751,7 @@ void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, GBuffer& 
     glViewport(0, 0, screenWidth, screenHeight);
 }
 void Generate_SSAO(Shader& SSAOShader, Camera& camera, SSAOFBO& ssaoFBO, CameraDepthFBO& cameradepthFBO, std::vector<glm::vec3>& ssaoKernel,
-    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer)
+    Renderer& renderer, VertexArrays& vertex_arrays, GBuffer& gbuffer, KeyInput& keyinput)
 {
     ssaoFBO.Bind();
     ssaoFBO.SetViewPort();
@@ -863,6 +761,8 @@ void Generate_SSAO(Shader& SSAOShader, Camera& camera, SSAOFBO& ssaoFBO, CameraD
     SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
     SSAOShader.SetUniform3f("camera.position", camera.Position);
     SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
+    SSAOShader.SetUniform1f("bias", keyinput.SSAO_bias);
+    SSAOShader.SetUniform1f("radius", keyinput.SSAO_radius);
 
     cameradepthFBO.BindTexture(0);
     SSAOShader.SetUniform1i("camera.Depth", 0);
@@ -1012,7 +912,7 @@ void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, 
     glEnable(GL_DEPTH_TEST);
 }
 void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, GBuffer& gbuffer, HDRFBO& hdrfbo, Camera& camera, KeyInput& keyinput,
-    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, CubeMapTexture& skybox)
+    VertexArrays& vertex_arrays, IndexBuffers& index_buffers, Renderer& renderer, Textures& textures)
 {
     //读取深度信息
     gbuffer.Read();
@@ -1040,7 +940,7 @@ void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, GBuffer& gbuffe
     skyboxShader.SetUniformmatri4fv("view", view);
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
     skyboxShader.SetUniformmatri4fv("projection", projection);
-    skybox.Bind();
+    textures.skybox.Bind();
     //envcubemapFBO.BindTexture();
     //envcubemap_spec_convolutionFBO.BindTexture();
     renderer.DrawArray(vertex_arrays.skyboxVa, skyboxShader);
@@ -1101,4 +1001,148 @@ void Generate_CubeTexture(Shader& EnvCubeMapShader, EnvCubeMapFBO& envcubemapFBO
         renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMapShader);
     }
     envcubemapFBO.UnBind();
+}
+
+void Generate_EnvLight_Diffuse(Shader& EnvCubeMap_ConvolutionShader, EnvCubeMap_ConvolutionFBO& envcubemap_convolutionFBO,
+    Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures)
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    EnvCubeMap_ConvolutionShader.Bind();
+    EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+    envcubemap_convolutionFBO.SetViewPort();
+    textures.skybox.Bind();
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        envcubemap_convolutionFBO.Bind(i);
+        EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_ConvolutionShader);
+    }
+    envcubemap_convolutionFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+void Generate_EnvLight_Specular(Shader& EnvCubeMap_spec_ConvolutionShader, EnvCubeMap_spec_ConvolutionFBO& envcubemap_spec_convolutionFBO,
+    Renderer& renderer, VertexArrays& vertex_arrays, Textures& textures)
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    EnvCubeMap_spec_ConvolutionShader.Bind();
+    EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+    unsigned int maxMipLevels = 5;
+    textures.skybox.Bind();
+    for (unsigned int i = 0; i < maxMipLevels; ++i)
+    {
+        unsigned int mipWidth = 256 * std::pow(0.5, i);
+        unsigned int mipHeight = 256 * std::pow(0.5, i);
+        envcubemap_spec_convolutionFBO.Bindmip_Renderbuffer(mipWidth, mipHeight);
+        envcubemap_spec_convolutionFBO.SetViewPort(mipWidth, mipHeight);
+        float roughness = (float)i / (float)(maxMipLevels - 1);
+        EnvCubeMap_spec_ConvolutionShader.SetUniform1f("roughness", roughness);
+        for (int j = 0; j < 6; j++)
+        {
+            envcubemap_spec_convolutionFBO.Bind(j, i);
+            EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderer.DrawArray(vertex_arrays.cubeVa, EnvCubeMap_spec_ConvolutionShader);
+        }
+    }
+    envcubemap_spec_convolutionFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+void Generate_EnvLight_Specular_BRDF(Shader& EnvCubeMap_spec_BRDF_Shader, EnvCubeMap_spec_BRDF_FBO& envcubemap_spec_BRDF_FBO,
+    Renderer& renderer, VertexArrays& vertex_arrays)
+{
+    EnvCubeMap_spec_BRDF_Shader.Bind();
+    envcubemap_spec_BRDF_FBO.Bind();
+    envcubemap_spec_BRDF_FBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays.quadVa, EnvCubeMap_spec_BRDF_Shader);
+    glEnable(GL_DEPTH_TEST);
+    envcubemap_spec_BRDF_FBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+void Initialize_Models_Positions(ModelSpaces& model_positions)
+{
+    model_positions.nano_position.Scale(glm::vec3(0.1f));
+    model_positions.nano_position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
+    model_positions.nano_position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
+    model_positions.Marry_position.Translate(glm::vec3(5.0f, 0.0f, 0.0f));
+    model_positions.Marry_position.Scale(0.5f);
+    model_positions.Planet_position.Translate(glm::vec3(10.0f, 0, 0));
+    model_positions.floor_Position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
+    model_positions.sphere_position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
+
+}
+
+void GUI_Process(GLFWwindow* window,KeyInput& keyinput)
+{
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    //GUI
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+    ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+    ImGui::Checkbox("Torch", &keyinput.TorchOn);      // Edit bools storing our window open/close state
+    ImGui::Checkbox("Gamma", &keyinput.gamma);
+    ImGui::Checkbox("HeightMap", &keyinput.useheight);
+    ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
+    ImGui::Checkbox("SSAO", &keyinput.useSSAO);
+    ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
+    ImGui::SliderFloat("ObjectColor", &keyinput.objectColor, 0.0f, 1.0f);
+    ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
+    ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
+    ImGui::SliderFloat("LightColor", &keyinput.SunColor, 0.0f, 100.0f);
+    ImGui::SliderFloat("LightIntensity", &keyinput.SunIntensity, 0.0f, 5.0f);
+    ImGui::SliderFloat("exposure", &keyinput.exposure, 0.0f, 100.0f);
+    ImGui::SliderFloat("SSAO sample radius", &keyinput.SSAO_radius, 0.0f, 10.0f);
+    ImGui::SliderFloat("SSAO sample bias", &keyinput.SSAO_bias, 0.0f, 0.01f);
+    ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+    static int counter = 0;
+    if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+        counter++;
+    ImGui::SameLine();
+    ImGui::Text("counter = %d", counter);
+
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
+    if (keyinput.ui)
+    {
+        ImGui::Render();
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glViewport(0, 0, screenWidth, screenWidth);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);//解锁鼠标
+        glfwSetCursorPosCallback(window, nullptr);
+        firstMouse = true;
+    }
+    else
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
+        glfwSetCursorPosCallback(window, mouse_callback);
+    }
 }

@@ -21,6 +21,8 @@ public:
     bool ui;
     bool blur_shadow;
     bool EnvLight_spec;
+    float SSAO_bias;
+    float SSAO_radius;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
@@ -39,7 +41,9 @@ KeyInput::KeyInput()
     SunIntensity(5.0f),
     SunColor(10.0f),
     blur_shadow(true),
-    EnvLight_spec(true)
+    EnvLight_spec(true),
+    SSAO_bias(0.001),
+    SSAO_radius(0.61)
 {}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
 {

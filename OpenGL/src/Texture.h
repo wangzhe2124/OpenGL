@@ -187,6 +187,18 @@ public:
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 	};
+	CubeMapTexture& operator=(const CubeMapTexture& ct)
+	{
+		CubeMapId = ct.GetId();
+	}
+	void CopyId(const unsigned int & i)
+	{
+		CubeMapId = i;
+	}
+	unsigned int GetId() const
+	{
+		return CubeMapId;
+	}
 	void Bind(unsigned int slot = 0) const
 	{
 		glActiveTexture(GL_TEXTURE0 + slot);//激活纹理单元
@@ -209,5 +221,15 @@ public:
 	Texture floor_normal = Texture("res/textures/bricks_normal.jpg", 3);
 	Texture floor_height = Texture("res/textures/bricks_height.jpg", 3);
 	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 3);
+	std::vector<std::string> faces
+	{
+		"res/textures/skybox/right.jpg",
+		"res/textures/skybox/left.jpg",
+		"res/textures/skybox/top.jpg",
+		"res/textures/skybox/bottom.jpg",
+		"res/textures/skybox/front.jpg",
+		"res/textures/skybox/back.jpg"
+	};
+	CubeMapTexture skybox = CubeMapTexture(faces);
 };
 #pragma endregion

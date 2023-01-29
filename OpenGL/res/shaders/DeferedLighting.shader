@@ -140,7 +140,7 @@ vec3 CalcDirLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	kD *= 1.0 - material.metallic;
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
-	vec3 ambient = vec3(0.01) * Albedo * occlusion;
+	vec3 ambient = vec3(0.1) * Albedo * occlusion;
 	vec3 color = ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) *(1 - shadow);
 	return color * dirlight.LightIntensity;
 }

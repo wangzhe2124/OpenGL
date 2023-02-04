@@ -9,7 +9,11 @@ private:
 public:
 	ModelSpace() :modelspace(glm::mat4(1.0f))
 	{};
-	ModelSpace operator=(const ModelSpace& ms) { this->modelspace = ms.modelspace; }
+	ModelSpace operator=(const ModelSpace& ms)
+	{ 
+		this->modelspace = ms.modelspace; 
+		return *this;
+	}
 	void SetModel(glm::mat4& mo)
 	{
 		modelspace = mo;
@@ -32,19 +36,6 @@ public:
 	};
 	inline glm::mat4 GetModelSpace() { return modelspace; }
 
-};
-
-
-class ModelSpaces
-{
-private:
-	
-public:
-	ModelSpace nano_position;
-	ModelSpace Marry_position;
-	ModelSpace Planet_position;
-	ModelSpace sphere_position;
-	ModelSpace floor_Position;
 };
 
 

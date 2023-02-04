@@ -14,7 +14,7 @@ public:
     float metallic;
     float roughness;
     float SunIntensity;
-    float SunColor;
+    glm::vec3 SunColor;
     bool useheight;
     bool NormalMap;
     bool useSSAO;
@@ -23,6 +23,9 @@ public:
     bool EnvLight_spec;
     float SSAO_bias;
     float SSAO_radius;
+    float SSAO_rangecheck;
+    bool SSAO_window;
+    bool assist_screen;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
@@ -38,12 +41,15 @@ KeyInput::KeyInput()
     objectColor(0.5f),
     metallic(0.5f),
     roughness(0.5f),
-    SunIntensity(5.0f),
-    SunColor(10.0f),
+    SunIntensity(10.0f),
+    SunColor(1.0f),
     blur_shadow(true),
     EnvLight_spec(true),
-    SSAO_bias(0.001),
-    SSAO_radius(0.61)
+    SSAO_bias(0.3),
+    SSAO_radius(0.2),
+    SSAO_rangecheck(0.446),
+    SSAO_window(false),
+    assist_screen(false)
 {}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
 {

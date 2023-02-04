@@ -90,6 +90,7 @@ public:
 		glGenTextures(1, &RenderId);
 		glBindTexture(GL_TEXTURE_2D, RenderId);
 		BindData(path, inChannel);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	};
 	void BindData(const std::string path, int inChannel)
 	{	stbi_set_flip_vertically_on_load(1);//Ðý×ª
@@ -220,7 +221,7 @@ public:
 	Texture floor_specular = Texture("res/textures/bricks.jpg", 3);
 	Texture floor_normal = Texture("res/textures/bricks_normal.jpg", 3);
 	Texture floor_height = Texture("res/textures/bricks_height.jpg", 3);
-	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 3);
+	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 4);
 	std::vector<std::string> faces
 	{
 		"res/textures/skybox/right.jpg",

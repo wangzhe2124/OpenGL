@@ -14,6 +14,7 @@ void main()
 out vec4 FragColor;
 in vec2 fragTexcoord;
 uniform sampler2D screenTexture;
+uniform sampler2D assistTexture;
 uniform sampler2D blooming_screenTexture;
 const float offset = 1.0 / 300.0;
 uniform bool gamma;
@@ -27,6 +28,7 @@ void main()
     vec3 HDRcolor = texture(screenTexture, fragTexcoord).rgb;
     HDRcolor += texture(blooming_screenTexture, fragTexcoord).rgb;
     HDRcolor = vec3(1.0) - exp(-HDRcolor * exposure);//HDRcolor / (HDRcolor + vec3(1.0));
+    vec3 Color;
     if (gamma)
     {
         FragColor = vec4(pow(HDRcolor, vec3(1 / 2.2)), 1.0);
@@ -35,6 +37,11 @@ void main()
     {
         FragColor = vec4(HDRcolor, 1.0);
     }
+    if (gl_FragCoord.x > 600 && gl_FragCoord.y > 400)
+    {
+        FragColor = vec4(texture(assistTexture, fragTexcoord).rgb,1.0);
+    }
+
 	//float average = 0.2126 * FragColor.r + 0.7152 * FragColor.g + 0.0722 * FragColor.b;
 	//FragColor = vec4(average, average, average, 1.0);
     //vec3 col = Convolution();//¾í»ý

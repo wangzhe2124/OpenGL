@@ -6,15 +6,16 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <random>
 class CameraDepthFBO
 {
 private:
 	unsigned int frameBufferId;
 	unsigned int DepthTextureId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	CameraDepthFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	CameraDepthFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -27,7 +28,7 @@ public:
 	{
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -58,7 +59,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class SSAOFBO
@@ -67,10 +68,10 @@ private:
 	unsigned int frameBufferId;
 	unsigned int ssaoTextureId;
 	unsigned int noiseTextureId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	SSAOFBO(unsigned int scr_width, unsigned int scr_height, std::vector<glm::vec3>& ssaoNoise) :screenWidth(scr_width), screenHeight(scr_height)
+	SSAOFBO(unsigned int scr_width, unsigned int scr_height, std::vector<glm::vec3>& ssaoNoise) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -85,7 +86,7 @@ public:
 	{
 		glGenTextures(1, &ssaoTextureId);
 		glBindTexture(GL_TEXTURE_2D, ssaoTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, c_screenWidth, c_screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -137,7 +138,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class SSAOBlurFBO
@@ -145,10 +146,10 @@ class SSAOBlurFBO
 private:
 	unsigned int frameBufferId;
 	unsigned int ssaoBlurTextureId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	SSAOBlurFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	SSAOBlurFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -161,7 +162,7 @@ public:
 	{
 		glGenTextures(1, &ssaoBlurTextureId);
 		glBindTexture(GL_TEXTURE_2D, ssaoBlurTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);//只需要深度
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, c_screenWidth, c_screenHeight, 0, GL_RGB, GL_FLOAT, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -196,7 +197,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -206,10 +207,10 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId[2];
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	Blooming_HighlightFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	Blooming_HighlightFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -226,7 +227,7 @@ public:
 		{
 
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -242,8 +243,8 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~Blooming_HighlightFBO()
 	{
@@ -269,7 +270,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -279,15 +280,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	Blooming_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	Blooming_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderBuffer();
+		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -296,7 +297,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -309,8 +310,8 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~Blooming_Blur_HorizontalFBO()
 	{
@@ -336,7 +337,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class Blooming_Blur_VerticalFBO
@@ -345,15 +346,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	Blooming_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	Blooming_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderBuffer();
+		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -362,7 +363,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -375,8 +376,8 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~Blooming_Blur_VerticalFBO()
 	{
@@ -402,7 +403,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class Shadow_Blur_HorizontalFBO
@@ -411,15 +412,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	Shadow_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	Shadow_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderBuffer();
+		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -428,7 +429,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -441,7 +442,7 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~Shadow_Blur_HorizontalFBO()
@@ -468,7 +469,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class Shadow_Blur_VerticalFBO
@@ -477,15 +478,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	Shadow_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	Shadow_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderBuffer();
+		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -494,7 +495,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -507,7 +508,7 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~Shadow_Blur_VerticalFBO()
@@ -542,7 +543,7 @@ public:
 	};
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class GBuffer
@@ -551,19 +552,31 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId[3];
 	unsigned int RenderBufferId;
-
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	bool with_RBO;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	GBuffer(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	GBuffer(unsigned int scr_width, unsigned int scr_height, bool with_rbo = true) :c_screenWidth(scr_width), c_screenHeight(scr_height),with_RBO(with_rbo)
 	{
-		glGenFramebuffers(1, &frameBufferId);
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-		BindTextureBuffer();
-		BindRenderBuffer();
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		if (with_rbo)
+		{
+			glGenFramebuffers(1, &frameBufferId);
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+			BindTextureBuffer();
+			BindRenderBuffer();
+			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+				std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+		else
+		{
+			glGenFramebuffers(1, &frameBufferId);
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+			BindTextureBuffer();
+			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+				std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
 	};
 	void BindTextureBuffer()
 	{
@@ -571,7 +584,7 @@ public:
 		for (int i = 0; i < 3; i++)
 		{
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -590,14 +603,16 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 	};
 	~GBuffer()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);
 		glDeleteFramebuffers(1, textureColorId);
-		glDeleteFramebuffers(1, &RenderBufferId);
+		if(with_RBO)
+			glDeleteFramebuffers(1, &RenderBufferId);
 	};
 	void Bind()
 	{
@@ -624,7 +639,7 @@ public:
 	void WriteTexture(int i = 0)
 	{
 		glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, screenWidth, screenHeight);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, c_screenWidth, c_screenHeight);
 
 	};
 	void unWrite()
@@ -641,14 +656,15 @@ public:
 	}
 	void BlitDepthBuffer()
 	{
-		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, c_screenWidth, c_screenHeight, 0, 0, c_screenWidth, c_screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	};
 
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
+
 class MSAAFrameBuffer
 {
 private:
@@ -656,11 +672,11 @@ private:
 	unsigned int textureColorId;
 	unsigned int ambientId;
 	unsigned int renderBufferId;
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 	unsigned int SampleNumber;
 public:
-	MSAAFrameBuffer(unsigned int scr_width, unsigned int scr_height, unsigned int SN) : screenWidth(scr_width), screenHeight(scr_height), SampleNumber(SN)
+	MSAAFrameBuffer(unsigned int scr_width, unsigned int scr_height, unsigned int SN) : c_screenWidth(scr_width), c_screenHeight(scr_height), SampleNumber(SN)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -674,12 +690,12 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, textureColorId);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, screenWidth, screenHeight, GL_TRUE);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, c_screenWidth, c_screenHeight, GL_TRUE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, textureColorId, 0);
 
 		glGenTextures(1, &ambientId);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ambientId);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, screenWidth, screenHeight, GL_TRUE);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, c_screenWidth, c_screenHeight, GL_TRUE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D_MULTISAMPLE, ambientId, 0);
 		GLuint colorattachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 		glDrawBuffers(2, colorattachments);
@@ -688,8 +704,8 @@ public:
 	{
 		glGenRenderbuffers(1, &renderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, renderBufferId);
-		glRenderbufferStorageMultisample(GL_RENDERBUFFER, SampleNumber, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderBufferId);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, SampleNumber, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBufferId);
 	};
 	~MSAAFrameBuffer()
 	{
@@ -716,7 +732,7 @@ public:
 	};
 	void BlitBuffer()
 	{
-		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, c_screenWidth, c_screenHeight, 0, 0, c_screenWidth, c_screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	};
 	void Read()
 	{
@@ -731,13 +747,13 @@ class HDRFBO
 {
 private:
 	unsigned int frameBufferId;
-	unsigned int textureColorId[1];
+	unsigned int textureColorId;
 	unsigned int RenderBufferId;
 
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	HDRFBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	HDRFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -749,36 +765,34 @@ public:
 	};
 	void BindTextureBuffer()
 	{
-		glGenTextures(1, textureColorId);
+		glGenTextures(1, &textureColorId);
 		for (int i = 0; i < 1; i++)
 		{
-			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glBindTexture(GL_TEXTURE_2D, textureColorId);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			GLfloat max_TexAni;    //查询允许的各向异性数量
-			glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_TexAni);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_TexAni);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureColorId[i], 0);
+
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, textureColorId, 0);
 		}
-		GLuint colorattachments[1] = { GL_COLOR_ATTACHMENT0};
-		glDrawBuffers(1, colorattachments);
+
 	};
 	void BindRenderBuffer()
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 	};
 	~HDRFBO()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);
-		glDeleteFramebuffers(1, textureColorId);
+		glDeleteFramebuffers(1, &textureColorId);
 		glDeleteFramebuffers(1, &RenderBufferId);
 	};
 	void Bind()
@@ -792,7 +806,7 @@ public:
 	void BindTexture(unsigned int slot = 0, int i = 0)
 	{
 		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
+		glBindTexture(GL_TEXTURE_2D, textureColorId);
 	};
 	void BindDepth(unsigned int slot = 0, int i = 0)
 	{
@@ -817,12 +831,12 @@ public:
 	}
 	void BlitDepthBuffer()
 	{
-		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, c_screenWidth, c_screenHeight, 0, 0, c_screenWidth, c_screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	};
 
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -833,17 +847,17 @@ private:
 	unsigned int frameBufferId;
 	unsigned int DepthTextureId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;//分辨率
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率
+	unsigned int c_screenHeight;
 public:
-	DirLightDepthMapFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	DirLightDepthMapFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
 		//glDrawBuffer(GL_NONE);
 		//glReadBuffer(GL_NONE);
-		BindRenderBuffer();
+		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -853,19 +867,19 @@ public:
 	{
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);//只需要深度
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glGenerateMipmap(GL_TEXTURE_2D);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, DepthTextureId, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthTextureId, 0);
 	}
 	void BindRenderBuffer()
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
 	~DirLightDepthMapFBO()
@@ -889,7 +903,7 @@ public:
 	}
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -899,10 +913,10 @@ class PointLightDepthMapFBO
 private:
 	unsigned int frameBufferId;
 	unsigned int DepthTextureId;
-	unsigned int screenWidth;//分辨率
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率
+	unsigned int c_screenHeight;
 public:
-	PointLightDepthMapFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	PointLightDepthMapFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -919,7 +933,7 @@ public:
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, DepthTextureId);
 		for (GLuint i = 0; i < 6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -948,7 +962,7 @@ public:
 	}
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -958,10 +972,10 @@ private:
 	unsigned int frameBufferId;
 	unsigned int DepthTextureId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;//分辨率
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率
+	unsigned int c_screenHeight;
 public:
-	SpotLightDepthMapFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	SpotLightDepthMapFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -977,7 +991,7 @@ public:
 	{
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthTextureId, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -986,13 +1000,7 @@ public:
 		GLfloat borderColor[] = { 0.0, 0.0, 0.0, 0.0 };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 	}
-	void BindRenderBuffer()
-	{
-		glGenRenderbuffers(1, &RenderBufferId);
-		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
-	};
+
 	~SpotLightDepthMapFBO()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);
@@ -1014,7 +1022,7 @@ public:
 	}
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 
@@ -1024,15 +1032,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int TextureId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;//分辨率
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率
+	unsigned int c_screenHeight;
 public:
-	EnvCubeMapFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	EnvCubeMapFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderbuffer();
+		//BindRenderbuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1043,7 +1051,7 @@ public:
 		glGenTextures(1, &TextureId);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, TextureId);
 		for (GLuint i = 0; i < 6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
 
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1052,20 +1060,19 @@ public:
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X , TextureId, 0);
 
-		//glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, TextureId, 0);
 	}
 	void BindRenderbuffer()
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frameBufferId);
 	}
 	~EnvCubeMapFBO()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);
 		glDeleteFramebuffers(1, &TextureId);
-		glDeleteFramebuffers(1, &RenderBufferId);
+		//glDeleteFramebuffers(1, &RenderBufferId);
 	}
 	void Bind(int i = 0)
 	{	if(i == 0)
@@ -1088,7 +1095,7 @@ public:
 	}
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class EnvCubeMap_ConvolutionFBO
@@ -1097,17 +1104,17 @@ private:
 	unsigned int frameBufferId;
 	unsigned int TextureId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;//分辨率
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率
+	unsigned int c_screenHeight;
 public:
-	EnvCubeMap_ConvolutionFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	EnvCubeMap_ConvolutionFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindRenderbuffer();
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		//BindRenderbuffer();
+		//if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		//	std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	}
@@ -1116,23 +1123,23 @@ public:
 		glGenTextures(1, &TextureId);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, TextureId);
 		for (GLuint i = 0; i < 6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
 
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, TextureId, 0);
+		//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, TextureId, 0);
 
-		//glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, TextureId, 0);
 	}
 	void BindRenderbuffer()
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frameBufferId);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 	}
 	~EnvCubeMap_ConvolutionFBO()
 	{
@@ -1158,7 +1165,7 @@ public:
 	}
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
 class EnvCubeMap_spec_ConvolutionFBO
@@ -1167,14 +1174,15 @@ private:
 	unsigned int frameBufferId;
 	unsigned int TextureId;
 	unsigned int RenderBufferId;
-	unsigned int screenWidth;//分辨率 128
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;//分辨率 128
+	unsigned int c_screenHeight;
 public:
-	EnvCubeMap_spec_ConvolutionFBO(unsigned int ScreenWidth, unsigned int ScreenHeight) :screenWidth(ScreenWidth), screenHeight(ScreenHeight)
+	EnvCubeMap_spec_ConvolutionFBO(unsigned int c_screenWidth, unsigned int c_screenHeight) :c_screenWidth(c_screenWidth), c_screenHeight(c_screenHeight)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
+		glGenRenderbuffers(1, &RenderBufferId);
 		//BindRenderbuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -1186,7 +1194,7 @@ public:
 		glGenTextures(1, &TextureId);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, TextureId);
 		for (GLuint i = 0; i < 6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGB, GL_FLOAT, nullptr);//只需要深度
 
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -1202,13 +1210,14 @@ public:
 	{
 		glGenRenderbuffers(1, &RenderBufferId);
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, screenWidth, screenHeight);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frameBufferId);
 	}
 	void Bindmip_Renderbuffer(unsigned int width, unsigned int height)
 	{
 		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, width, height);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+
 	}
 	~EnvCubeMap_spec_ConvolutionFBO()
 	{
@@ -1243,10 +1252,10 @@ private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId[1];
 
-	unsigned int screenWidth;
-	unsigned int screenHeight;
+	unsigned int c_screenWidth;
+	unsigned int c_screenHeight;
 public:
-	EnvCubeMap_spec_BRDF_FBO(unsigned int scr_width, unsigned int scr_height) :screenWidth(scr_width), screenHeight(scr_height)
+	EnvCubeMap_spec_BRDF_FBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -1261,7 +1270,7 @@ public:
 		for (int i = 0; i < 1; i++)
 		{
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, screenWidth, screenHeight, 0, GL_RG, GL_FLOAT, NULL);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, c_screenWidth, c_screenHeight, 0, GL_RG, GL_FLOAT, NULL);
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1310,11 +1319,93 @@ public:
 	}
 	void BlitDepthBuffer()
 	{
-		glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, c_screenWidth, c_screenHeight, 0, 0, c_screenWidth, c_screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	};
 
 	void SetViewPort()
 	{
-		glViewport(0, 0, screenWidth, screenHeight);
+		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
+};
+struct SSAO_DATA
+{
+	std::vector<glm::vec3> ssaokernel;
+	std::vector<glm::vec3> ssaonoise;
+};
+SSAO_DATA Get_SSAO_SAMPLE()
+{
+	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // 随机浮点数，范围0.0 - 1.0
+	std::default_random_engine generator;
+	std::vector<glm::vec3> ssaoKernel;
+	for (GLuint i = 0; i < 64; ++i)
+	{
+		glm::vec3 sample(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator)
+		);
+		sample = glm::normalize(sample);
+		sample *= randomFloats(generator);
+		float scale = float(i) / 64.0;
+		scale = 0.1f + 0.9f * scale;
+		sample *= scale;
+		ssaoKernel.push_back(sample);
+	}
+	std::vector<glm::vec3> ssaoNoise;
+	for (GLuint i = 0; i < 16; i++)
+	{
+		glm::vec3 noise(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			0.0f);
+		ssaoNoise.push_back(noise);
+	}
+	SSAO_DATA ssaodata = { ssaoKernel, ssaoNoise };
+	return ssaodata;
+}
+extern unsigned int screenWidth;
+extern unsigned int screenHeight;
+class FrameBuffers
+{
+private:
+
+public:
+	FrameBuffers(unsigned int width, unsigned int height)
+	{
+	}
+	DirLightDepthMapFBO csm_mapFBO[4] =
+	{
+	DirLightDepthMapFBO(4096, 4096),
+	DirLightDepthMapFBO(4096, 4096),
+	DirLightDepthMapFBO(4096, 4096),
+	DirLightDepthMapFBO(4096, 4096)
+
+	};
+	PointLightDepthMapFBO PointlightMapfbo[4] = {
+		 PointLightDepthMapFBO(1024, 1024),
+		 PointLightDepthMapFBO(1024, 1024),
+		 PointLightDepthMapFBO(1024, 1024),
+		 PointLightDepthMapFBO(1024, 1024)
+	};
+	SpotLightDepthMapFBO SpotlightMapfbo = SpotLightDepthMapFBO(1024, 1024);
+	//环境光照
+	EnvCubeMapFBO envcubemapFBO = EnvCubeMapFBO(1024, 1024);
+	EnvCubeMap_ConvolutionFBO envcubemap_convolutionFBO = EnvCubeMap_ConvolutionFBO(32, 32);
+	EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO = EnvCubeMap_spec_ConvolutionFBO(256, 256);
+	EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO = EnvCubeMap_spec_BRDF_FBO(512, 512);
+	HDRFBO hdrfbo = HDRFBO(screenWidth, screenHeight);
+	CameraDepthFBO cameradepthFBO = CameraDepthFBO(screenWidth, screenHeight);
+	Blooming_HighlightFBO blooming_hightlightFBO = Blooming_HighlightFBO(screenWidth, screenHeight);
+	Blooming_Blur_HorizontalFBO blooming_blur_horizontalFBO = Blooming_Blur_HorizontalFBO(screenWidth, screenHeight);
+	Blooming_Blur_VerticalFBO blooming_blur_verticalFBO = Blooming_Blur_VerticalFBO(screenWidth, screenHeight);
+	Shadow_Blur_HorizontalFBO shadow_blur_horizontalFBO = Shadow_Blur_HorizontalFBO(screenWidth, screenHeight);
+	Shadow_Blur_VerticalFBO shadow_blur_verticalFBO = Shadow_Blur_VerticalFBO(screenWidth, screenHeight);
+	GBuffer gbuffer = GBuffer(screenWidth, screenHeight);
+	GBuffer PreShadowFBO = GBuffer(screenWidth, screenHeight, false);
+	//SSAO采样样本
+	std::vector<glm::vec3> ssaoKernel = Get_SSAO_SAMPLE().ssaokernel;
+	std::vector<glm::vec3> ssaoNoise = Get_SSAO_SAMPLE().ssaonoise;
+	SSAOFBO ssaoFBO = SSAOFBO(screenWidth, screenHeight, ssaoNoise);
+	SSAOBlurFBO ssaoblurFBO = SSAOBlurFBO(screenWidth, screenHeight);
+
 };

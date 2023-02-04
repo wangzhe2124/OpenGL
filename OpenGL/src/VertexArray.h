@@ -10,12 +10,16 @@ private:
 	unsigned int j;
 public:
 	VertexArray();
+	VertexArray(VertexArray& va);
 	~VertexArray();
 	inline unsigned int GetNumber() const { return Number; }
 	void AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout);
 	
 	void Bind() const;
 	void Unbind() const;
+	unsigned int GetId() { return m_RendererId; }
+	unsigned int GetNum() { return Number; }
+	unsigned int GetJ() { return j; }
 };
 
 #include "Debugger.h"
@@ -31,7 +35,12 @@ VertexArray::~VertexArray()
 	glDeleteVertexArrays(1, &m_RendererId);
 }
 
-
+VertexArray::VertexArray(VertexArray& va)
+{
+	m_RendererId = va.GetId();
+	Number = va.GetNum();
+	j = va.GetJ();
+}
 
 void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& layout)
 {
@@ -66,9 +75,8 @@ void VertexArray::Unbind() const
 class VertexArrays
 {
 public:
-	VertexArray floorVa;
-	VertexArray sphereVa;
 	VertexArray quadVa;
 	VertexArray cubeVa;
 	VertexArray skyboxVa;
+	VertexArray textVa;
 };

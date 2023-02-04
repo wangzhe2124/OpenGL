@@ -42,6 +42,7 @@ float LinearizeDepth(float depth)
 }
 uniform float radius;
 uniform float bias;
+uniform float rangecheck;
 void main()
 {
 	vec3 FragPos = texture(gPosition, fs_in.TexCoord).xyz;
@@ -54,7 +55,8 @@ void main()
 	mat3 TBN = mat3(tangent, bitangent, Normal);
 	float occlusion = 0.0;
 	int kernelSize = 64;
-
+	int cnt = 0;
+	float act_bias = bias / camera.far_plane / LinearizeDepth(Depth);
 	for (int i = 0; i < kernelSize; ++i)
 	{
 		// 获取样本位置
@@ -66,9 +68,13 @@ void main()
 		offset.xyz /= offset.w; // 透视划分
 		offset.xyz = offset.xyz * 0.5 + 0.5; // 变换到0.0 - 1.0的值域
 		float sampleDepth = texture(camera.Depth, offset.xy).x;
-		float rangeCheck = smoothstep(0.0, 1.0, radius* camera.far_plane / (abs(Depth - sampleDepth)));
-		occlusion += (sampleDepth >= Depth - bias/20 ? 1.0 : 0.0) *rangeCheck;
+		float rangeCheck = smoothstep(0.0, 1.0, radius* camera.far_plane *10 / (abs(Depth - sampleDepth)));
+		if (abs(LinearizeDepth(Depth) - LinearizeDepth(sampleDepth)) < rangecheck)
+		{
+			occlusion += (sampleDepth >= Depth - act_bias ? 1.0 : 0.0);// *rangeCheck;
+			cnt += 1;
+		}
 	}
-	occlusion /= kernelSize;
-	color = pow(occlusion,2);
+	occlusion /= cnt;
+	color = pow(occlusion,4);
 };

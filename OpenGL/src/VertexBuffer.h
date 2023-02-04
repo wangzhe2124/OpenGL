@@ -7,6 +7,8 @@ private:
 	unsigned int Number;
 public:
 	VertexBuffer();
+	VertexBuffer(unsigned int size);
+
     VertexBuffer(const void* data, unsigned int size);
 	void BindData(const void* data, unsigned int size);
 	VertexBuffer operator=(const VertexBuffer& vb);
@@ -20,18 +22,24 @@ public:
 
 VertexBuffer::VertexBuffer() :Number(0)
 {
-    ASSERT(sizeof(unsigned int) == sizeof(GLuint));
     glGenBuffers(1, &m_RendererId);
     glBindBuffer(GL_ARRAY_BUFFER, m_RendererId);
 
 }
 VertexBuffer::VertexBuffer(const void* data, unsigned int size)
 {
-    ASSERT(sizeof(unsigned int) == sizeof(GLuint));
     glGenBuffers(1, &m_RendererId);
     glBindBuffer(GL_ARRAY_BUFFER, m_RendererId);
     BindData(data, size);
 }
+VertexBuffer::VertexBuffer(unsigned int size) :Number(size)
+{
+	glGenBuffers(1, &m_RendererId);
+	glBindBuffer(GL_ARRAY_BUFFER, m_RendererId);
+	glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+
+}
+
 VertexBuffer VertexBuffer::operator=(const VertexBuffer& vb)
 {
     this->m_RendererId = vb.m_RendererId;
@@ -59,6 +67,11 @@ void VertexBuffer::Unbind() const
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+class VertexBuffers
+{
+public:
+	VertexBuffer textVb = VertexBuffer(sizeof(GLfloat) * 6 * 4);
+};
 class UniformBuffer
 {
 private:

@@ -71,6 +71,8 @@
     <None Include="res\shaders\shadow_blur.shader" />
     <None Include="res\shaders\EnvCubeMap_spec_Convolution.shader" />
     <None Include="res\shaders\EnvCubeMap_spec_BRDF.shader" />
+    <None Include="res\shaders\basic_screen.shader" />
+    <None Include="res\shaders\Text.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -149,6 +151,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Text.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Debugger.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

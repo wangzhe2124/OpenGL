@@ -4,7 +4,11 @@
 #include <assimp/postprocess.h>
 #include "vender/stb_image/stb_image.h"
 #include "opengl_Mesh.h"
+#include "ModelSpace.h"
+#include "VertexArray.h"
+#include "IndexBuffer.h"
 #include <vector>
+#include <map>
 using namespace std;
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma = false);
 
@@ -14,16 +18,36 @@ public:
     // model data 
     vector<MeshTexture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     vector<Mesh>    meshes;
+    vector<float> position_x;
+    vector<float> position_y;
+    vector<float> position_z;
+    vector<float> aabb;
     string directory;
     bool gammaCorrection;
-
+    ModelSpace position;
+    VertexArray* va;
+    IndexBuffer* ib;
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool gamma = false) : gammaCorrection(gamma)
+    Model(string const& path, bool gamma = false) : gammaCorrection(gamma), va(nullptr), ib(nullptr)
     {
         loadModel(path);
+        AABB();
     }
-
+    Model(const unsigned int* data, unsigned int count)
+    {
+        va = new VertexArray();
+        ib = new IndexBuffer(data, count);
+    }
+    Model() : ib(nullptr)
+    {
+        va = new VertexArray();
+    }
     // draws the model, and thus all its meshes
+    ~Model()
+    {
+        delete va;
+        delete ib;
+    }
     template<typename T>
     void Draw(T& shader)
     {
@@ -36,6 +60,44 @@ public:
     {
         for (unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].DrawShadow(shader);
+    }
+    void AABB()
+    {
+        sort(begin(position_x), end(position_x));
+        sort(begin(position_y), end(position_y));
+        sort(begin(position_z), end(position_z));
+        aabb = { (position_x[0]),
+        position_x.back(),
+        position_y[0],
+        position_y.back(),
+        position_z[0],
+        position_z.back()};
+    }
+    void Get_AABB()
+    {
+        position_x.clear();
+        position_y.clear();
+        position_z.clear();
+        for (int i = 0; i < meshes.size(); i++)
+        {
+            for (int j = 0; j < meshes[i].vertices.size(); j++)
+            {
+                meshes[i].vertices[j].Position  = position.GetModelSpace() * glm::vec4(meshes[i].vertices[j].Position, 1.0);
+                
+                position_x.push_back(meshes[i].vertices[j].Position.x);
+                position_y.push_back(meshes[i].vertices[j].Position.y);
+                position_z.push_back(meshes[i].vertices[j].Position.z);
+            }
+        }
+        sort(begin(position_x), end(position_x));
+        sort(begin(position_y), end(position_y));
+        sort(begin(position_z), end(position_z));
+        aabb = { (position_x[0]),
+        position_x.back(),
+        position_y[0],
+        position_y.back(),
+        position_z[0],
+        position_z.back() };
     }
 
 private:
@@ -94,6 +156,9 @@ private:
             vector.y = mesh->mVertices[i].y;
             vector.z = mesh->mVertices[i].z;
             vertex.Position = vector;
+            position_x.push_back(vector.x);
+            position_y.push_back(vector.y);
+            position_z.push_back(vector.z);
             // normals
             if (mesh->HasNormals())
             {
@@ -195,7 +260,6 @@ private:
     }
 };
 
-
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma)
 {
     string filename = string(path);
@@ -213,8 +277,13 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
             format = GL_RGB;
         else if (nrComponents == 4)
             format = GL_RGBA;
+        GLenum outformat;
+        if (gamma)
+            outformat = GL_RGBA;
+        else
+            outformat = GL_SRGB_ALPHA;
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, outformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -231,85 +300,27 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
 
     return textureID;
 }
+
 class Models
 {
+private:
+    
 public:
+    std::map<std::string, Model*> models_map;
     Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     Model Marry = Model("res/objects/Marry/Marry.obj");
     Model Planet = Model("res/objects/planet/planet.obj");
+    Model Floor;
+    Model Sphere = Model(&sphere.index[0], sphere.index.size());
+    void Get_modelss()
+    {
+        models_map["Nano"] = &Nano;
+        models_map["Marry"] = &Marry;
+        models_map["Planet"] = &Planet;
+    }
+    Models()
+    {
+        Get_modelss();
+    }
 };
-struct sphere_data
-{
-    std::vector<float> vertex;
-    std::vector<unsigned int> index;
-};
-sphere_data SphereData()
-{
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec2> uv;
-    std::vector<glm::vec3> normals;
-    std::vector<unsigned int> indices;
 
-    const unsigned int X_SEGMENTS = 64;
-    const unsigned int Y_SEGMENTS = 64;
-    const float PI = 3.14159265359f;
-    for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
-    {
-        for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
-        {
-            float xSegment = (float)x / (float)X_SEGMENTS;
-            float ySegment = (float)y / (float)Y_SEGMENTS;
-            float xPos = std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
-            float yPos = std::cos(ySegment * PI);
-            float zPos = std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
-
-            positions.push_back(glm::vec3(xPos, yPos, zPos));
-            uv.push_back(glm::vec2(xSegment, ySegment));
-            normals.push_back(glm::vec3(xPos, yPos, zPos));
-        }
-    }
-
-    bool oddRow = false;
-    for (unsigned int y = 0; y < Y_SEGMENTS; ++y)
-    {
-        if (!oddRow) // even rows: y == 0, y == 2; and so on
-        {
-            for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
-            {
-                indices.push_back(y * (X_SEGMENTS + 1) + x);
-                indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
-            }
-        }
-        else
-        {
-            for (int x = X_SEGMENTS; x >= 0; --x)
-            {
-                indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
-                indices.push_back(y * (X_SEGMENTS + 1) + x);
-            }
-        }
-        oddRow = !oddRow;
-    }
-    unsigned int indexCount = static_cast<unsigned int>(indices.size());
-
-    std::vector<float> data;
-    for (unsigned int i = 0; i < positions.size(); ++i)
-    {
-        data.push_back(positions[i].x);
-        data.push_back(positions[i].y);
-        data.push_back(positions[i].z);
-        if (normals.size() > 0)
-        {
-            data.push_back(normals[i].x);
-            data.push_back(normals[i].y);
-            data.push_back(normals[i].z);
-        }
-        if (uv.size() > 0)
-        {
-            data.push_back(uv[i].x);
-            data.push_back(uv[i].y);
-        }
-    }
-    sphere_data Data= { data, indices };
-    return Data;
-}

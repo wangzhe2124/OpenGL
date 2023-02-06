@@ -29,6 +29,7 @@
 #include FT_FREETYPE_H 
 #define CSM_SPLIT_NUM 4
 #define POINT_LIGHTS_NUM 4
+#define PI 3.14159265359
 struct Sun_DATA
 {
     glm::vec3 Sun_Position;
@@ -48,7 +49,7 @@ struct SpotLight_DATA
 
 struct PointLight_DATA
 {
-    float lightintensity = 1.0;
+    float lightintensity = 0.0;
     float near_plane = 0.1f;
     float far_plane = 5.0f;
     glm::vec3 position[POINT_LIGHTS_NUM];
@@ -69,6 +70,9 @@ void Gaussian_Blured_Texture(int j, int times, Shader& blooming_blurshader, T1& 
 
 Sun_DATA GetSunPosition(Camera& camera);
 
+void Update_Spotlight(SpotLight_DATA& spotlight, Camera& camera);
+
+void Update_Pointlight(PointLight_DATA& pointlight);
 
 void Generate_Dir_CSM(Shader& dircsmshader, CSM_Dirlight& csm_dirlight, FrameBuffers& framebuffers,
     Models& models, Renderer& renderer, VertexArrays& vertex_arrays);
@@ -110,7 +114,9 @@ void Generate_EnvLight_Specular(Shader& EnvCubeMap_spec_ConvolutionShader, Frame
 void Generate_EnvLight_Specular_BRDF(Shader& EnvCubeMap_spec_BRDF_Shader, FrameBuffers& framebuffers,
     Renderer& renderer, VertexArrays& vertex_arrays);
 
-void Initialize_Models_Positions(Models& models);
+void Initialize_Models_Positions(Models& models, Camera& camera);
+
+void Update_Models_Positions(Models& models, Camera& camera);
 
 void GUI_Initialize(GLFWwindow* window);
 
@@ -133,7 +139,8 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
 //创建相机
-Camera camera(glm::vec3(0.0f, 1.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 1.4f, 3.0f));
+Camera first_camera(glm::vec3(0.0f, 1.0f, 0.0f));
 //键盘输入
 KeyInput keyinput;
 //逐级更新CSM
@@ -186,16 +193,7 @@ int main(void)
 
 
     //点光源属性
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointlight.position[i] = glm::vec3(i * 3, 2, 0);
-        pointlight.space[i].Translate(pointlight.position[i]);
-        pointlight.space[i].Scale(glm::vec3(0.3f));
-    }
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointlight.color[i] = glm::vec3(50.0f);
-    }
+    Update_Pointlight(pointlight);
     //texture
     Textures textures;
     //shaders
@@ -229,7 +227,7 @@ int main(void)
     //models
     Models models;
     //模型位置
-    Initialize_Models_Positions(models);
+    Initialize_Models_Positions(models, camera);
     VertexArrays vertex_arrays;
     VertexBuffers vertex_buffers;
     Initialize_Vertex_Arrays(vertex_arrays, vertex_buffers, config, models);
@@ -275,13 +273,16 @@ int main(void)
     /* Loop until the user closes the window */
     //gamma校正
     //glEnable(GL_FRAMEBUFFER_SRGB); 
-
+    glEnable(GL_BLEND);
+    RenderText(text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
+    glDisable(GL_BLEND);
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = float(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         keyinput.ProcessMovement(window, camera, deltaTime);//键盘输入移动
+        camera.Set_third_view(keyinput.third_view);
         /* Render here */
         glEnable(GL_DEPTH_TEST);
         //floorPosition.Rotate((GLfloat)glfwGetTime() * 2, glm::normalize(glm::vec3(0.0, 1.0, 0.0)));
@@ -289,6 +290,7 @@ int main(void)
         // 
         //绘制阴影贴图
         //平行光阴影贴图
+        Update_Models_Positions(models, camera);
         sun = GetSunPosition(camera);
         csm_dirlight.Get_light_projection(camera, sun.Sun_Position);//得到光空间投影矩阵
                 
@@ -300,12 +302,7 @@ int main(void)
             models, renderer, vertex_arrays, pointlight);
  
         //聚光阴影贴图
-        spotlight.bias_direction = glm::vec3(0.15) * (glm::cross(camera.Front, glm::vec3(0.0f, 1.0f, 0.0f)) - camera.Front);
-        spotlight.position = camera.Position + spotlight.bias_direction;
-        spotlight.direction = camera.Front - spotlight.bias_direction;
-        glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.spotlight_near_plane, spotlight.spotlight_far_plane);
-        glm::mat4 SpotlightView = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
-        spotlight.SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
+        Update_Spotlight(spotlight, camera);
         Generate_Spot_SM(SpotLightShadowshader, framebuffers,
             models, renderer, vertex_arrays, spotlight);
       
@@ -351,9 +348,6 @@ int main(void)
         Generate_PostProcess(screenShader, blooming_highlightshader, blooming_blurshader,basicscreen_shader,
             framebuffers, renderer, vertex_arrays, keyinput);
         glCheckError();
-        glEnable(GL_BLEND);
-        RenderText(text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
-        glDisable(GL_BLEND);
         glEnable(GL_BLEND);
         std::string text_render = Collision_detection(models, camera);
         RenderText(text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
@@ -505,15 +499,13 @@ void Generate_Dir_CSM(Shader& dircsmshader, CSM_Dirlight& csm_dirlight, FrameBuf
         framebuffers.csm_mapFBO[i].SetViewPort();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //绘制       
-        dircsmshader.SetUniformmatri4fv("model", models.Nano.position.GetModelSpace());
-        models.Nano.DrawShadow(dircsmshader);
-
-        dircsmshader.SetUniformmatri4fv("model", models.Marry.position.GetModelSpace());
-        models.Marry.DrawShadow(dircsmshader);
-
-        dircsmshader.SetUniformmatri4fv("model", models.Planet.position.GetModelSpace());
-        models.Planet.DrawShadow(dircsmshader);
-
+        std::map<std::string, Model*>::iterator iter;
+        iter = models.models_map.begin();
+        for (iter = models.models_map.begin(); iter != models.models_map.end(); iter++)
+        {
+            dircsmshader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+            iter->second->DrawShadow(dircsmshader);
+        }
         dircsmshader.SetUniformmatri4fv("model", models.Floor.position.GetModelSpace());
         renderer.DrawArray(*models.Floor.va, dircsmshader);
 
@@ -626,6 +618,8 @@ void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, FrameBuff
     models.Marry.Draw(DeferedShader);
     DeferedShader.SetUniformmatri4fv("model", models.Planet.position.GetModelSpace());
     models.Planet.Draw(DeferedShader);
+    DeferedShader.SetUniformmatri4fv("model", models.Main_character.position.GetModelSpace());
+    models.Main_character.Draw(DeferedShader);
     //地板  
     DeferedShader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
     DeferedShader.SetUniform1i("use_HeightMap", keyinput.useheight);
@@ -704,7 +698,6 @@ void Generate_PreShadow(Shader& DeferedPreShadowShader, Camera& camera, CSM_Dirl
         DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.position[i]);
         DeferedPreShadowShader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.far_plane);
     }
-    DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
     framebuffers.cameradepthFBO.BindTexture(0);
     DeferedPreShadowShader.SetUniform1i("camera.Depth", 0);
     framebuffers.gbuffer.BindTexture(1, 0);
@@ -751,7 +744,10 @@ void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, 
     DeferedLighting_shader.SetUniform3f("objectColor", glm::vec3(keyinput.objectColor));
     DeferedLighting_shader.SetUniform1f("material.metallic", keyinput.metallic);
     DeferedLighting_shader.SetUniform1f("material.roughness", keyinput.roughness);
-    DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position);
+    if(camera.third_view)
+        DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.character_pos - glm::vec3(3.0f) * camera.Front);
+    else
+        DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position);
     framebuffers.gbuffer.BindTexture(1, 0);
     DeferedLighting_shader.SetUniform1i("gPosition", 1);
     framebuffers.gbuffer.BindTexture(2, 1);
@@ -992,7 +988,7 @@ void Generate_EnvLight_Specular_BRDF(Shader& EnvCubeMap_spec_BRDF_Shader, FrameB
     glViewport(0, 0, screenWidth, screenHeight);
 }
 
-void Initialize_Models_Positions(Models& models)
+void Initialize_Models_Positions(Models& models, Camera& camera)
 {
     models.Nano.position.Scale(glm::vec3(0.1f));
     models.Nano.position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1002,6 +998,9 @@ void Initialize_Models_Positions(Models& models)
     models.Planet.position.Translate(glm::vec3(10.0f, 0, 0));
     models.Floor.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models.Sphere.position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
+    models.Main_character.position.Scale(glm::vec3(0.1f));
+    models.Main_character.position.Translate(camera.Position);
+    models.Main_character.position.Rotate(-180.0, glm::vec3(0.0, 1.0, 0.0));
     std::map<std::string, Model*>::iterator iter;
     iter = models.models_map.begin();
     for (iter = models.models_map.begin(); iter != models.models_map.end(); iter++)
@@ -1010,6 +1009,63 @@ void Initialize_Models_Positions(Models& models)
     }
 }
 
+void Update_Models_Positions(Models& models, Camera& camera)
+{
+    glm::mat4 mod;
+    float theta = acos(glm::dot(glm::normalize(glm::vec3(camera.Front.x, 0.0, camera.Front.z)), glm::vec3(0.0f, 0.0f, -1.0f)));
+    theta = camera.Front.x > 0 ? theta : (2 * PI - theta);
+    float character_view = theta * 180.0f / PI;
+    ModelSpace modd;
+    modd.Scale(glm::vec3(0.1f));
+    modd.Rotate(180.0 + character_view, glm::vec3(0.0, -1.0, 0.0));
+    if (!camera.third_view)
+    {
+        mod = modd.GetModelSpace();
+    }
+    else
+    {
+        float rotation = 0;
+        switch (camera.character_Front)
+        {
+        case FORWARD:
+            rotation = 0;
+            break;
+        case LEFT:
+            rotation = -90.0f;
+            break;
+        case RIGHT:
+            rotation = 90.0f;
+            break;
+        case BACKWARD:
+            rotation = 180.0f;
+            break;
+        case FORWARD_LEFT:
+            rotation = -45.0f;
+            break;
+        case FORWARD_RIGHT:
+            rotation = 45.0f;
+            break;
+        case BACKWARD_LEFT:
+            rotation = 225.0f;
+            break;
+        case BACKWARD_RIGHT:
+            rotation = 135.0f;
+            break;
+        }
+        if (camera.is_move)
+        {
+            modd.Rotate(rotation, glm::vec3(0.0, -1.0, 0.0));
+            mod = modd.GetModelSpace();
+        }
+        else
+            mod = models.Main_character.position.GetModelSpace();
+    }
+    mod[3][0] = camera.character_pos.x;
+    mod[3][1] = 0.0;
+    mod[3][2] = camera.character_pos.z;
+    models.Main_character.position.SetModel(mod);
+    models.Main_character.Get_AABB();
+}
 void GUI_Process(GLFWwindow* window,KeyInput& keyinput)
 {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -1025,6 +1081,7 @@ void GUI_Process(GLFWwindow* window,KeyInput& keyinput)
     ImGui::Checkbox("HeightMap", &keyinput.useheight);
     ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
     ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
+    ImGui::Checkbox("third_view", &keyinput.third_view);
     ImGui::SliderFloat("ObjectColor", &keyinput.objectColor, 0.0f, 1.0f);
     ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
     ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
@@ -1226,4 +1283,28 @@ std::string Collision_detection(Models& models, Camera& camera)
         }
     }
     return text;
+}
+
+void Update_Spotlight(SpotLight_DATA& spotlight, Camera& camera)
+{
+    spotlight.bias_direction = glm::vec3(0.15) * (glm::cross(camera.Front, glm::vec3(0.0f, 1.0f, 0.0f)) - camera.Front);
+    spotlight.position = camera.Position + spotlight.bias_direction;
+    spotlight.direction = camera.Front - spotlight.bias_direction;
+    glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.spotlight_near_plane, spotlight.spotlight_far_plane);
+    glm::mat4 SpotlightView = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
+    spotlight.SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
+}
+
+void Update_Pointlight(PointLight_DATA& pointlight)
+{
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        pointlight.position[i] = glm::vec3(i * 3, 2, 0);
+        pointlight.space[i].Translate(pointlight.position[i]);
+        pointlight.space[i].Scale(glm::vec3(0.3f));
+    }
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        pointlight.color[i] = glm::vec3(50.0f);
+    }
 }

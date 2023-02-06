@@ -10,11 +10,15 @@ enum Camera_Movement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    FORWARD_LEFT,
+    FORWARD_RIGHT,
+    BACKWARD_LEFT,
+    BACKWARD_RIGHT
 };
 
 // Default camera values
-const float YAW = -90.0f;
+const float YAW = 0.0f;
 const float PITCH = 0.0f;
 const float SPEED = 2.5f;
 const float SENSITIVITY = 0.1f;
@@ -27,6 +31,10 @@ class Camera
 public:
     // camera Attributes
     glm::vec3 Position;//Î»ÖÃ
+    glm::vec3 character_pos;
+    bool third_view;
+    bool is_move;
+    unsigned int character_Front;
     glm::vec3 Front;//·½Ïò
     glm::vec3 Up;
     glm::vec3 Right;
@@ -45,7 +53,7 @@ public:
     // constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),float np = 0.1f, float fp = 200.0f, unsigned int sw = 960, unsigned int sh = 640,
         glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) 
-        : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+        : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), character_Front(FORWARD),is_move(false)
     {
         Position = position;
         WorldUp = up;
@@ -58,7 +66,8 @@ public:
         updateCameraVectors();
     }
     // constructor with scalar values
-    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)),
+        MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), character_Front(FORWARD),is_move(false)
     {
         Position = glm::vec3(posX, posY, posZ);
         WorldUp = glm::vec3(upX, upY, upZ);
@@ -70,7 +79,23 @@ public:
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix()
     {
-        return glm::lookAt(Position, Position + Front, Up);
+        glm::vec3 character = Position - glm::vec3(0.1f) * Front;
+        character_pos = character;
+        if (third_view)
+        {
+            return glm::lookAt(character - glm::vec3(3.0f) * Front, character, Up);
+        }
+        else
+            return glm::lookAt(Position, Position + Front, Up);
+    }
+    void Set_third_view(bool t)
+    {
+        third_view = t;
+    }
+    glm::mat4 GetCharacterMatrix()
+    {
+        glm::vec3 character = glm::vec3(Position.x, Position.y, Position.z - 2.0f);
+        return glm::lookAt(character - glm::vec3(3.0f) * Front, character, Up);
     }
     glm::mat4 GetProjectionMatrix()
     {
@@ -88,7 +113,21 @@ public:
             Position -= Right * velocity;
         if (direction == 3)
             Position += Right * velocity;
+        if (direction == 4)
+            Position += (Front - Right) * velocity * glm::vec3(0.707f);
+        if (direction == 5)
+            Position += (Front + Right) * velocity * glm::vec3(0.707f);
+        if (direction == 6)
+            Position += (-Front - Right) * velocity * glm::vec3(0.707f);
+        if (direction == 7)
+            Position += (-Front + Right) * velocity * glm::vec3(0.707f);
         //Position.y = 1.0;
+        if (Position.y > 2.0)
+            Position.y = 2.0;
+        if (Position.y < 1.0)
+            Position.y = 1.0;
+        if (!third_view)
+            Position.y = 1.4f;
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -129,9 +168,9 @@ private:
     {
         // calculate the new Front vector
         glm::vec3 front = glm::vec3(1.0f);
-        front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+        front.x = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
-        front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+        front.z = -cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         Front = glm::normalize(front);
         // also re-calculate the Right and Up vector
         Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.

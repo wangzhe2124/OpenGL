@@ -113,7 +113,11 @@ void CSM_Dirlight::split_camera_frustum(Camera& camera) {
 }
 //更新摄像机视锥分块的世界空间位置(8个顶点)
 void CSM_Dirlight::camera_frustum_points(Camera& camera) {
-    glm::vec3 center = camera.Position;
+    glm::vec3 center;
+    if (camera.third_view)
+        center = camera.character_pos - glm::vec3(3.0f) * camera.Front;
+    else
+        center = camera.Position;
     glm::vec3 view_dir = camera.Front;
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 right = glm::cross(view_dir, up);

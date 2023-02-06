@@ -26,6 +26,7 @@ public:
     float SSAO_rangecheck;
     bool SSAO_window;
     bool assist_screen;
+    bool third_view;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
@@ -41,7 +42,7 @@ KeyInput::KeyInput()
     objectColor(0.5f),
     metallic(0.5f),
     roughness(0.5f),
-    SunIntensity(10.0f),
+    SunIntensity(5.0f),
     SunColor(1.0f),
     blur_shadow(true),
     EnvLight_spec(true),
@@ -49,20 +50,69 @@ KeyInput::KeyInput()
     SSAO_radius(0.2),
     SSAO_rangecheck(0.446),
     SSAO_window(false),
-    assist_screen(false)
+    assist_screen(false),
+    third_view(true)
 {}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            camera.ProcessKeyboard(FORWARD_LEFT, deltaTime);
+            camera.character_Front = FORWARD_LEFT;
+            camera.is_move = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            camera.ProcessKeyboard(FORWARD_RIGHT, deltaTime);
+            camera.character_Front = FORWARD_RIGHT;
+            camera.is_move = true;
+        }
+        else
+        {
+            camera.ProcessKeyboard(FORWARD, deltaTime);
+            camera.character_Front = FORWARD;
+            camera.is_move = true;
+        }
+    }
+    else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            camera.ProcessKeyboard(BACKWARD_LEFT, deltaTime);
+            camera.character_Front = BACKWARD_LEFT;
+            camera.is_move = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            camera.ProcessKeyboard(BACKWARD_RIGHT, deltaTime);
+            camera.character_Front = BACKWARD_RIGHT;
+            camera.is_move = true;
+        }
+        else
+        {
+            camera.ProcessKeyboard(BACKWARD, deltaTime);
+            camera.character_Front = BACKWARD;
+            camera.is_move = true;
+        }
+    }
+    else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(LEFT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.character_Front = LEFT;
+        camera.is_move = true;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(RIGHT, deltaTime);
+        camera.character_Front = RIGHT;
+        camera.is_move = true;
+    }
+    else
+        camera.is_move = false;
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
     {
         exposure += 0.01;

@@ -312,11 +312,13 @@ public:
     Model Planet = Model("res/objects/planet/planet.obj");
     Model Floor;
     Model Sphere = Model(&sphere.index[0], sphere.index.size());
+    Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     void Get_modelss()
     {
         models_map["Nano"] = &Nano;
         models_map["Marry"] = &Marry;
         models_map["Planet"] = &Planet;
+        models_map["Main_character"] = &Main_character;
     }
     Models()
     {

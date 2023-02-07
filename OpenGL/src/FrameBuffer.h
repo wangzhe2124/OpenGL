@@ -1346,7 +1346,7 @@ SSAO_DATA Get_SSAO_SAMPLE()
 		);
 		sample = glm::normalize(sample);
 		sample *= randomFloats(generator);
-		float scale = float(i) / 64.0;
+		float scale = float(i) / 64.0f;
 		scale = 0.1f + 0.9f * scale;
 		sample *= scale;
 		ssaoKernel.push_back(sample);

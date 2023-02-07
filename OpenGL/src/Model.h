@@ -33,12 +33,12 @@ public:
         loadModel(path);
         AABB();
     }
-    Model(const unsigned int* data, unsigned int count)
+    Model(const unsigned int* data, unsigned int count) :gammaCorrection(false)
     {
         va = new VertexArray();
         ib = new IndexBuffer(data, count);
     }
-    Model() : ib(nullptr)
+    Model() : ib(nullptr), gammaCorrection(false)
     {
         va = new VertexArray();
     }
@@ -270,14 +270,14 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
     unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
     if (data)
     {
-        GLenum format;
+        GLenum format{};
         if (nrComponents == 1)
             format = GL_RED;
         else if (nrComponents == 3)
             format = GL_RGB;
         else if (nrComponents == 4)
             format = GL_RGBA;
-        GLenum outformat;
+        GLenum outformat{};
         if (gamma)
             outformat = GL_RGBA;
         else
@@ -311,7 +311,7 @@ public:
     Model Marry = Model("res/objects/Marry/Marry.obj");
     Model Planet = Model("res/objects/planet/planet.obj");
     Model Floor;
-    Model Sphere = Model(&sphere.index[0], sphere.index.size());
+    Model Sphere = Model(&sphere.index[0], static_cast<unsigned int>(sphere.index.size()));
     Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     void Get_modelss()
     {

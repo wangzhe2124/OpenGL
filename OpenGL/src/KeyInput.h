@@ -46,9 +46,9 @@ KeyInput::KeyInput()
     SunColor(1.0f),
     blur_shadow(true),
     EnvLight_spec(true),
-    SSAO_bias(0.3),
-    SSAO_radius(0.2),
-    SSAO_rangecheck(0.446),
+    SSAO_bias(0.3f),
+    SSAO_radius(0.2f),
+    SSAO_rangecheck(0.446f),
     SSAO_window(false),
     assist_screen(false),
     third_view(true)
@@ -115,13 +115,13 @@ void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTi
         camera.is_move = false;
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
     {
-        exposure += 0.01;
+        exposure += 0.01f;
     }
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
     {
-        exposure -= 0.01;
-        if (exposure < 0)
-            exposure = 0.0;
+        exposure -= 0.01f;
+        if (exposure < 0.0f)
+            exposure = 0.0f;
     }
 }
 void KeyInput::ProcessKey(GLFWwindow* window, int key, int action)

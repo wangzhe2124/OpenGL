@@ -151,7 +151,7 @@ void CSM_Dirlight::camera_frustum_points(Camera& camera) {
 //生成光视锥切片的光空间变换矩阵(lightView为光观察矩阵)
 void CSM_Dirlight::light_projection()
 {
-    float distance[4];
+    float distance[4]{};
     for (int i = 0; i < splitNum; i++) {
         Frustum& t_frustum = camera_frustums[i];
         glm::vec3 tmax(-1000.0f, -1000.0f, 0.0f);

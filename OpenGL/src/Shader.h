@@ -350,3 +350,31 @@ void D3Shader::SetUniform3f(const std::string& name, glm::vec3 vc)
 {
     glUniform3fv(GetUniformLocation(name), 1, &vc[0]);
 }
+
+class Shaders
+{
+public:
+    Shader screenShader = Shader("res/shaders/screen.shader");
+    Shader blooming_highlightshader = Shader("res/shaders/blooming_highlight.shader");
+    Shader blooming_blurshader = Shader("res/shaders/blooming_blur.shader");
+    Shader shadow_blurshader = Shader("res/shaders/shadow_blur.shader");
+    Shader DeferedShader = Shader("res/shaders/Defered.shader");
+    Shader DeferedPreShadowShader = Shader("res/shaders/DeferedPreShadow.shader");
+    Shader SSAOShader = Shader("res/shaders/SSAO.shader");
+    Shader SSAOBlurShader = Shader("res/shaders/SSAOblur.shader");
+    Shader basic_shader = Shader("res/shaders/basic.shader");
+    Shader basicscreen_shader = Shader("res/shaders/basic_screen.shader");
+    Shader EnvCubeMapShader = Shader("res/shaders/EnvCubeMap.shader");
+    Shader EnvCubeMap_ConvolutionShader = Shader("res/shaders/EnvCubeMap_Convolution.shader");
+    Shader EnvCubeMap_spec_ConvolutionShader = Shader("res/shaders/EnvCubeMap_spec_Convolution.shader");
+    Shader EnvCubeMap_spec_BRDF_Shader = Shader("res/shaders/EnvCubeMap_spec_BRDF.shader");
+    Shader DeferedLighting_shader = Shader("res/shaders/DeferedLighting.shader");
+    //D3Shader model_geometry_shader("res/shaders/model_geomrtry.shader");
+    //Shader model_instance_shader = Shader("res/shaders/model_instance.shader");
+    //Shader tencil = Shader("res/shaders/single.shader");
+    Shader skyboxShader = Shader("res/shaders/SkyBox.shader");
+    Shader DirLightShadowshader = Shader("res/shaders/DirLightShadow.shader");
+    D3Shader PointLightShadowshader = D3Shader("res/shaders/PointLightShadow.shader");
+    Shader SpotLightShadowshader = Shader("res/shaders/SpotLightShadow.shader");
+    Shader text_shader = Shader("res/shaders/Text.shader");
+};

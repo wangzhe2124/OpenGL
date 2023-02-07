@@ -21,14 +21,14 @@ public:
 		Data = stbi_load(path.c_str(), &width, &height, &outChannel, inChannel);
 		if (Data)
 		{
-			GLenum outformat;
+			GLenum outformat{};
 			if (outChannel == 1)
 				outformat = GL_RED;
 			else if (outChannel == 3)
 				outformat = GL_SRGB;
 			else if (outChannel == 4)
 				outformat = GL_SRGB_ALPHA;
-			GLenum informat;
+			GLenum informat{};
 			if (inChannel == 1)
 				informat = GL_RED;
 			else if (inChannel == 3)
@@ -105,7 +105,7 @@ public:
 				outformat = GL_SRGB;
 			else if (outChannel == 4)
 				outformat = GL_SRGB_ALPHA;
-			GLenum informat;
+			GLenum informat{};
 			if (inChannel == 1)
 				informat = GL_RED;
 			else if (inChannel == 3)

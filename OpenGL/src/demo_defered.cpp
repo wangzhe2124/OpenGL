@@ -170,6 +170,7 @@ int main(void)
         std::cout << "error" << std::endl;
     glCheckError();
     std::cout << glGetString(GL_VERSION) << std::endl;
+
     //debugger
     Debug();
     // Setup Dear ImGui context
@@ -604,7 +605,10 @@ void Generate_Defered_basicDATA(Shader& DeferedShader, Camera& camera, FrameBuff
     DeferedShader.Bind();
     DeferedShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
     DeferedShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-    DeferedShader.SetUniform3f("viewPos", camera.Position);
+    if (camera.third_view)
+        DeferedShader.SetUniform3f("viewPos", camera.character_pos - glm::vec3(3.0f) * camera.Front);
+    else
+        DeferedShader.SetUniform3f("viewPos", camera.Position);
     framebuffers.gbuffer.Bind();
     framebuffers.gbuffer.SetViewPort();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -651,7 +655,6 @@ void Generate_SSAO(Shader& SSAOShader, Camera& camera, FrameBuffers& framebuffer
     SSAOShader.Bind();
     SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
     SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    SSAOShader.SetUniform3f("camera.position", camera.Position);
     SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
     SSAOShader.SetUniform1f("bias", keyinput.SSAO_bias);
     SSAOShader.SetUniform1f("radius", keyinput.SSAO_radius);
@@ -1020,7 +1023,7 @@ void Update_Models_Positions(Models& models, Camera& camera)
     modd.Rotate(180.0 + character_view, glm::vec3(0.0, -1.0, 0.0));
     if (!camera.third_view)
     {
-        mod = modd.GetModelSpace();
+        mod = models.Main_character.position.GetModelSpace();
     }
     else
     {

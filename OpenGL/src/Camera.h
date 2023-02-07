@@ -106,13 +106,13 @@ public:
     {
         float velocity = MovementSpeed * deltaTime;
         if (direction == 0)
-            Position += Front * velocity;
+            Position += glm::normalize(glm::vec3(Front.x, 0.0f,Front.z)) * velocity;
         if (direction == 1)
-            Position -= Front * velocity;
+            Position -= glm::normalize(glm::vec3(Front.x, 0.0f, Front.z)) * velocity;
         if (direction == 2)
-            Position -= Right * velocity;
+            Position -= glm::normalize(glm::vec3(Right.x, 0.0f, Right.z)) * velocity;
         if (direction == 3)
-            Position += Right * velocity;
+            Position += glm::normalize(glm::vec3(Right.x, 0.0f, Right.z)) * velocity;
         if (direction == 4)
             Position += (Front - Right) * velocity * glm::vec3(0.707f);
         if (direction == 5)

@@ -193,6 +193,7 @@
     <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\CSM.h" />
     <ClInclude Include="src\Debugger.h" />
+    <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\IndexBuffer.h" />
     <ClInclude Include="src\KeyInput.h" />
     <ClInclude Include="src\Model.h" />

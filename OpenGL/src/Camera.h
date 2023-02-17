@@ -33,6 +33,7 @@ public:
     glm::vec3 Position;//Î»ÖÃ
     glm::vec3 character_pos;
     bool third_view;
+    bool free_view;
     bool is_move;
     unsigned int character_Front;
     glm::vec3 Front;//·½Ïò
@@ -51,7 +52,7 @@ public:
     unsigned int screen_width;
     unsigned int screen_height;
     // constructor with vectors
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),float np = 0.1f, float fp = 200.0f, unsigned int sw = 960, unsigned int sh = 640,
+    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),float np = 0.1f, float fp = 20000.0f, unsigned int sw = 960, unsigned int sh = 640,
         glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) 
         : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), character_Front(FORWARD),is_move(false)
     {
@@ -64,6 +65,7 @@ public:
         screen_width = sw;
         screen_height = sh;
         updateCameraVectors();
+        character_pos = Position - glm::vec3(0.1f) * Front;
     }
     // constructor with scalar values
     Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)),
@@ -79,11 +81,9 @@ public:
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix()
     {
-        glm::vec3 character = Position - glm::vec3(0.1f) * Front;
-        character_pos = character;
         if (third_view)
         {
-            return glm::lookAt(character - glm::vec3(3.0f) * Front, character, Up);
+            return glm::lookAt(Position - glm::vec3(3.0f) * Front, Position, Up);
         }
         else
             return glm::lookAt(Position, Position + Front, Up);
@@ -92,10 +92,9 @@ public:
     {
         third_view = t;
     }
-    glm::mat4 GetCharacterMatrix()
+    void Set_free_view(bool t)
     {
-        glm::vec3 character = glm::vec3(Position.x, Position.y, Position.z - 2.0f);
-        return glm::lookAt(character - glm::vec3(3.0f) * Front, character, Up);
+        free_view = t;
     }
     glm::mat4 GetProjectionMatrix()
     {
@@ -105,14 +104,15 @@ public:
     void ProcessKeyboard(int direction, float deltaTime)
     {
         float velocity = MovementSpeed * deltaTime;
+        float y_value = free_view == true ? Front.y : 0.0f;
         if (direction == 0)
-            Position += glm::normalize(glm::vec3(Front.x, 0.0f,Front.z)) * velocity;
-        if (direction == 1)
-            Position -= glm::normalize(glm::vec3(Front.x, 0.0f, Front.z)) * velocity;
-        if (direction == 2)
-            Position -= glm::normalize(glm::vec3(Right.x, 0.0f, Right.z)) * velocity;
-        if (direction == 3)
-            Position += glm::normalize(glm::vec3(Right.x, 0.0f, Right.z)) * velocity;
+            Position += glm::normalize(glm::vec3(Front.x, y_value ,Front.z)) * velocity;
+        if (direction == 1)                             
+            Position -= glm::normalize(glm::vec3(Front.x, y_value , Front.z)) * velocity;
+        if (direction == 2)                              
+            Position -= glm::normalize(glm::vec3(Right.x, y_value , Right.z)) * velocity;
+        if (direction == 3)                              
+            Position += glm::normalize(glm::vec3(Right.x, y_value , Right.z)) * velocity;
         if (direction == 4)
             Position += (Front - Right) * velocity * glm::vec3(0.707f);
         if (direction == 5)
@@ -121,12 +121,8 @@ public:
             Position += (-Front - Right) * velocity * glm::vec3(0.707f);
         if (direction == 7)
             Position += (-Front + Right) * velocity * glm::vec3(0.707f);
-        //Position.y = 1.0;
-        if (Position.y > 2.0)
-            Position.y = 2.0;
-        if (Position.y < 1.0)
-            Position.y = 1.0;
-        if (!third_view)
+        character_pos = Position - glm::vec3(0.1f) * Front;
+        if(!free_view)
             Position.y = 1.4f;
     }
 

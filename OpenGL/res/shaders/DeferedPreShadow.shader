@@ -149,7 +149,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 		index = 3;
 	}
 	else
-		index = SPLITNUM - 1;
+		return 0;
 	vec3 lightDir = normalize(dirlight.direction);
 	vec3 projCoords = DirLightCSMSpace[index].xyz;
 	projCoords = projCoords * 0.5 + 0.5;//-1到1 变成0到1
@@ -192,7 +192,8 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	//shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
 	return shadow;
 }
-
+uniform float point_sm_radius;
+uniform bool point_sm_pcf;
 float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 {
 	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 0.5);
@@ -205,12 +206,12 @@ float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 	float texSize = 1.0 / textureSize(shadowMap.PointShadow[i], 0).x;
 	float bias = texSize * tan(theta) * pointlight[i].far_plane * view_distance;
 	float shadow = 0.0;
-/*	if (currentDepth - bias > closestDepth)
+	if (point_sm_pcf)
 	{
 		vec3 up = vec3(0.0, 0.0, 1.0);
 		vec3 offset1 = normalize(cross(up, lightDir));
 		vec3 offset2 = normalize(cross(offset1, lightDir));
-		float radius = 40.0 / textureSize(shadowMap.PointShadow[i], 0).x;
+		//float radius = 40.0 / textureSize(shadowMap.PointShadow[i], 0).x;
 		int sampleNum = 25;
 		vec3 poissonDisk[25];
 		int L = 2;
@@ -220,19 +221,20 @@ float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 			for (int j = -L; j <= L; j++)
 			{
 				int temp = (t + L) * (2 * L + 1) + j + L;
-				poissonDisk[temp] = radius * j * offset;
+				poissonDisk[temp] = point_sm_radius * j * offset;
 			}
 		}
 		for (int t = 0; t < sampleNum; t++)
 		{
-			//int index = int(25.0 * random(fs_in.TexCoord.xyy, t)) % 25;
-			float pcfDepth = texture(shadowMap.PointShadow[i], lightDir + poissonDisk[t]).r;
+			int index = int(25.0 * random(fs_in.TexCoord.xyy, t)) % 25;
+			float pcfDepth = texture(shadowMap.PointShadow[i], lightDir + poissonDisk[index]).r;
 			pcfDepth *= pointlight[i].far_plane;  // Undo mapping [0;1]
 			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 		}
-		shadow /= sampleNum;
-	}*/
-	shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+		shadow /= float(sampleNum);
+	}
+	else
+		shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
 	return shadow;
 }
 

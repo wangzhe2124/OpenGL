@@ -113,8 +113,7 @@ void main()
 	}
 	result += CalcSpotLight(normal, Texcoord, FragPos, occlusion);
 	result += CalcEnvLight(normal, Texcoord, FragPos, occlusion);
-	result = result * objectColor;
-	
+
 	color = vec4(result, 1.0); //+ vec4(texture(skybox, RF).rgb, 1.0);
 };
 vec3 CalcDirLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)

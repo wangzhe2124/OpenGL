@@ -7,33 +7,46 @@ class Texture
 {
 private:
 	unsigned int RenderId;
-	unsigned char* Data;	
+	unsigned char* Data;
+	int width, height;
 public:
-	Texture(const std::string path, int inChannel) :RenderId(0), Data(nullptr)
+	Texture(const std::string path, int inChannel, bool gamma = false) :RenderId(0), Data(nullptr)
 	{
 		glGenTextures(1, &RenderId);
 		glBindTexture(GL_TEXTURE_2D, RenderId);
-		BindData(path, inChannel);
+		BindData(path, inChannel,gamma);
 	};
-	void BindData(const std::string path, int inChannel)
+	void BindData(const std::string path, int inChannel, bool gamma)
 	{	stbi_set_flip_vertically_on_load(1);//旋转
-		int width, height, outChannel;
+		int outChannel;
 		Data = stbi_load(path.c_str(), &width, &height, &outChannel, inChannel);
 		if (Data)
 		{
 			GLenum outformat{};
-			if (outChannel == 1)
-				outformat = GL_RED;
-			else if (outChannel == 3)
-				outformat = GL_SRGB;
-			else if (outChannel == 4)
-				outformat = GL_SRGB_ALPHA;
+			if (gamma)
+			{
+				if (outChannel == 1)
+					outformat = GL_RED;
+				else if (outChannel == 3)
+					outformat = GL_RGB;
+				else if (outChannel == 4)
+					outformat = GL_RGBA;
+			}
+			else
+			{
+				if (outChannel == 1)
+					outformat = GL_RED;
+				else if (outChannel == 3)
+					outformat = GL_SRGB;
+				else if (outChannel == 4)
+					outformat = GL_SRGB_ALPHA;
+			}
 			GLenum informat{};
 			if (inChannel == 1)
 				informat = GL_RED;
 			else if (inChannel == 3)
 				informat = GL_RGB;
-			else if (inChannel == 4)
+			else if (inChannel == 4 or inChannel ==0)
 				informat = GL_RGBA;
 			glBindTexture(GL_TEXTURE_2D, RenderId);
 			glTexImage2D(GL_TEXTURE_2D, 0, outformat, width, height, 0, informat, GL_UNSIGNED_BYTE, Data);
@@ -61,7 +74,8 @@ public:
 	{
 		glDeleteTextures(1, &RenderId);
 	};
-
+	int Get_width() { return width; }
+	int Get_height() { return height; }
 	void Bind(unsigned int slot = 0) const
 	{
 		glActiveTexture(GL_TEXTURE0 + slot);//激活纹理单元
@@ -113,6 +127,7 @@ public:
 			else if (inChannel == 4)
 				informat = GL_RGBA;
 			glBindTexture(GL_TEXTURE_2D, RenderId);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, informat, GL_UNSIGNED_BYTE, Data);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); //GL_MIRRORED_REPEAT, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_BORDER
@@ -232,5 +247,7 @@ public:
 		"res/textures/skybox/back.jpg"
 	};
 	CubeMapTexture skybox = CubeMapTexture(faces);
+	Texture Particle_texture = Texture("res/textures/particle_2.png", 3);
+	Texture Terrain_texture = Texture("res/textures/iceland_heightmap.png", 1);
 };
 #pragma endregion

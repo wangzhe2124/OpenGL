@@ -22,6 +22,7 @@ public:
     vector<float> position_y;
     vector<float> position_z;
     vector<float> aabb;
+    vector<glm::vec3> aabb_vertex;
     string directory;
     bool gammaCorrection;
     ModelSpace position;
@@ -33,9 +34,8 @@ public:
         loadModel(path);
         AABB();
     }
-    Model(const unsigned int* data, unsigned int count) :gammaCorrection(false)
+    void Get_index(const unsigned int* data, unsigned int count) 
     {
-        va = new VertexArray();
         ib = new IndexBuffer(data, count);
     }
     Model() : ib(nullptr), gammaCorrection(false)
@@ -72,23 +72,31 @@ public:
         position_y.back(),
         position_z[0],
         position_z.back()};
+        aabb_vertex = {
+        glm::vec3(position_x[0], position_y[0],position_z[0]),
+        glm::vec3(position_x.back(), position_y[0],position_z[0]),
+        glm::vec3(position_x.back(), position_y[0],position_z.back()),
+        glm::vec3(position_x[0], position_y[0],position_z.back()),
+        glm::vec3(position_x[0], position_y.back(),position_z[0]),
+        glm::vec3(position_x.back(), position_y.back(),position_z[0]),
+        glm::vec3(position_x.back(), position_y.back(),position_z.back()),
+        glm::vec3(position_x[0], position_y.back(),position_z.back()),
+        };
     }
     void Get_AABB()
     {
         position_x.clear();
         position_y.clear();
         position_z.clear();
-        for (int i = 0; i < meshes.size(); i++)
+        glm::vec4 temp_position;
+        for (int i = 0; i < aabb_vertex.size(); i++)
         {
-            for (int j = 0; j < meshes[i].vertices.size(); j++)
-            {
-                meshes[i].vertices[j].Position  = position.GetModelSpace() * glm::vec4(meshes[i].vertices[j].Position, 1.0);
-                
-                position_x.push_back(meshes[i].vertices[j].Position.x);
-                position_y.push_back(meshes[i].vertices[j].Position.y);
-                position_z.push_back(meshes[i].vertices[j].Position.z);
-            }
+            temp_position = position.GetModelSpace() * glm::vec4(aabb_vertex[i], 1.0f);
+            position_x.push_back(temp_position.x);
+            position_y.push_back(temp_position.y);
+            position_z.push_back(temp_position.z);
         }
+
         sort(begin(position_x), end(position_x));
         sort(begin(position_y), end(position_y));
         sort(begin(position_z), end(position_z));
@@ -300,7 +308,184 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
 
     return textureID;
 }
+struct sphere_data
+{
+    std::vector<float> vertex;
+    std::vector<unsigned int> index;
+};
+static sphere_data SphereData()
+{
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec2> uv;
+    std::vector<glm::vec3> normals;
+    std::vector<unsigned int> indices;
 
+    const unsigned int X_SEGMENTS = 64;
+    const unsigned int Y_SEGMENTS = 64;
+    const float PI = 3.14159265359f;
+    for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+    {
+        for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
+        {
+            float xSegment = (float)x / (float)X_SEGMENTS;
+            float ySegment = (float)y / (float)Y_SEGMENTS;
+            float xPos = std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+            float yPos = std::cos(ySegment * PI);
+            float zPos = std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+
+            positions.push_back(glm::vec3(xPos, yPos, zPos));
+            uv.push_back(glm::vec2(xSegment, ySegment));
+            normals.push_back(glm::vec3(xPos, yPos, zPos));
+        }
+    }
+
+    bool oddRow = false;
+    for (unsigned int y = 0; y < Y_SEGMENTS; ++y)
+    {
+        if (!oddRow) // even rows: y == 0, y == 2; and so on
+        {
+            for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+            {
+                indices.push_back(y * (X_SEGMENTS + 1) + x);
+                indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+            }
+        }
+        else
+        {
+            for (int x = X_SEGMENTS; x >= 0; --x)
+            {
+                indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+                indices.push_back(y * (X_SEGMENTS + 1) + x);
+            }
+        }
+        oddRow = !oddRow;
+    }
+    unsigned int indexCount = static_cast<unsigned int>(indices.size());
+
+    std::vector<float> data;
+    for (unsigned int i = 0; i < positions.size(); ++i)
+    {
+        data.push_back(positions[i].x);
+        data.push_back(positions[i].y);
+        data.push_back(positions[i].z);
+        if (normals.size() > 0)
+        {
+            data.push_back(normals[i].x);
+            data.push_back(normals[i].y);
+            data.push_back(normals[i].z);
+        }
+        if (uv.size() > 0)
+        {
+            data.push_back(uv[i].x);
+            data.push_back(uv[i].y);
+        }
+    }
+    sphere_data Data = { data, indices };
+    return Data;
+}
+
+struct TerrainData
+{
+    std::vector<float> vertex;
+    std::vector<unsigned int> index;
+    int numStrips;
+    int numTrisPerStrip;
+    unsigned int rez;
+};
+static TerrainData Get_TerrainData_cpu() //without uv
+{
+    TerrainData terrain_data;
+    //stbi_set_flip_vertically_on_load(true);
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("res/textures/iceland_heightmap.png", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+
+
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float yScale = 64.0f / 256.0f, yShift = 16.0f;
+    int rez = 1;
+    unsigned int bytePerPixel = nrChannels;
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
+            unsigned char y = pixelOffset[0];
+
+            // vertex
+            terrain_data.vertex.push_back(-height / 2.0f + height * i / (float)height);   // vx
+            terrain_data.vertex.push_back((int)y * yScale - yShift);   // vy
+            terrain_data.vertex.push_back(-width / 2.0f + width * j / (float)width);   // vz
+        }
+    }
+    std::cout << "Loaded " << terrain_data.vertex.size() / 3 << " vertices" << std::endl;
+    stbi_image_free(data);
+
+    for (unsigned int i = 0; i < height - 1; i += rez)
+    {
+        for (unsigned int j = 0; j < width; j += rez)
+        {
+            for (unsigned int k = 0; k < 2; k++)
+            {
+                terrain_data.index.push_back(j + width * (i + k * rez));
+            }
+        }
+    }
+    std::cout << "Loaded " << terrain_data.index.size() << " indices" << std::endl;
+
+    terrain_data.numStrips = (height - 1) / rez;
+    terrain_data.numTrisPerStrip = (width / rez) * 2;
+    std::cout << "Created lattice of " << terrain_data.numStrips << " strips with " << terrain_data.numTrisPerStrip << " triangles each" << std::endl;
+    std::cout << "Created " << terrain_data.numStrips * terrain_data.numTrisPerStrip << " triangles total" << std::endl;
+    return terrain_data;
+}
+static TerrainData Get_TerrainData_gpu(int width, int height)
+{
+    TerrainData terrain_data;
+    std::vector<float>& vertices = terrain_data.vertex;
+    unsigned rez = 20;
+    terrain_data.rez = rez;
+    for (unsigned i = 0; i <= rez - 1; i++)
+    {
+        for (unsigned j = 0; j <= rez - 1; j++)
+        {
+            vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.z
+            vertices.push_back(i / (float)rez); // u
+            vertices.push_back(j / (float)rez); // v
+
+            vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.z
+            vertices.push_back((i + 1) / (float)rez); // u
+            vertices.push_back(j / (float)rez); // v
+
+            vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.z
+            vertices.push_back(i / (float)rez); // u
+            vertices.push_back((j + 1) / (float)rez); // v
+
+            vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.z
+            vertices.push_back((i + 1) / (float)rez); // u
+            vertices.push_back((j + 1) / (float)rez); // v
+        }
+    }
+    std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
+    std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
+    return terrain_data;
+}
 class Models
 {
 private:
@@ -311,8 +496,9 @@ public:
     Model Marry = Model("res/objects/Marry/Marry.obj");
     Model Planet = Model("res/objects/planet/planet.obj");
     Model Floor;
-    Model Sphere = Model(&sphere.index[0], static_cast<unsigned int>(sphere.index.size()));
+    Model Sphere = Model();
     Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
+    Model Terrain = Model();
     void Get_modelss()
     {
         models_map["Nano"] = &Nano;

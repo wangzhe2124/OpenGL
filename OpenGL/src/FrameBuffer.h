@@ -62,6 +62,42 @@ public:
 		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
+static struct SSAO_DATA
+{
+	std::vector<glm::vec3> ssaokernel;
+	std::vector<glm::vec3> ssaonoise;
+};
+static SSAO_DATA Get_SSAO_SAMPLE()
+{
+	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // 随机浮点数，范围0.0 - 1.0
+	std::default_random_engine generator;
+	std::vector<glm::vec3> ssaoKernel;
+	for (GLuint i = 0; i < 64; ++i)
+	{
+		glm::vec3 sample(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator)
+		);
+		sample = glm::normalize(sample);
+		sample *= randomFloats(generator);
+		float scale = float(i) / 64.0f;
+		scale = 0.1f + 0.9f * scale;
+		sample *= scale;
+		ssaoKernel.push_back(sample);
+	}
+	std::vector<glm::vec3> ssaoNoise;
+	for (GLuint i = 0; i < 16; i++)
+	{
+		glm::vec3 noise(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			0.0f);
+		ssaoNoise.push_back(noise);
+	}
+	SSAO_DATA ssaodata = { ssaoKernel, ssaoNoise };
+	return ssaodata;
+}
 class SSAOFBO
 {
 private:
@@ -70,17 +106,21 @@ private:
 	unsigned int noiseTextureId;
 	unsigned int c_screenWidth;
 	unsigned int c_screenHeight;
+	
 public:
-	SSAOFBO(unsigned int scr_width, unsigned int scr_height, std::vector<glm::vec3>& ssaoNoise) :c_screenWidth(scr_width), c_screenHeight(scr_height)
+	SSAO_DATA  ssao_data;
+	SSAOFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
+		ssao_data = Get_SSAO_SAMPLE();
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		BindNoiseBuffer(ssaoNoise);
+		BindNoiseBuffer();
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	};
 	void BindTextureBuffer()
 	{
@@ -93,12 +133,12 @@ public:
 		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoTextureId, 0);
 	}
-	void BindNoiseBuffer(std::vector<glm::vec3>& ssaoNoise)
+	void BindNoiseBuffer()
 	{
 
 		glGenTextures(1, &noiseTextureId);
 		glBindTexture(GL_TEXTURE_2D, noiseTextureId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssao_data.ssaonoise[0]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -406,7 +446,7 @@ public:
 		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
-class Shadow_Blur_HorizontalFBO
+class basic_FBO
 {
 private:
 	unsigned int frameBufferId;
@@ -415,7 +455,7 @@ private:
 	unsigned int c_screenWidth;
 	unsigned int c_screenHeight;
 public:
-	Shadow_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
+	basic_FBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
@@ -445,73 +485,7 @@ public:
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
 	};
-	~Shadow_Blur_HorizontalFBO()
-	{
-		glDeleteFramebuffers(1, &frameBufferId);
-		glDeleteFramebuffers(1, &textureColorId);
-	};
-	void Bind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-	};
-	void UnBind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTexture(unsigned int slot = 0)
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-	};
-	void Write()
-	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
-	};
-	void SetViewPort()
-	{
-		glViewport(0, 0, c_screenWidth, c_screenHeight);
-	}
-};
-class Shadow_Blur_VerticalFBO
-{
-private:
-	unsigned int frameBufferId;
-	unsigned int textureColorId;
-	unsigned int RenderBufferId;
-	unsigned int c_screenWidth;
-	unsigned int c_screenHeight;
-public:
-	Shadow_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
-	{
-		glGenFramebuffers(1, &frameBufferId);
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-		BindTextureBuffer();
-		//BindRenderBuffer();
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTextureBuffer()
-	{
-		glGenTextures(1, &textureColorId);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
-		glGenerateMipmap(GL_TEXTURE_2D);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorId, 0);
-
-	};
-	void BindRenderBuffer()
-	{
-		glGenRenderbuffers(1, &RenderBufferId);
-		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
-	};
-	~Shadow_Blur_VerticalFBO()
+	~basic_FBO()
 	{
 		glDeleteFramebuffers(1, &frameBufferId);
 		glDeleteFramebuffers(1, &textureColorId);
@@ -535,7 +509,7 @@ public:
 	};
 	void Read()
 	{
-		glBindFramebuffer(GL_READ_BUFFER, frameBufferId);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBufferId);
 	};
 	void ReadTexture()
 	{
@@ -670,7 +644,7 @@ class MSAAFrameBuffer
 private:
 	unsigned int frameBufferId;
 	unsigned int textureColorId;
-	unsigned int ambientId;
+
 	unsigned int renderBufferId;
 	unsigned int c_screenWidth;
 	unsigned int c_screenHeight;
@@ -693,12 +667,6 @@ public:
 		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, c_screenWidth, c_screenHeight, GL_TRUE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, textureColorId, 0);
 
-		glGenTextures(1, &ambientId);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ambientId);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SampleNumber, GL_RGB32F, c_screenWidth, c_screenHeight, GL_TRUE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D_MULTISAMPLE, ambientId, 0);
-		GLuint colorattachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-		glDrawBuffers(2, colorattachments);
 	};
 	void BindRenderBuffer()
 	{
@@ -712,7 +680,6 @@ public:
 		glDeleteFramebuffers(1, &frameBufferId);
 		glDeleteFramebuffers(1, &textureColorId);
 		glDeleteFramebuffers(1, &renderBufferId);
-		glDeleteFramebuffers(1, &ambientId);
 	};
 	void Bind()
 	{
@@ -726,10 +693,7 @@ public:
 	{
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
 	};
-	void BindambientTexture()
-	{
-		glBindTexture(GL_TEXTURE_2D, ambientId);
-	};
+
 	void BlitBuffer()
 	{
 		glBlitFramebuffer(0, 0, c_screenWidth, c_screenHeight, 0, 0, c_screenWidth, c_screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -933,7 +897,7 @@ public:
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, DepthTextureId);
 		for (GLuint i = 0; i < 6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);//只需要深度
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1327,42 +1291,8 @@ public:
 		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
-struct SSAO_DATA
-{
-	std::vector<glm::vec3> ssaokernel;
-	std::vector<glm::vec3> ssaonoise;
-};
-SSAO_DATA Get_SSAO_SAMPLE()
-{
-	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // 随机浮点数，范围0.0 - 1.0
-	std::default_random_engine generator;
-	std::vector<glm::vec3> ssaoKernel;
-	for (GLuint i = 0; i < 64; ++i)
-	{
-		glm::vec3 sample(
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator)
-		);
-		sample = glm::normalize(sample);
-		sample *= randomFloats(generator);
-		float scale = float(i) / 64.0f;
-		scale = 0.1f + 0.9f * scale;
-		sample *= scale;
-		ssaoKernel.push_back(sample);
-	}
-	std::vector<glm::vec3> ssaoNoise;
-	for (GLuint i = 0; i < 16; i++)
-	{
-		glm::vec3 noise(
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator) * 2.0 - 1.0,
-			0.0f);
-		ssaoNoise.push_back(noise);
-	}
-	SSAO_DATA ssaodata = { ssaoKernel, ssaoNoise };
-	return ssaodata;
-}
+
+
 extern unsigned int screenWidth;
 extern unsigned int screenHeight;
 class FrameBuffers
@@ -1391,21 +1321,21 @@ public:
 	//环境光照
 	EnvCubeMapFBO envcubemapFBO = EnvCubeMapFBO(1024, 1024);
 	EnvCubeMap_ConvolutionFBO envcubemap_convolutionFBO = EnvCubeMap_ConvolutionFBO(32, 32);
-	EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO = EnvCubeMap_spec_ConvolutionFBO(256, 256);
-	EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO = EnvCubeMap_spec_BRDF_FBO(512, 512);
+	EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO = EnvCubeMap_spec_ConvolutionFBO(1024, 1024);
+	EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO = EnvCubeMap_spec_BRDF_FBO(1024, 1024);
 	HDRFBO hdrfbo = HDRFBO(screenWidth, screenHeight);
+	MSAAFrameBuffer msaa = MSAAFrameBuffer(screenWidth, screenHeight, 4);
 	CameraDepthFBO cameradepthFBO = CameraDepthFBO(screenWidth, screenHeight);
 	Blooming_HighlightFBO blooming_hightlightFBO = Blooming_HighlightFBO(screenWidth, screenHeight);
 	Blooming_Blur_HorizontalFBO blooming_blur_horizontalFBO = Blooming_Blur_HorizontalFBO(screenWidth, screenHeight);
 	Blooming_Blur_VerticalFBO blooming_blur_verticalFBO = Blooming_Blur_VerticalFBO(screenWidth, screenHeight);
-	Shadow_Blur_HorizontalFBO shadow_blur_horizontalFBO = Shadow_Blur_HorizontalFBO(screenWidth, screenHeight);
-	Shadow_Blur_VerticalFBO shadow_blur_verticalFBO = Shadow_Blur_VerticalFBO(screenWidth, screenHeight);
+	basic_FBO shadow_blur_horizontalFBO = basic_FBO(screenWidth, screenHeight);
+	basic_FBO shadow_blur_verticalFBO = basic_FBO(screenWidth, screenHeight);
+	basic_FBO FXAA_FBO = basic_FBO(screenWidth, screenHeight);
 	GBuffer gbuffer = GBuffer(screenWidth, screenHeight);
 	GBuffer PreShadowFBO = GBuffer(screenWidth, screenHeight, false);
 	//SSAO采样样本
-	std::vector<glm::vec3> ssaoKernel = Get_SSAO_SAMPLE().ssaokernel;
-	std::vector<glm::vec3> ssaoNoise = Get_SSAO_SAMPLE().ssaonoise;
-	SSAOFBO ssaoFBO = SSAOFBO(screenWidth, screenHeight, ssaoNoise);
+	SSAOFBO ssaoFBO = SSAOFBO(screenWidth, screenHeight);
 	SSAOBlurFBO ssaoblurFBO = SSAOBlurFBO(screenWidth, screenHeight);
 
 };

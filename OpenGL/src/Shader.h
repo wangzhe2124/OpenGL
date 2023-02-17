@@ -15,6 +15,9 @@ struct ShaderProgramSource
 {
 	std::string VertexSource;
 	std::string FragmentSource;
+    std::string GeometrySource;
+    std::string TessContSource;
+    std::string TessEvalSource;
 };
 class Shader
 {
@@ -31,7 +34,10 @@ public:
     void SetUniform1i(const std::string& name, int value);
     void SetUniform1b(const std::string& name, bool value);
 	void SetUniform1f(const std::string& name, float value);
+    void SetUniform2f(const std::string& name, float value1, float value2);
+    void SetUniform2f(const std::string& name, glm::vec2 value);
 	void SetUniform4f(const std::string& name, float v0, float v1, float f3, float f4);
+    void SetUniform4f(const std::string& name, glm::vec4& value);
 	void SetUniformmatri4fv(const std::string& name, const glm::mat4& ptr);
 	void SetUniform3f(const std::string& name, float v0, float v1, float v2);
 	void SetUniform3f(const std::string& name, glm::vec3 vc);
@@ -39,7 +45,7 @@ public:
 private:
 	ShaderProgramSource Parseshader();
 	unsigned int CompileShader(unsigned int type,const std::string& source);
-	unsigned int CreateShader(const std::string& vertexshader, const std::string& fragmentshader);
+	unsigned int CreateShader(const ShaderProgramSource& source);
 	int GetUniformLocation(const std::string& name);
 
 };
@@ -49,7 +55,7 @@ Shader::Shader(const std::string& filepath)
     :m_FilePath(filepath), m_RendererId(0)
 {
     ShaderProgramSource source = Parseshader();
-    m_RendererId = CreateShader(source.VertexSource, source.FragmentSource);
+    m_RendererId = CreateShader(source);
 }
 
 Shader::~Shader()
@@ -72,11 +78,11 @@ ShaderProgramSource Shader::Parseshader()
 {
     enum class ShaderType
     {
-        NONE = -1, VERTEX = 0, FRAGMENT = 1
+        NONE = -1, VERTEX = 0, FRAGMENT = 1, GEOMETRY = 2, TessCont = 3, TessEval = 4
     };
     std::ifstream stream(m_FilePath);
     std::string line;
-    std::stringstream ss[2];
+    std::stringstream ss[5];
     ShaderType type = ShaderType::NONE;
     while (getline(stream, line))
     {
@@ -86,13 +92,19 @@ ShaderProgramSource Shader::Parseshader()
                 type = ShaderType::VERTEX;
             else if (line.find("fragment") != std::string::npos)
                 type = ShaderType::FRAGMENT;
+            else if (line.find("geometry") != std::string::npos)
+                type = ShaderType::GEOMETRY;
+            else if (line.find("tess_cont") != std::string::npos)
+                type = ShaderType::TessCont;
+            else if (line.find("tess_eval") != std::string::npos)
+                type = ShaderType::TessEval;
         }
         else
         {
             ss[(int)type] << line << '\n';
         }
     }
-    return { ss[0].str(), ss[1].str() };
+    return { ss[0].str(), ss[1].str(), ss[2].str(), ss[3].str(), ss[4].str() };
 }
 unsigned int Shader::CompileShader(unsigned int type,
     const std::string& source)
@@ -111,28 +123,64 @@ unsigned int Shader::CompileShader(unsigned int type,
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
         char* message = (char*)_malloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
-        std::cout << "failed to compile shader!"
-            << (type == GL_VERTEX_SHADER ? "vertex" : "fragment")
-            << std::endl;
+        std::cout << "failed to compile shader!" << std::endl;
+        std::string erro_message = "";
+        switch (type)
+        {
+        case GL_VERTEX_SHADER: erro_message += "vertex ";
+        case GL_FRAGMENT_SHADER:erro_message += "fragment ";
+        case GL_GEOMETRY_SHADER:erro_message += "geometry ";
+        case GL_TESS_CONTROL_SHADER:erro_message += "tess_cont ";
+        case GL_TESS_EVALUATION_SHADER:erro_message += "tess_eval ";
+            break;
+        }
+        std::cout << erro_message << std::endl;
         std::cout << message << std::endl;
         glDeleteShader(id);
         return 0;
     }
     return id;
 }
-unsigned int Shader::CreateShader(const std::string& vertexshader,
-    const std::string& fragmentshader)
+unsigned int Shader::CreateShader(const ShaderProgramSource& source)
 {
     unsigned int program = glCreateProgram();
-    unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexshader);
-    unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentshader);
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
+    unsigned int vs = 0;
+    if (!source.VertexSource.empty())
+    {
+        vs = CompileShader(GL_VERTEX_SHADER, source.VertexSource);
+        glAttachShader(program, vs);
+    }
+    unsigned int fs = 0;
+    if (!source.FragmentSource.empty())
+    {
+        fs = CompileShader(GL_FRAGMENT_SHADER, source.FragmentSource);
+        glAttachShader(program, fs);
+    }
+    unsigned int gs = 0;
+    if (!source.GeometrySource.empty())
+    {
+        gs = CompileShader(GL_GEOMETRY_SHADER, source.GeometrySource);
+        glAttachShader(program, gs);
+    }
+    unsigned int tcs = 0;
+    if (!source.TessContSource.empty())
+    {
+        tcs = CompileShader(GL_TESS_CONTROL_SHADER, source.TessContSource);
+        glAttachShader(program, tcs);
+    }
+    unsigned int tes = 0;
+    if (!source.TessEvalSource.empty())
+    {
+        tes = CompileShader(GL_TESS_EVALUATION_SHADER, source.TessEvalSource);
+        glAttachShader(program, tes);
+    }
     glLinkProgram(program);
     glValidateProgram(program);
-
     glDeleteShader(vs);
     glDeleteShader(fs);
+    glDeleteShader(gs);
+    glDeleteShader(tcs);
+    glDeleteShader(tes);
     return program;
 }
 int Shader::GetUniformLocation(const std::string& name)
@@ -161,9 +209,21 @@ void Shader::SetUniform1f(const std::string& name, float value)
 {
     glUniform1f(GetUniformLocation(name), value);
 }
+void Shader::SetUniform2f(const std::string& name, float value1, float value2)
+{
+    glUniform2f(GetUniformLocation(name), value1, value2);
+}
+void Shader::SetUniform2f(const std::string& name, glm::vec2 value)
+{
+    glUniform2fv(GetUniformLocation(name),1, &value[0]);
+}
 void Shader::SetUniform4f(const std::string& name, float v0, float v1, float v2, float v3)
 {
     glUniform4f(GetUniformLocation(name), v0, v1, v2, v3);
+}
+void Shader::SetUniform4f(const std::string& name, glm::vec4& value)
+{
+    glUniform4fv(GetUniformLocation(name), 1, &value[0]);
 }
 
 void Shader::SetUniformmatri4fv(const std::string& name, const glm::mat4& ptr)
@@ -374,7 +434,13 @@ public:
     //Shader tencil = Shader("res/shaders/single.shader");
     Shader skyboxShader = Shader("res/shaders/SkyBox.shader");
     Shader DirLightShadowshader = Shader("res/shaders/DirLightShadow.shader");
-    D3Shader PointLightShadowshader = D3Shader("res/shaders/PointLightShadow.shader");
+    Shader PointLightShadowshader = Shader("res/shaders/PointLightShadow.shader");
     Shader SpotLightShadowshader = Shader("res/shaders/SpotLightShadow.shader");
     Shader text_shader = Shader("res/shaders/Text.shader");
+    Shader Particle_shader = Shader("res/shaders/Particle.shader");
+    Shader D3Particle_shader = Shader("res/shaders/D3Particle.shader");
+    Shader FXAA_shader = Shader("res/shaders/FXAA.shader");
+    Shader Terrain_cpu_shader = Shader("res/shaders/Terrain_cpu.shader");
+    Shader Terrain_gpu_shader = Shader("res/shaders/Terrain_gpu.shader");
+    Shader Health_bar_shader = Shader("res/shaders/Health_bar.shader");
 };

@@ -318,7 +318,7 @@ int main(void)
         //SSAO       
         if (keyinput.useSSAO)
         {
-            Generate_SSAO(SSAOShader, camera, framebuffers, framebuffers.ssaoKernel,
+            Generate_SSAO(SSAOShader, camera, framebuffers, framebuffers.ssaoFBO.ssao_data.ssaokernel,
                 renderer, vertex_arrays,  keyinput);
             //blur
             Generate_SSAO_blur(SSAOBlurShader, framebuffers, renderer, vertex_arrays);
@@ -670,7 +670,7 @@ void Generate_SSAO(Shader& SSAOShader, Camera& camera, FrameBuffers& framebuffer
     SSAOShader.SetUniform1i("Noise", 3);
     for (int i = 0; i < 64; i++)
     {
-        SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers.ssaoKernel[i]);
+        SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers.ssaoFBO.ssao_data.ssaokernel[i]);
     }
     renderer.DrawArray(vertex_arrays.quadVa, SSAOShader);
     framebuffers.ssaoFBO.UnBind();
@@ -744,7 +744,6 @@ void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, 
     Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays& vertex_arrays)
 {
     DeferedLighting_shader.Bind();
-    DeferedLighting_shader.SetUniform3f("objectColor", glm::vec3(keyinput.objectColor));
     DeferedLighting_shader.SetUniform1f("material.metallic", keyinput.metallic);
     DeferedLighting_shader.SetUniform1f("material.roughness", keyinput.roughness);
     if(camera.third_view)
@@ -1085,7 +1084,6 @@ void GUI_Process(GLFWwindow* window,KeyInput& keyinput)
     ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
     ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
     ImGui::Checkbox("third_view", &keyinput.third_view);
-    ImGui::SliderFloat("ObjectColor", &keyinput.objectColor, 0.0f, 1.0f);
     ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
     ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
     //ImGui::SliderFloat("LightColor", &keyinput.SunColor, 0.0f, 100.0f);

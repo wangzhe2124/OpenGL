@@ -116,14 +116,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Dependencies\FreeType\include;$(SolutionDir)Dependencies\assimp\include;$(SolutionDir)Dependencies\GLM\inlcude;$(SolutionDir)Dependencies\GLFW\include;$(SolutionDir)Dependencies\GLEW\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Dependencies\irrKlang\include;$(SolutionDir)Dependencies\FreeType\include;$(SolutionDir)Dependencies\assimp\include;$(SolutionDir)Dependencies\GLM\inlcude;$(SolutionDir)Dependencies\GLFW\include;$(SolutionDir)Dependencies\GLEW\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Dependencies\FreeType\lib;$(SolutionDir)Dependencies\assimp\lib;$(SolutionDir)Dependencies\GLEW\lib\Release\x64;$(SolutionDir)Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
-      <AdditionalDependencies>freetyped.lib;assimp-vc143-mtd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies);glfw3.lib;opengl32.lib;glew32s.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Dependencies\irrKlang\lib;$(SolutionDir)Dependencies\FreeType\lib;$(SolutionDir)Dependencies\assimp\lib;$(SolutionDir)Dependencies\GLEW\lib\Release\x64;$(SolutionDir)Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
+      <AdditionalDependencies>irrKlang.lib;freetyped.lib;assimp-vc143-mtd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies);glfw3.lib;opengl32.lib;glew32s.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -134,7 +134,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Dependencies\FreeType\include;$(SolutionDir)Dependencies\assimp\include;$(SolutionDir)Dependencies\GLM\inlcude;$(SolutionDir)Dependencies\GLFW\include;$(SolutionDir)Dependencies\GLEW\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Dependencies\irrKlang\include;$(SolutionDir)Dependencies\FreeType\include;$(SolutionDir)Dependencies\assimp\include;$(SolutionDir)Dependencies\GLM\inlcude;$(SolutionDir)Dependencies\GLFW\include;$(SolutionDir)Dependencies\GLEW\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -142,12 +142,12 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Dependencies\FreeType\lib;$(SolutionDir)Dependencies\assimp\lib;$(SolutionDir)Dependencies\GLEW\lib\Release\x64;$(SolutionDir)Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
-      <AdditionalDependencies>freetyped.lib;assimp-vc143-mtd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies);glfw3.lib;opengl32.lib;glew32s.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Dependencies\irrKlang\lib;$(SolutionDir)Dependencies\FreeType\lib;$(SolutionDir)Dependencies\assimp\lib;$(SolutionDir)Dependencies\GLEW\lib\Release\x64;$(SolutionDir)Dependencies\GLFW\lib-vc2022</AdditionalLibraryDirectories>
+      <AdditionalDependencies>irrKlang.lib;freetyped.lib;assimp-vc143-mtd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies);glfw3.lib;opengl32.lib;glew32s.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\demo_defered.cpp" />
+    <ClCompile Include="src\game_demo.cpp" />
     <ClCompile Include="src\vender\imgui\imgui.cpp" />
     <ClCompile Include="src\vender\imgui\imgui_demo.cpp" />
     <ClCompile Include="src\vender\imgui\imgui_draw.cpp" />
@@ -160,6 +160,7 @@
   <ItemGroup>
     <None Include="res\shaders\basic.shader" />
     <None Include="res\shaders\basic_screen.shader" />
+    <None Include="res\shaders\D3Particle.shader" />
     <None Include="res\shaders\DeferedPreShadow.shader" />
     <None Include="res\shaders\EnvCubeMap.shader" />
     <None Include="res\shaders\blending.shader" />
@@ -169,11 +170,14 @@
     <None Include="res\shaders\EnvCubeMap_Convolution.shader" />
     <None Include="res\shaders\EnvCubeMap_spec_BRDF.shader" />
     <None Include="res\shaders\EnvCubeMap_spec_Convolution.shader" />
+    <None Include="res\shaders\FXAA.shader" />
     <None Include="res\shaders\geometry.shader" />
+    <None Include="res\shaders\Health_bar.shader" />
     <None Include="res\shaders\model.shader" />
     <None Include="res\shaders\DeferedLighting.shader" />
     <None Include="res\shaders\model_geometry.shader" />
     <None Include="res\shaders\model_instance.shader" />
+    <None Include="res\shaders\Particle.shader" />
     <None Include="res\shaders\PointLightShadow.shader" />
     <None Include="res\shaders\blooming_highlight.shader" />
     <None Include="res\shaders\screen.shader" />
@@ -185,6 +189,8 @@
     <None Include="res\shaders\SpotLightShadow.shader" />
     <None Include="res\shaders\SSAO.shader" />
     <None Include="res\shaders\SSAOblur.shader" />
+    <None Include="res\shaders\Terrain_cpu.shader" />
+    <None Include="res\shaders\Terrain_gpu.shader" />
     <None Include="res\shaders\Text.shader" />
     <None Include="src\config.ini" />
   </ItemGroup>
@@ -200,6 +206,7 @@
     <ClInclude Include="src\ModelSpace.h" />
     <ClInclude Include="src\opengl_Mesh.h" />
     <ClInclude Include="src\FrameBuffer.h" />
+    <ClInclude Include="src\Particle.h" />
     <ClInclude Include="src\Renderer.h" />
     <ClInclude Include="src\Shader.h" />
     <ClInclude Include="src\Text.h" />

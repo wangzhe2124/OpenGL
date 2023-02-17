@@ -24,13 +24,11 @@ in VS_OUT
 vec2 TexCoord;
 }fs_in;
 uniform sampler2D Texture;
-struct Material {
-	vec3 color;
-};
-uniform Material material;
+
+uniform vec3 color;
 void main()
 {
-	vec3 result = vec3(1.0) * material.color;
+	vec3 result = vec3(1.0) * color;
 	//result += vec3(texture(Texture, fs_in.TexCoord));
 	FragColor = vec4(result, 1.0); // 将向量的四个分量全部设置为1.0
 }

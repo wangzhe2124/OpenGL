@@ -39,7 +39,7 @@
     <ClCompile Include="src\vender\imgui\imgui_tables.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\demo_defered.cpp">
+    <ClCompile Include="src\game_demo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -73,6 +73,12 @@
     <None Include="res\shaders\EnvCubeMap_spec_BRDF.shader" />
     <None Include="res\shaders\basic_screen.shader" />
     <None Include="res\shaders\Text.shader" />
+    <None Include="res\shaders\D3Particle.shader" />
+    <None Include="res\shaders\FXAA.shader" />
+    <None Include="res\shaders\Particle.shader" />
+    <None Include="res\shaders\Terrain_cpu.shader" />
+    <None Include="res\shaders\Terrain_gpu.shader" />
+    <None Include="res\shaders\Health_bar.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -160,6 +166,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Game.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Particle.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

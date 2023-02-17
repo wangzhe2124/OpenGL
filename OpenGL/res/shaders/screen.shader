@@ -37,10 +37,10 @@ void main()
     {
         FragColor = vec4(HDRcolor, 1.0);
     }
-    if (gl_FragCoord.x > 600 && gl_FragCoord.y > 400)
+    /*if (gl_FragCoord.x > 600 && gl_FragCoord.y > 400)
     {
         FragColor = vec4(texture(assistTexture, fragTexcoord).rgb,1.0);
-    }
+    }*/
 
 	//float average = 0.2126 * FragColor.r + 0.7152 * FragColor.g + 0.0722 * FragColor.b;
 	//FragColor = vec4(average, average, average, 1.0);

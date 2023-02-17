@@ -76,5 +76,5 @@ void main()
 		}
 	}
 	occlusion /= cnt;
-	color = pow(occlusion,4);
+	color = occlusion;
 };

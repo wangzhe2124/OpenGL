@@ -79,4 +79,5 @@ public:
 	VertexArray cubeVa;
 	VertexArray skyboxVa;
 	VertexArray textVa;
+	VertexArray particleVa;
 };

@@ -10,7 +10,6 @@ public:
     bool TorchOn;
     bool gamma;
     float exposure;
-    float objectColor;
     float metallic;
     float roughness;
     float SunIntensity;
@@ -26,32 +25,36 @@ public:
     float SSAO_rangecheck;
     bool SSAO_window;
     bool assist_screen;
-    bool third_view;
+    int tess_level;
+    bool third_view; bool free_view; bool show_mesh;
+    bool pointlight_window; float point_sm_radius; bool point_sm_pcf; float pointlight_Intensity;
+    bool particle_window; bool show_particle; bool show_d3particle;
+    bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_mulReduce; float fxaa_minReduce; float fxaa_maxSpan;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
 };
-KeyInput::KeyInput() 
+KeyInput::KeyInput()
     :blinn_phong(true),
     TorchOn(false),
     gamma(true),
-    useheight(true),exposure(1.0f),
+    useheight(true), exposure(2.0f),
     useSSAO(true),
     ui(false),
     NormalMap(true),
-    objectColor(0.5f),
     metallic(0.5f),
-    roughness(0.5f),
-    SunIntensity(5.0f),
+    roughness(0.8f),
+    SunIntensity(3.0f),
     SunColor(1.0f),
     blur_shadow(true),
     EnvLight_spec(true),
-    SSAO_bias(0.3f),
-    SSAO_radius(0.2f),
-    SSAO_rangecheck(0.446f),
-    SSAO_window(false),
+    SSAO_window(false), SSAO_bias(0.3f), SSAO_radius(0.25f), SSAO_rangecheck(0.446f),
     assist_screen(false),
-    third_view(true)
+    tess_level(1),
+    third_view(true), free_view(false),show_mesh(false),
+    pointlight_window(false), point_sm_radius(0.001f), point_sm_pcf(false), pointlight_Intensity(0.0f),
+    particle_window(false),show_particle(false), show_d3particle(false),
+    fxaa_window(false), fxaa_on(false), fxaa_lumaThreshold(0.5f), fxaa_mulReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f)
 {}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
 {

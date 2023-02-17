@@ -99,7 +99,7 @@ void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& Dirligh
 //计算摄像机视线空间中每个平截头体切片的近距离和远距离
 void CSM_Dirlight::split_camera_frustum(Camera& camera) {
     float near_plane = camera.near_plane;
-    float far_plane = camera.far_plane;
+    float far_plane = 200.0f;
     float ratio = far_plane / near_plane;
     camera_frustums[0].Setnear(near_plane);
     for (int i = 1; i < splitNum; i++) {
@@ -115,7 +115,7 @@ void CSM_Dirlight::split_camera_frustum(Camera& camera) {
 void CSM_Dirlight::camera_frustum_points(Camera& camera) {
     glm::vec3 center;
     if (camera.third_view)
-        center = camera.character_pos - glm::vec3(3.0f) * camera.Front;
+        center = camera.Position - glm::vec3(3.0f) * camera.Front;
     else
         center = camera.Position;
     glm::vec3 view_dir = camera.Front;

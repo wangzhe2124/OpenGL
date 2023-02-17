@@ -273,6 +273,7 @@ public:
     void Generate_Particle();
     void Generate_D3Particle();
     void Generate_Health_bar();
+    void Generate_Health_bar_enemy();
     std::string Collision_detection();
 };
 template <typename T1, typename T2, typename T3>
@@ -1254,4 +1255,44 @@ void Game::Generate_Health_bar()
     shader.SetUniform1f("max_energy", my_state.max_energy);
     shader.SetUniform1f("current_energy", my_state.current_energy);
     renderer.DrawArray(vertex_arrays->quadVa, shader);
+    Generate_Health_bar_enemy();
+}
+
+void Game::Generate_Health_bar_enemy()
+{
+    Shader& shader = shaders->Health_bar_enemy_shader;
+    shader.Bind();
+    std::map<float, std::string> sorted;
+    std::map<std::string, Model*>::iterator iter;
+    iter = models->models_map.begin();
+    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        if (iter->first != "Main_character")
+        {
+            float distance = glm::length(camera.Position - glm::vec3(iter->second->position.GetVector(3, 0), iter->second->position.GetVector(3, 1), iter->second->position.GetVector(3, 2)));
+            sorted[distance] = iter->first;
+        }
+    }
+    for (std::map<float, std::string>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+    {
+        float health_bar_xcenter = (models->models_map[it->second]->aabb[0] + models->models_map[it->second]->aabb[1]) * 0.5f;
+        float health_bar_y = models->models_map[it->second]->aabb[3] + (models->models_map[it->second]->aabb[3] - models->models_map[it->second]->aabb[2]) * 0.1f;
+
+        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_xcenter, health_bar_y, 0.0f, 1.0f);
+        float life_x = ((health_bar_position.x / health_bar_position.w * 0.5f) + 0.5f) * screenWidth;
+        float life_y = ((health_bar_position.y / health_bar_position.w * 0.5f) + 0.5f) * screenHeight;
+        shader.SetUniform1f("life_y", life_y);
+        shader.SetUniform1f("life_x", life_x);
+        glm::vec3 viewPos;
+        if (keyinput.third_view)
+            viewPos = camera.character_pos;
+        else
+            viewPos = camera.Position;
+        glm::vec3 FragPos = glm::vec3(health_bar_xcenter, health_bar_y, models->models_map[it->second]->aabb[5]);
+        glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
+        float length = glm::length(FragPos - viewPos);
+        float theta = dot(viewDir, camera.Front);
+        if(theta > 0.707 && length < 20.0f)
+            renderer.DrawArray(vertex_arrays->quadVa, shader);
+    }
 }

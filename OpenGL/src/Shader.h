@@ -443,4 +443,5 @@ public:
     Shader Terrain_cpu_shader = Shader("res/shaders/Terrain_cpu.shader");
     Shader Terrain_gpu_shader = Shader("res/shaders/Terrain_gpu.shader");
     Shader Health_bar_shader = Shader("res/shaders/Health_bar.shader");
+    Shader Health_bar_enemy_shader = Shader("res/shaders/Health_bar_enemy.shader");
 };

@@ -35,7 +35,7 @@ public:
 		modelspace = glm::scale(modelspace, glm::vec3(sc));
 	};
 	inline glm::mat4 GetModelSpace() { return modelspace; }
-
+	float GetVector(int i, int j) { return modelspace[i][j]; }
 };
 
 

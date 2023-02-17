@@ -65,7 +65,7 @@ public:
         screen_width = sw;
         screen_height = sh;
         updateCameraVectors();
-        character_pos = Position - glm::vec3(0.1f) * Front;
+        character_pos = Position - glm::vec3(3.0f) * Front;
     }
     // constructor with scalar values
     Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)),
@@ -121,7 +121,7 @@ public:
             Position += (-Front - Right) * velocity * glm::vec3(0.707f);
         if (direction == 7)
             Position += (-Front + Right) * velocity * glm::vec3(0.707f);
-        character_pos = Position - glm::vec3(0.1f) * Front;
+        character_pos = Position - glm::vec3(3.0f) * Front;
         if(!free_view)
             Position.y = 1.4f;
     }

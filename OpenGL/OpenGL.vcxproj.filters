@@ -79,6 +79,7 @@
     <None Include="res\shaders\Terrain_cpu.shader" />
     <None Include="res\shaders\Terrain_gpu.shader" />
     <None Include="res\shaders\Health_bar.shader" />
+    <None Include="res\shaders\Health_bar_enemy.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">

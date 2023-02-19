@@ -52,6 +52,7 @@ private:
     std::vector<Frustum> camera_frustums = std::vector<Frustum>(splitNum);
     std::vector<float> z_distance = std::vector<float>(splitNum);
     std::vector<float> xy_distance = std::vector<float>(splitNum);
+    float far_plane_distance;
 public:
     CSM_Dirlight(Camera& camera, int splitnum, float weight);
     ~CSM_Dirlight();
@@ -71,8 +72,9 @@ public:
     void Get_light_projection(Camera& camera, const glm::vec3& DirlightPosition);
     float Get_z_distance(int i) { return z_distance[i]; }
     float Get_xy_distance(int i) { return xy_distance[i]; }
+    void Set_far_plane(float fp) { far_plane_distance = fp; }
 };
-CSM_Dirlight::CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.99f) :splitNum(splitnum), lambda(weight)
+CSM_Dirlight::CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.9f) :splitNum(splitnum), lambda(weight)
 {
     float camera_fov = camera.Zoom;
     float ratio = 1.0;
@@ -82,7 +84,7 @@ CSM_Dirlight::CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.99
         camera_frustums[i].Setratio(ratio);
     }
     //计算摄像机视线空间中每个平截头体切片的近距离和远距离
-    split_camera_frustum(camera);
+    
 }
 CSM_Dirlight::~CSM_Dirlight()
 {}
@@ -91,6 +93,7 @@ CSM_Dirlight::~CSM_Dirlight()
 void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& DirlightPosition) 
 { 
     lightView = glm::lookAt(DirlightPosition, camera.Position, glm::vec3(0.0f, 1.0f, 0.0f));
+    split_camera_frustum(camera);
     //更新摄像机视锥分块的世界空间位置(8个顶点)
     camera_frustum_points(camera);
     //生成光空间的摄像机分片包围盒投影矩阵
@@ -99,7 +102,7 @@ void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& Dirligh
 //计算摄像机视线空间中每个平截头体切片的近距离和远距离
 void CSM_Dirlight::split_camera_frustum(Camera& camera) {
     float near_plane = camera.near_plane;
-    float far_plane = 200.0f;
+    float far_plane = far_plane_distance * 10;
     float ratio = far_plane / near_plane;
     camera_frustums[0].Setnear(near_plane);
     for (int i = 1; i < splitNum; i++) {
@@ -167,8 +170,8 @@ void CSM_Dirlight::light_projection()
             if (t_transf.z < tmin.z) { tmin.z = t_transf.z; }
         }
         //可能在距离光源较近处存在遮挡物(不知道给啥值，给个大一点的吧)
-        tmax.z += 10;//如果没有这个，近距离观察时会失去阴影，很重要
-        tmin.z -= 10;
+        tmax.z += 1000;//如果没有这个，近距离观察时会失去阴影，很重要
+        //tmin.z -= 10;
         distance[i] = abs(tmax.z - tmin.z);
         z_distance[i] = distance[i] / distance[0];
         //生成光的正交投影矩阵(长宽用单位1，每个视锥分片的光正交投影矩阵可以通过该单位宽高投影矩阵缩放平移后得到)

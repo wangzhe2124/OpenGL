@@ -85,7 +85,8 @@ int main(void)
         float currentFrame = float(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        game.keyinput.ProcessMovement(window, game.camera, deltaTime);//º¸≈Ã ‰»Î“∆∂Ø
+        game.GetDeltaTime(deltaTime);
+        game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//º¸≈Ã ‰»Î“∆∂Ø
         game.start_render();
         //glDisable(GL_DEPTH_TEST);
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -192,10 +193,23 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
 
     ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
     ImGui::SliderFloat("Roughness", &keyinput.roughness, 0.0f, 1.0f);
-    ImGui::ColorEdit3("sun color", (float*)&keyinput.SunColor); // Edit 3 floats representing a color
-    ImGui::SliderFloat("SunIntensity", &keyinput.SunIntensity, 0.0f, 10.0f);
+    
+    
     ImGui::SliderFloat("exposure", &keyinput.exposure, 0.0f, 100.0f);
     ImGui::SliderInt("tess level", &keyinput.tess_level, 0, 100);
+    //sun
+    ImGui::Checkbox("sun Window", &keyinput.sun_window);
+    if (keyinput.sun_window)
+    {
+        ImGui::Begin("pointlight Window", &keyinput.sun_window);
+        if (ImGui::Button("Close Me"))
+            keyinput.sun_window = false;
+        ImGui::SliderFloat("SunIntensity", &keyinput.SunIntensity, 0.0f, 10.0f);
+        ImGui::ColorEdit3("sun color", (float*)&keyinput.SunColor); // Edit 3 floats representing a color
+        ImGui::End();
+    }
+    ImGui::SameLine();
+    //pointlight
     ImGui::Checkbox("pointlight Window", &keyinput.pointlight_window);
     if (keyinput.pointlight_window)
     {
@@ -203,13 +217,28 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         if (ImGui::Button("Close Me"))
             keyinput.pointlight_window = false;
         ImGui::SliderFloat("pt_sm_radius", &keyinput.point_sm_radius, 0.0f, 0.01f);
-        ImGui::SliderFloat("pt_intensity", &keyinput.pointlight_Intensity, 0.0f, 5.0f);
+        ImGui::SliderFloat("pt_intensity", &keyinput.pointlight_Intensity, 0.0f, 50.0f);
+        ImGui::SliderFloat("pt_far_plane", &keyinput.point_far_plane, 0.0f, 100.0f);
         ImGui::Checkbox("pt_sm_pcf", &keyinput.point_sm_pcf);
+        ImGui::ColorEdit3("pt_color", (float*)&keyinput.point_color);
         ImGui::End();
     }
-
+    ImGui::SameLine();
+    //spotlight
+    ImGui::Checkbox("spotlight Window", &keyinput.spotlight_window);
+    if (keyinput.spotlight_window)
+    {
+        ImGui::Begin("pointlight Window", &keyinput.spotlight_window);
+        if (ImGui::Button("Close Me"))
+            keyinput.spotlight_window = false;
+        ImGui::SliderFloat("bias_x", &keyinput.st_bias_x, -5.0f, 5.0f);
+        ImGui::SliderFloat("bias_y", &keyinput.st_bias_y, -5.0f, 5.0f);
+        ImGui::SliderFloat("bias_z", &keyinput.st_bias_z, 0.0f, 5.0f);
+        ImGui::SliderFloat("st_far_plane", &keyinput.spot_far_plane, 5.0f, 50.0f);
+        ImGui::End();
+    }
     ImGui::Checkbox("assist screen", &keyinput.assist_screen);
-
+    //ssao
     ImGui::Checkbox("SSAO Window", &keyinput.SSAO_window);
     if (keyinput.SSAO_window)
     {
@@ -222,6 +251,8 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::SliderFloat("SSAO sample rangecheck", &keyinput.SSAO_rangecheck, 0.0f, 1.0f);
         ImGui::End();
     }
+    ImGui::SameLine();
+    //particle
     ImGui::Checkbox("particle Window", &keyinput.particle_window);
     if (keyinput.particle_window)
     {
@@ -232,6 +263,8 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::Checkbox("3d particle", &keyinput.show_d3particle);
         ImGui::End();
     }
+    ImGui::SameLine();
+    //fxaa
     ImGui::Checkbox("FXAA Window", &keyinput.fxaa_window);
     if (keyinput.fxaa_window)
     {

@@ -35,6 +35,7 @@ public:
     bool third_view;
     bool free_view;
     bool is_move;
+    bool dash;
     unsigned int character_Front;
     glm::vec3 Front;//·½Ïò
     glm::vec3 Up;
@@ -104,6 +105,8 @@ public:
     void ProcessKeyboard(int direction, float deltaTime)
     {
         float velocity = MovementSpeed * deltaTime;
+        if (dash)
+            velocity *= 2;
         float y_value = free_view == true ? Front.y : 0.0f;
         if (direction == 0)
             Position += glm::normalize(glm::vec3(Front.x, y_value ,Front.z)) * velocity;

@@ -7,6 +7,7 @@
 #include "ModelSpace.h"
 #include "VertexArray.h"
 #include "IndexBuffer.h"
+#include "Bone.h"
 #include <vector>
 #include <map>
 using namespace std;
@@ -26,10 +27,12 @@ public:
     string directory;
     bool gammaCorrection;
     ModelSpace position;
+    float max_life;
+    float current_life;
     VertexArray* va;
     IndexBuffer* ib;
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool gamma = false) : gammaCorrection(gamma), va(nullptr), ib(nullptr)
+    Model(string const& path, bool gamma = false, float Life = 100.0f) : gammaCorrection(gamma), va(nullptr), ib(nullptr), max_life(Life), current_life(Life)
     {
         loadModel(path);
         AABB();
@@ -38,7 +41,7 @@ public:
     {
         ib = new IndexBuffer(data, count);
     }
-    Model() : ib(nullptr), gammaCorrection(false)
+    Model(float Life = 100.0f) : ib(nullptr), gammaCorrection(false), max_life(Life), current_life(Life)
     {
         va = new VertexArray();
     }
@@ -107,9 +110,12 @@ public:
         position_z[0],
         position_z.back() };
     }
-
+    auto& GetBoneInfoMap() { return m_BoneInfoMap; }
+    int& GetBoneCount() { return m_BoneCounter; }
 private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
+    std::map<string, BoneInfo> m_BoneInfoMap; //
+    int m_BoneCounter = 0;  
     void loadModel(string const& path)
     {
         // read file via ASSIMP
@@ -146,7 +152,14 @@ private:
         }
 
     }
-
+    void SetVertexBoneDataToDefault(Vertex& vertex)
+    {
+        for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+        {
+            vertex.m_BoneIDs[i] = -1;
+            vertex.m_Weights[i] = 0.0f;
+        }
+    }
     Mesh processMesh(aiMesh* mesh, const aiScene* scene)
     {
         // data to fill
@@ -158,6 +171,7 @@ private:
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
             Vertex vertex;
+            SetVertexBoneDataToDefault(vertex);
             glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
             // positions
             vector.x = mesh->mVertices[i].x;
@@ -229,11 +243,55 @@ private:
         // 4. height maps
         std::vector<MeshTexture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
         textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-
+        ExtractBoneWeightForVertices(vertices, mesh, scene);
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
     }
+    void SetVertexBoneData(Vertex& vertex, int boneID, float weight)
+    {
+        for (int i = 0; i < MAX_BONE_INFLUENCE; ++i)
+        {
+            if (vertex.m_BoneIDs[i] < 0)
+            {
+                vertex.m_Weights[i] = weight;
+                vertex.m_BoneIDs[i] = boneID;
+                break;
+            }
+        }
+    }
+    void ExtractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene)
+    {
+        for (int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
+        {
+            int boneID = -1;
+            std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
+            if (m_BoneInfoMap.find(boneName) == m_BoneInfoMap.end())
+            {
+                BoneInfo newBoneInfo;
+                newBoneInfo.id = m_BoneCounter;
+                newBoneInfo.offset = AssimpGLMHelpers::ConvertMatrixToGLMFormat(
+                    mesh->mBones[boneIndex]->mOffsetMatrix);
+                m_BoneInfoMap[boneName] = newBoneInfo;
+                boneID = m_BoneCounter;
+                m_BoneCounter++;
+            }
+            else
+            {
+                boneID = m_BoneInfoMap[boneName].id;
+            }
+            assert(boneID != -1);
+            auto weights = mesh->mBones[boneIndex]->mWeights;
+            int numWeights = mesh->mBones[boneIndex]->mNumWeights;
 
+            for (int weightIndex = 0; weightIndex < numWeights; ++weightIndex)
+            {
+                int vertexId = weights[weightIndex].mVertexId;
+                float weight = weights[weightIndex].mWeight;
+                assert(vertexId <= vertices.size());
+                SetVertexBoneData(vertices[vertexId], boneID, weight);
+            }
+        }
+    }
     // checks all material textures of a given type and loads the textures if they're not loaded yet.
     // the required info is returned as a Texture struct.
     vector<MeshTexture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName)
@@ -315,9 +373,9 @@ struct sphere_data
 };
 static sphere_data SphereData()
 {
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec2> uv;
+    std::vector<glm::vec3> positions;   
     std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> uv;
     std::vector<unsigned int> indices;
 
     const unsigned int X_SEGMENTS = 64;
@@ -451,7 +509,7 @@ static TerrainData Get_TerrainData_gpu(int width, int height)
 {
     TerrainData terrain_data;
     std::vector<float>& vertices = terrain_data.vertex;
-    unsigned rez = 20;
+    unsigned rez = 40;
     terrain_data.rez = rez;
     for (unsigned i = 0; i <= rez - 1; i++)
     {
@@ -499,16 +557,24 @@ public:
     Model Sphere = Model();
     Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     Model Terrain = Model();
+    Model Sphere_instance = Model();
+    Model x_bot = Model("res/objects/x_bot/X_Bot.dae");
     void Get_modelss()
     {
         models_map["Nano"] = &Nano;
         models_map["Marry"] = &Marry;
         models_map["Planet"] = &Planet;
         models_map["Main_character"] = &Main_character;
+        models_map["x_bot"] = &x_bot;
     }
     Models()
     {
         Get_modelss();
+    }
+    void CreatModel(string const& path, string const& name, float life = 100.0f)
+    {
+        Model* newmodel = new Model(path, life);
+        models_map[name] = newmodel;
     }
 };
 

@@ -137,12 +137,12 @@ public:
 		for (int i = 0; i < Particle_Num; i++)
 		{
 			D3Particle& p = particles[i];
-			p.Life -= reduce;
+			p.Life -= reduce*0.1f;
 			if (p.Life > 0.0f)
 			{
-				p.Position[3][0] += (rand() % 2) / 200.0f;
-				p.Position[3][1] += (rand() % 2) / 200.0f;
-				p.Position[3][2] -= (rand() % 2) / 200.0f;
+				p.Position[3][0] += (rand() % 2) / 400.0f;
+				p.Position[3][1] += (rand() % 2) / 400.0f;
+				p.Position[3][2] -= (rand() % 2) / 400.0f;
 
 				p.Color -= reduce * 0.1f;
 			}

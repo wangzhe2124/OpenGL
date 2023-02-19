@@ -5,9 +5,16 @@ layout(location = 1) in vec3 Normal;
 layout(location = 2) in vec2 TexCoord;
 layout(location = 3) in vec3 tangent;
 layout(location = 4) in vec3 bitangent;
+layout(location = 5) in ivec4 boneIds;
+layout(location = 6) in vec4 weights;
+const int MAX_BONES = 100;
+const int MAX_BONE_INFLUENCE = 4;
+uniform mat4 finalBonesMatrices[MAX_BONES];
+
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
+uniform bool with_anime;
 out VS_OUT{
  vec3 Normal;
  vec3 FragPos;
@@ -16,7 +23,28 @@ out VS_OUT{
 }vs_out;
 void main()
 {
-    gl_Position = projection * view * model * vec4(Position, 1.0f);
+    //anime
+    if (with_anime)
+    {
+        vec4 totalPosition = vec4(0.0f);
+        for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+        {
+            if (boneIds[i] == -1)
+                continue;
+            if (boneIds[i] >= MAX_BONES)
+            {
+                totalPosition = vec4(Position, 1.0f);
+                break;
+            }
+            vec4 localPosition = finalBonesMatrices[boneIds[i]] * vec4(Position, 1.0f);
+            totalPosition += localPosition * weights[i];
+            vec3 localNormal = mat3(finalBonesMatrices[boneIds[i]]) * Normal;
+        }
+        gl_Position = projection * view * model * totalPosition;
+    }
+    else
+        gl_Position = projection * view * model * vec4(Position, 1.0f);
+
     vs_out.FragPos = vec3(model * vec4(Position, 1.0));
     vs_out.Normal = mat3(transpose(inverse(model))) * Normal;//法线变换到世界空间，应设置uniform在主程序执行提升效率	
     vs_out.TexCoord = TexCoord;

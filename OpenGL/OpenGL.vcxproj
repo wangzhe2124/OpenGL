@@ -196,6 +196,8 @@
     <None Include="src\config.ini" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Animator.h" />
+    <ClInclude Include="src\Bone.h" />
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\CSM.h" />

@@ -20,11 +20,21 @@ uniform float life_x;
 uniform float life_y;
 float life_x_left = life_x - 50;
 float life_x_right = life_x + 50;
+
+uniform float max_life;
+uniform float current_life;
+float current_x = current_life / max_life * 100;
 void main()
 {
     bool is_life = gl_FragCoord.y > life_y && gl_FragCoord.y < (life_y + 10);
-    if (gl_FragCoord.x < life_x_right && gl_FragCoord.x>life_x_left && is_life)
-        FragColor = vec4(vec3(1.0, 0.0, 0.0), 1.0);
+
+    if (gl_FragCoord.x > life_x_left && gl_FragCoord.x < life_x_right && is_life)
+    {
+        if (gl_FragCoord.x < (life_x_left + current_x))
+            FragColor = vec4(vec3(1.0, 0.0, 0.0), 1.0);
+        else
+            FragColor = vec4(vec3(0.0, 0.0, 0.0), 1.0);
+    }
     else
         discard;
 }

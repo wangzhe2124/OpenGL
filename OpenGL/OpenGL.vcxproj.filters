@@ -172,5 +172,11 @@
     <ClInclude Include="src\Particle.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\Bone.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Animator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

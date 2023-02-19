@@ -12,8 +12,7 @@ public:
     float exposure;
     float metallic;
     float roughness;
-    float SunIntensity;
-    glm::vec3 SunColor;
+    
     bool useheight;
     bool NormalMap;
     bool useSSAO;
@@ -27,12 +26,14 @@ public:
     bool assist_screen;
     int tess_level;
     bool third_view; bool free_view; bool show_mesh;
-    bool pointlight_window; float point_sm_radius; bool point_sm_pcf; float pointlight_Intensity;
+    bool sun_window; float SunIntensity; glm::vec3 SunColor;
+    bool spotlight_window; float st_bias_x; float st_bias_y; float st_bias_z; float spot_far_plane;
+    bool pointlight_window; float point_sm_radius; bool point_sm_pcf; float pointlight_Intensity; float point_far_plane; glm::vec3 point_color;
     bool particle_window; bool show_particle; bool show_d3particle;
     bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_mulReduce; float fxaa_minReduce; float fxaa_maxSpan;
     KeyInput();
     void ProcessKey(GLFWwindow* window, int key, int action);
-    void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime);
+    void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime, float& energy);
 };
 KeyInput::KeyInput()
     :blinn_phong(true),
@@ -44,19 +45,21 @@ KeyInput::KeyInput()
     NormalMap(true),
     metallic(0.5f),
     roughness(0.8f),
-    SunIntensity(3.0f),
-    SunColor(1.0f),
+    
+    
     blur_shadow(true),
     EnvLight_spec(true),
     SSAO_window(false), SSAO_bias(0.3f), SSAO_radius(0.25f), SSAO_rangecheck(0.446f),
     assist_screen(false),
     tess_level(1),
     third_view(true), free_view(false),show_mesh(false),
-    pointlight_window(false), point_sm_radius(0.001f), point_sm_pcf(false), pointlight_Intensity(0.0f),
+    sun_window(false), SunIntensity(3.0f), SunColor(1.0f),
+    spotlight_window(false), st_bias_x(0.15f), st_bias_y(0.15f), st_bias_z(0.15f), spot_far_plane(20.0f),
+    pointlight_window(false), point_sm_radius(0.001f), point_sm_pcf(false), pointlight_Intensity(0.0f),point_far_plane(10.0f), point_color(1.0f),
     particle_window(false),show_particle(false), show_d3particle(false),
     fxaa_window(false), fxaa_on(false), fxaa_lumaThreshold(0.5f), fxaa_mulReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f)
 {}
-void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime)
+void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime, float& energy)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -116,6 +119,28 @@ void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTi
     }
     else
         camera.is_move = false;
+    //dash
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    {
+        if (energy > 0)
+        {
+            camera.dash = true;
+            energy -= 0.05f;
+            if (energy < 0)
+                energy = 0.0f;
+        }
+        else
+            camera.dash = false;
+
+    }
+    else
+    {
+        camera.dash = false;
+        energy += 1.0f;
+        if (energy > 100.0f)
+            energy = 100.0f;
+    }
+    //exposure
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
     {
         exposure += 0.01f;

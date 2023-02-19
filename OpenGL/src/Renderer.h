@@ -16,9 +16,10 @@ public:
 	//void DrawMeshElement(Mesh& mesh, const Shader& shader) const;
 
     void DrawArray(const VertexArray& va, const Shader& shader) const;
-    void DrawArray(const VertexArray& va, const D3Shader& shader) const;
+    void DrawArray_strip(const VertexArray& va, const Shader& shader) const;
+
     void DrawArrayInstance(const VertexArray& va, const Shader& shader, unsigned int num) const;
-    void DrawPoint(const VertexArray& va, const D3Shader& shader) const;
+    void DrawPoint(const VertexArray& va, const Shader& shader) const;
 	//void DrawMeshArray(Mesh& mesh,  const Shader& shader) const;
 	
 };
@@ -60,15 +61,15 @@ void Renderer::DrawArray(const VertexArray& va, const Shader& shader) const
 
 }
 
-void Renderer::DrawArray(const VertexArray& va, const D3Shader& shader) const
+void Renderer::DrawArray_strip(const VertexArray& va, const Shader& shader) const
 {
     va.Bind();
     shader.Bind();
-    glDrawArrays(GL_TRIANGLES, 0, va.GetNumber());
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, va.GetNumber());
     va.Unbind();
 
 }
-void Renderer::DrawPoint(const VertexArray& va, const D3Shader& shader) const
+void Renderer::DrawPoint(const VertexArray& va, const Shader& shader) const
 {
     va.Bind();
     shader.Bind();

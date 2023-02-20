@@ -9,6 +9,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
+void windowSize_callback(GLFWwindow* window, int cx, int cy);
 void GUI_Initialize(GLFWwindow* window);
 
 void GUI_Process(GLFWwindow* window, KeyInput& keyinput);
@@ -37,7 +38,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "demo", NULL, NULL);//指针
+    GLFWwindow* window = glfwCreateWindow(game.GetSwidth(), game.GetSheight(), "demo", NULL, NULL);//指针
     if (!window)
     {
         glfwTerminate();
@@ -46,7 +47,7 @@ int main(void)
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
-
+    
     glfwSwapInterval(1);
     if (glewInit() != GLEW_OK)
         std::cout << "error" << std::endl;
@@ -58,6 +59,7 @@ int main(void)
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, keys_callback);
+    glfwSetWindowSizeCallback(window, windowSize_callback);
     // Setup Dear ImGui context
     GUI_Initialize(window);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
@@ -67,7 +69,7 @@ int main(void)
     //glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC1_ALPHA);
     //面剔除
-    glEnable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);//剔除背面
     glFrontFace(GL_CCW);//逆时针为正向
     //模板测试
@@ -88,6 +90,24 @@ int main(void)
         game.GetDeltaTime(deltaTime);
         game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//键盘输入移动
         game.start_render();
+        if (game.keyinput.full_screen)
+        {
+            GLFWmonitor* _monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = glfwGetVideoMode(_monitor);
+            glfwSetWindowMonitor(window, _monitor, 0, 0, mode->width, mode->height, 0);
+            game.SetSwidth(mode->width);
+            game.SetSheight(mode->height);
+        }
+        else
+        {
+            glm::ivec2 window_pos;
+            glfwGetWindowPos(window, &window_pos.x, &window_pos.y);
+            glm::ivec2 window_size;
+            glfwGetWindowSize(window, &window_size.x, &window_size.y);
+            glfwSetWindowMonitor(window, nullptr, 0, 0, 960, 640, 0);
+            game.SetSwidth(960);
+            game.SetSheight(640);
+        }
         //glDisable(GL_DEPTH_TEST);
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //game.shaders->basicscreen_shader.Bind();
@@ -95,11 +115,11 @@ int main(void)
         ////cameradepthFBO.BindTexture();
         ////blooming_hightlightFBO.BindTexture(0,1);
         ////blooming_blur_verticalFBO.BindTexture();
-        ////hdrfbo.BindTexture(0,2);
+        //game.framebuffers->hdrfbo.BindTexture(0);
         ////global_dirshadowfbo.BindTexture();
         ////shadow_blur_verticalFBO.BindTexture();
         ////game.framebuffers->FXAA_FBO.BindTexture(0);
-        //game.framebuffers->gbuffer.BindTexture(0, 1);
+        ////game.framebuffers->gbuffer.BindTexture(0, 1);
         ////game.framebuffers->csm_mapFBO[0].BindTexture();
         ////envcubemap_spec_BRDF_FBO.BindTexture();
         ////ssaoFBO.BindTexture();
@@ -172,6 +192,11 @@ void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mo
     }
     game.keyinput.ProcessKey(window, key, action);
 }
+void windowSize_callback(GLFWwindow* window, int cx, int cy)
+{
+    std::cout << "called" << std::endl;
+    game.ResetResolution(cx, cy);
+}
 void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
 {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -181,14 +206,18 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::NewFrame();
 
     ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-    ImGui::Checkbox("Torch", &keyinput.TorchOn);      // Edit bools storing our window open/close state
+          // Edit bools storing our window open/close state
     ImGui::Checkbox("Gamma", &keyinput.gamma);
+    ImGui::Checkbox("use terrain", &keyinput.use_terrain);
     ImGui::Checkbox("HeightMap", &keyinput.useheight);
     ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
     ImGui::Checkbox("use_EnvLight_spec", &keyinput.EnvLight_spec);
     ImGui::Checkbox("third_view", &keyinput.third_view);
     ImGui::Checkbox("free_view", &keyinput.free_view);
+    ImGui::Checkbox("blur shadow", &keyinput.blur_shadow);
     ImGui::Checkbox("show mesh", &keyinput.show_mesh);
+    ImGui::Checkbox("fullscreen", &keyinput.full_screen);
+
     ImGui::SliderFloat("camera speed", &game.camera.MovementSpeed, 0.0f, 1000.0f);
 
     ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
@@ -201,10 +230,15 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::Checkbox("sun Window", &keyinput.sun_window);
     if (keyinput.sun_window)
     {
-        ImGui::Begin("pointlight Window", &keyinput.sun_window);
+        ImGui::Begin("sun Window", &keyinput.sun_window);
         if (ImGui::Button("Close Me"))
             keyinput.sun_window = false;
         ImGui::SliderFloat("SunIntensity", &keyinput.SunIntensity, 0.0f, 10.0f);
+        ImGui::SliderFloat("sm_bias", &keyinput.sun_sm_bias, 0.0f, 5.0f);
+        ImGui::SliderFloat("sun speed", &keyinput.sun_speed, 0.0f, 50.0f);
+        ImGui::SliderFloat("sun pcf radius", &keyinput.sun_pcf_radius, 0.0f, 10.0f);
+        ImGui::Checkbox("sun pcf", &keyinput.sun_pcf);
+
         ImGui::ColorEdit3("sun color", (float*)&keyinput.SunColor); // Edit 3 floats representing a color
         ImGui::End();
     }
@@ -228,13 +262,30 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::Checkbox("spotlight Window", &keyinput.spotlight_window);
     if (keyinput.spotlight_window)
     {
-        ImGui::Begin("pointlight Window", &keyinput.spotlight_window);
+        ImGui::Begin("spot Window", &keyinput.spotlight_window);
         if (ImGui::Button("Close Me"))
             keyinput.spotlight_window = false;
+        ImGui::Checkbox("Torch", &keyinput.TorchOn);
         ImGui::SliderFloat("bias_x", &keyinput.st_bias_x, -5.0f, 5.0f);
         ImGui::SliderFloat("bias_y", &keyinput.st_bias_y, -5.0f, 5.0f);
         ImGui::SliderFloat("bias_z", &keyinput.st_bias_z, 0.0f, 5.0f);
         ImGui::SliderFloat("st_far_plane", &keyinput.spot_far_plane, 5.0f, 50.0f);
+        ImGui::SliderFloat("torch intensity", &keyinput.torch_intensity, 0.0f, 50.0f);
+        ImGui::ColorEdit3("torch color", (float*)&keyinput.torch_color);
+
+        ImGui::End();
+    }
+    //bloom
+    ImGui::Checkbox("bloom Window", &keyinput.bloom_window);
+    if (keyinput.bloom_window)
+    {
+        ImGui::Begin("bloom Window", &keyinput.bloom_window);
+        if (ImGui::Button("Close Me"))
+            keyinput.bloom_window = false;
+        ImGui::SliderInt("bloom times", &keyinput.bloom_times, 0, 16);
+        ImGui::SliderFloat("bloom halox", &keyinput.bloom_halox, 0.0f, 1.5f);
+        ImGui::SliderFloat("bloom haloy", &keyinput.bloom_haloy, 0.0f, 1.5f);
+        ImGui::SliderFloat("bloom haloz", &keyinput.bloom_haloz, 0.0f, 1.5f);
         ImGui::End();
     }
     ImGui::Checkbox("assist screen", &keyinput.assist_screen);
@@ -247,7 +298,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
             keyinput.SSAO_window = false;
         ImGui::Checkbox("SSAO", &keyinput.useSSAO);
         ImGui::SliderFloat("SSAO sample radius", &keyinput.SSAO_radius, 0.0f, 10.0f);
-        ImGui::SliderFloat("SSAO sample bias", &keyinput.SSAO_bias, 0.0f, 1.0f);
+        ImGui::SliderFloat("SSAO sample bias", &keyinput.SSAO_bias, 0.0f, 5.0f);
         ImGui::SliderFloat("SSAO sample rangecheck", &keyinput.SSAO_rangecheck, 0.0f, 1.0f);
         ImGui::End();
     }

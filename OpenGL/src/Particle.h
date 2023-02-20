@@ -171,9 +171,9 @@ public:
 	}
 	void respawn_particle(D3Particle& particle)
 	{
-		float randomx = (rand() % 10) - 5;
-		float randomy = (rand() % 10) - 5;
-		float randomz = (rand() % 10) - 5;
+		float randomx = static_cast<float>((rand() % 10) - 5);
+		float randomy = static_cast<float>((rand() % 10) - 5);
+		float randomz = static_cast<float>((rand() % 10) - 5);
 		float rcolor = 1.0f +(rand() % 500) / 50.0f;
 		particle.Position[3][0] = randomx;
 		particle.Position[3][1] = randomy;

@@ -177,7 +177,11 @@ vec3 CalcPointLight(int i, vec3 normal, vec2 Texcoord, vec3 FragPos, float occlu
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
 	vec3 ambient = vec3(0.03) * Albedo * occlusion;
-	vec3 color = ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) * (1 - shadow);
+	vec3 color;
+	if (distance < 20)
+		color = ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) * (1 - shadow);
+	else
+		color = vec3(0);
 	return color * pt.LightIntensity;
 }
 
@@ -204,10 +208,14 @@ vec3 CalcSpotLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
 	vec3 ambient = vec3(0.03) * Albedo * occlusion;
-	float theta = dot(lightDir, normalize(spotlight.direction));//พÛนโ
+	float theta = dot(lightDir, normalize(spotlight.direction));
 	float epsilon = spotlight.inner_CutOff - spotlight.outer_CutOff;
 	float intensity = clamp((theta - spotlight.outer_CutOff) / epsilon, 0.0, 1.0);
-	vec3 color = ambient / (vec3(1.0) + ambient) + Lo * intensity / (vec3(1.0) + Lo) * (1 - shadow);
+	vec3 color;
+	if (distance < 20)
+		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) * (1 - shadow)) * intensity;
+	else
+		color = vec3(0);
 	return color * spotlight.LightIntensity;
 }
 

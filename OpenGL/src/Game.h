@@ -95,6 +95,7 @@ public:
     Shaders* shaders;
     Textures* textures;
     Models* models;
+    Pre_FrameBuffers* pre_framebuffers;
     FrameBuffers* framebuffers;
     VertexArrays* vertex_arrays;
     VertexBuffers* vertex_buffers;
@@ -109,12 +110,13 @@ public:
     std::string strConfigFileName = std::string("src/config.ini");
     std::fstream out = std::fstream(strConfigFileName);
     Config config = Config(strConfigFileName);
-    Game() :shaders(nullptr), textures(nullptr), models(nullptr), framebuffers(nullptr), vertex_arrays(nullptr), vertex_buffers(nullptr) {};
+    Game() :shaders(nullptr), textures(nullptr), models(nullptr), framebuffers(nullptr), pre_framebuffers(nullptr), vertex_arrays(nullptr), vertex_buffers(nullptr) {};
     ~Game() {
         delete shaders;
         delete textures;
         delete models;
         delete framebuffers;
+        delete pre_framebuffers;
         delete vertex_arrays;
         delete vertex_buffers;
         delete animator;
@@ -125,6 +127,7 @@ public:
         shaders = new Shaders;
         textures = new Textures;
         models = new Models;
+        pre_framebuffers = new Pre_FrameBuffers();
         framebuffers = new FrameBuffers(screenWidth, screenHeight);
         vertex_arrays = new VertexArrays;
         vertex_buffers = new VertexBuffers;
@@ -141,7 +144,7 @@ public:
         Generate_EnvLight_Specular_BRDF();
         //models->CreatModel("res/objects/x_bot/X_Bot.dae", "x_bot");
         
-        danceAnimation = new Animation("res/objects/x_bot/X_Bot.dae", models->models_map["x_bot"]);
+        danceAnimation = new Animation("res/objects/Robot_boxing.dae", models->anime_models_map["Robot_boxing"]);
         animator = new Animator(danceAnimation);
 
     }
@@ -178,12 +181,12 @@ public:
             //blur
             Generate_SSAO_blur();
         }
-        Generate_PreShadow(shaders->DeferedPreShadowShader, camera, csm_dirlight, framebuffers,
-            sun, pointlight, spotlight, renderer, vertex_arrays);
+        Generate_PreShadow();
 
         //对preshdow模糊处理
-        for (int j = 0; j < 1; j++)
+        if(keyinput.blur_shadow)
         {
+            int j = 0;
             Gaussian_Blured_Texture(j, 4, shaders->shadow_blurshader, framebuffers->PreShadowFBO, framebuffers->shadow_blur_horizontalFBO, framebuffers->shadow_blur_verticalFBO, renderer, vertex_arrays->quadVa);
             framebuffers->shadow_blur_verticalFBO.Bind();
             framebuffers->shadow_blur_verticalFBO.ReadTexture();
@@ -192,8 +195,7 @@ public:
         }
 
         //设置uniform      着色
-        Generate_Origin_Screen(shaders->DeferedLighting_shader, keyinput, framebuffers,
-            sun, pointlight, spotlight, renderer, vertex_arrays);
+        Generate_Origin_Screen();
         //点光源模型 
         //读取gbuffer的深度信息以结合正向渲染    
         Generate_SkyBox(shaders->basic_shader, shaders->skyboxShader, framebuffers, camera, keyinput,
@@ -234,6 +236,11 @@ public:
     {
         deltaTime = t;
     }
+    unsigned int GetSwidth() { return screenWidth; }
+    void SetSwidth(unsigned int sw) { screenWidth = sw; }
+    unsigned int GetSheight() { return screenHeight; }
+    void SetSheight(unsigned int sh) { screenHeight = sh; }
+
     void Update_Sun();
 
     void Update_Spotlight();
@@ -257,11 +264,9 @@ public:
 
     void Generate_SSAO_blur();
 
-    void Generate_PreShadow(Shader& DeferedPreShadowShader, Camera& camera, CSM_Dirlight& csm_dirlight, FrameBuffers* framebuffers,
-        Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays* vertex_arrays);
+    void Generate_PreShadow();
 
-    void Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, FrameBuffers* framebuffers,
-        Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays* vertex_arrays);
+    void Generate_Origin_Screen();
 
     void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuffers* framebuffers, Camera& camera, KeyInput& keyinput,
         VertexArrays* vertex_arrays, Renderer& renderer, Textures* textures, Models* models);
@@ -293,6 +298,11 @@ public:
     void Generate_Health_bar();
     void Generate_Health_bar_enemy();
     std::string Collision_detection();
+    void ResetResolution(unsigned int width, unsigned int height)
+    {
+        delete framebuffers;
+        framebuffers = new FrameBuffers(width, height);
+    }
 };
 template <typename T1, typename T2, typename T3>
 void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
@@ -302,6 +312,9 @@ void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_b
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     blooming_blurshader.Bind();
+    blooming_blurshader.SetUniform1f("halox", keyinput.bloom_halox);
+    blooming_blurshader.SetUniform1f("haloy", keyinput.bloom_haloy);
+    blooming_blurshader.SetUniform1f("haloz", keyinput.bloom_haloz);
     for (unsigned int i = 0; i < times; i++)
     {
         blooming_blurshader.SetUniform1i("horizontal", horizontal);
@@ -331,551 +344,36 @@ void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_b
 void Game::Update_Sun()
 {
     float sun_height = 20;
-    float east_x = static_cast<float>(sin(glm::radians(45.0f + glfwGetTime() / 4.0f))) * sun_height;
-    float west_y = powf(sun_height * sun_height - powf(east_x, 2), 0.5);
-    glm::vec3 SunPosition = glm::vec3(east_x, west_y, 1.0f) + camera.Position;
-    glm::vec3 SunDireciton = -glm::vec3(east_x, west_y, 1.0f);
+    float east_x = static_cast<float>(sin(glfwGetTime()* keyinput.sun_speed)) * sun_height;
+    float west_y = static_cast<float>(cos(glfwGetTime() * keyinput.sun_speed)) * sun_height;
+    glm::vec3 SunPosition = glm::vec3(east_x, west_y, -10.0f);
+    glm::vec3 SunDireciton = -glm::vec3(east_x, west_y, -10.0f);
     sun.Sun_Position = SunPosition;
     sun.Sun_Direction = SunDireciton;
 }
-void Game::Generate_Dir_CSM()
+
+void Game::Update_Pointlight()
 {
-    int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM - 1;//每两帧更新一次3级csm
-    if (Last_CSM_update)
-    {
-        update_CSM_SPLIT_NUM = CSM_SPLIT_NUM;
-        Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
-    }
-    Last_CSM_update = !Last_CSM_update;
-    for (int i = 0; i < update_CSM_SPLIT_NUM; i++)
-    {
-        shaders->DirLightShadowshader.Bind();
-        shaders->DirLightShadowshader.SetUniformmatri4fv("LightSpace", csm_dirlight.light_projection_matrix[i]);
-
-        framebuffers->csm_mapFBO[i].Bind();//帧缓冲存储贴图
-        framebuffers->csm_mapFBO[i].SetViewPort();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //绘制       
-        
-        shaders->DirLightShadowshader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
-        renderer.DrawArray(*models->Floor.va, shaders->DirLightShadowshader);
-
-        shaders->DirLightShadowshader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
-        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shaders->DirLightShadowshader);
-        framebuffers->csm_mapFBO[i].UnBind();
-
-    }
-    glViewport(0, 0, screenWidth, screenHeight);
+    pointlight.lightintensity = keyinput.pointlight_Intensity;
+    pointlight.far_plane = keyinput.point_far_plane;
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+        pointlight.color[i] = keyinput.point_color;
 
 }
-void Game::Generate_Point_SM()
+void Game::Initialize_Pointlight()
 {
-    Shader& shader = shaders->PointLightShadowshader;
-    shader.Bind();
-    glm::mat4 PointlightProjection = glm::perspective(glm::radians(90.0f), 1.0f, pointlight.near_plane, pointlight.far_plane);//aspect应为阴影宽高比
     for (int i = 0; i < POINT_LIGHTS_NUM; i++)
     {
-        std::vector<glm::mat4> shadowTransforms;
-        glm::vec3 position = pointlight.position[i];
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//右
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//左
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));//上
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));//下
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));//前
-        shadowTransforms.push_back(PointlightProjection *
-            glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));//后
-        
-        for (int face = 0; face < 6; face++)
-        {
-            shader.SetUniformmatri4fv("shadowMatrices[" + std::to_string(face) + "]", shadowTransforms[face]);
-        }
-        shader.SetUniform3f("lightPos", position);
-        shader.SetUniform1f("far_plane", pointlight.far_plane);
-        framebuffers->PointlightMapfbo[i].Bind();//帧缓冲存储贴图
-        framebuffers->PointlightMapfbo[i].SetViewPort();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //绘制
-        std::map<std::string, Model*>::iterator iter;
-        iter = models->models_map.begin();
-        for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
-        {
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->DrawShadow(shader);
-        }
-        shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
-        renderer.DrawArray(*models->Floor.va, shader);
-
-        shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
-        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
-        framebuffers->PointlightMapfbo[i].UnBind();
+        pointlight.position[i] = glm::vec3(i * 3, 2, 0);
+        pointlight.space[i].Translate(pointlight.position[i]);
+        pointlight.space[i].Scale(glm::vec3(0.3f));
     }
-    glViewport(0, 0, screenWidth, screenHeight);
-
-}
-void Game::Generate_Spot_SM()
-{
-    Shader& shader = shaders->SpotLightShadowshader;
-    shader.Bind();
-    shader.SetUniformmatri4fv("LightSpace", spotlight.SpotlightSpaceMatrix);
-    framebuffers->SpotlightMapfbo.Bind();//帧缓冲存储贴图
-    framebuffers->SpotlightMapfbo.SetViewPort();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //绘制
-    shader.SetUniformmatri4fv("model", models->Nano.position.GetModelSpace());
-    models->Nano.DrawShadow(shader);
-
-    shader.SetUniformmatri4fv("model", models->Marry.position.GetModelSpace());
-    models->Marry.DrawShadow(shader);
-
-    shader.SetUniformmatri4fv("model", models->Planet.position.GetModelSpace());
-    models->Planet.DrawShadow(shader);
-
-    shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
-    renderer.DrawArray(*models->Floor.va, shader);
-
-    shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
-    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
-    framebuffers->SpotlightMapfbo.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-void Game::Generate_Defered_basicDATA()
-{
-    if(keyinput.show_mesh)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    Shader& shader = shaders->DeferedShader;
-    shader.Bind();
-    shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-    if (camera.third_view)
-        shader.SetUniform3f("viewPos", camera.Position - glm::vec3(3.0f) * camera.Front);
-    else
-        shader.SetUniform3f("viewPos", camera.Position);
-    framebuffers->gbuffer.Bind();
-    framebuffers->gbuffer.SetViewPort();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
-    shader.SetUniform1i("use_HeightMap", keyinput.useheight);
-    shader.SetUniformmatri4fv("model", models->Nano.position.GetModelSpace());
-    shader.SetUniform1i("with_anime", 0);
-    models->Nano.Draw(shader);
-    shader.SetUniform1i("use_NormalMap", 0);
-    shader.SetUniform1i("use_HeightMap", 0);
-    shader.SetUniformmatri4fv("model", models->Marry.position.GetModelSpace());
-    models->Marry.Draw(shader);
-    shader.SetUniformmatri4fv("model", models->Planet.position.GetModelSpace());
-    models->Planet.Draw(shader);
-    shader.SetUniformmatri4fv("model", models->Main_character.position.GetModelSpace());
-    models->Main_character.Draw(shader);
-    //anime
-    //shader.SetUniform1i("with_anime", 0);
-    //shader.SetUniformmatri4fv("model", models->x_bot.position.GetModelSpace());
-    //auto transforms = animator->GetFinalBoneMatrices();
-    //for (int i = 0; i < transforms.size(); ++i)
-    //    shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-    //models->models_map["x_bot"]->Draw(shader);
-    //shader.SetUniform1i("with_anime", 0);
-    //地板  
-    shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
-    shader.SetUniform1i("use_HeightMap", keyinput.useheight);
-    textures->floor_diffuse.Bind(0);
-    shader.SetUniform1i("material.texture_diffuse1", 0);
-    textures->floor_specular.Bind(1);
-    shader.SetUniform1i("material.texture_specular1", 1);
-    textures->floor_normal.Bind(2);
-    shader.SetUniform1i("material.texture_normal1", 2);
-    textures->floor_height.Bind(3);
-    shader.SetUniform1i("material.texture_height1", 3);
-    shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
-    renderer.DrawArray(*models->Floor.va, shader);
-    //球体
-    shader.SetUniform1i("use_NormalMap", 0);
-    shader.SetUniform1i("use_HeightMap", 0);
-    shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
-    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
-    //Generate_Terrain_gpu();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    framebuffers->gbuffer.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-void Game::Generate_SSAO()
-{
-    framebuffers->ssaoFBO.Bind();
-    framebuffers->ssaoFBO.SetViewPort();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shaders->SSAOShader.Bind();
-    shaders->SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-    shaders->SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    shaders->SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
-    shaders->SSAOShader.SetUniform1f("bias", keyinput.SSAO_bias);
-    shaders->SSAOShader.SetUniform1f("radius", keyinput.SSAO_radius);
-    shaders->SSAOShader.SetUniform1f("rangecheck", keyinput.SSAO_rangecheck);
-
-    framebuffers->cameradepthFBO.BindTexture(0);
-    shaders->SSAOShader.SetUniform1i("camera.Depth", 0);
-    framebuffers->gbuffer.BindTexture(1, 0);
-    shaders->SSAOShader.SetUniform1i("gPosition", 1);
-    framebuffers->gbuffer.BindTexture(2, 1);
-    shaders->SSAOShader.SetUniform1i("gNormal", 2);
-    framebuffers->ssaoFBO.BindNoiseTexture(3);
-    shaders->SSAOShader.SetUniform1i("Noise", 3);
-    for (int i = 0; i < 64; i++)
-    {
-        shaders->SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers->ssaoFBO.ssao_data.ssaokernel[i]);
-    }
-    renderer.DrawArray(vertex_arrays->quadVa, shaders->SSAOShader);
-    framebuffers->ssaoFBO.UnBind();
-}
-void Game::Generate_SSAO_blur()
-{
-    framebuffers->ssaoblurFBO.Bind();
-    framebuffers->ssaoblurFBO.SetViewPort();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    shaders->SSAOBlurShader.Bind();
-    framebuffers->ssaoFBO.BindTexture(0);
-    shaders->SSAOBlurShader.SetUniform1i("ssaoInput", 0);
-    renderer.DrawArray(vertex_arrays->quadVa, shaders->SSAOBlurShader);
-    framebuffers->ssaoblurFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-void Game::Generate_PreShadow(Shader& DeferedPreShadowShader, Camera& camera, CSM_Dirlight& csm_dirlight, FrameBuffers* framebuffers,
-    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays* vertex_arrays)
-{
-    DeferedPreShadowShader.Bind();
-    DeferedPreShadowShader.SetUniform3f("camera.viewPos", camera.Position);
-    DeferedPreShadowShader.SetUniform1f("camera.far_plane", camera.far_plane);
-    DeferedPreShadowShader.SetUniform1f("camera.near_plane", camera.near_plane);
-    DeferedPreShadowShader.SetUniform1f("point_sm_radius", keyinput.point_sm_radius);
-    DeferedPreShadowShader.SetUniform1f("point_sm_pcf", keyinput.point_sm_pcf);
-    DeferedPreShadowShader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
-    for (int i = 0; i < 4; i++)
-    {
-        DeferedPreShadowShader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.position[i]);
-        DeferedPreShadowShader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.far_plane);
-    }
-    framebuffers->cameradepthFBO.BindTexture(0);
-    DeferedPreShadowShader.SetUniform1i("camera.Depth", 0);
-    framebuffers->gbuffer.BindTexture(1, 0);
-    DeferedPreShadowShader.SetUniform1i("gPosition", 1);
-    framebuffers->gbuffer.BindTexture(2, 1);
-    DeferedPreShadowShader.SetUniform1i("gNormal", 2);
-    framebuffers->gbuffer.BindTexture(3, 2);
-
     for (int i = 0; i < POINT_LIGHTS_NUM; i++)
     {
-        framebuffers->PointlightMapfbo[i].BindTexture(i + 4);
-        DeferedPreShadowShader.SetUniform1i("shadowMap.PointShadow[" + std::to_string(i) + "]", i + 4);
+        pointlight.color[i] = glm::vec3(1.0f);
     }
-    for (int i = 0; i < CSM_SPLIT_NUM; i++)
-    {
-        DeferedPreShadowShader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
-        DeferedPreShadowShader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
-        DeferedPreShadowShader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
-        framebuffers->csm_mapFBO[i].BindTexture(i + 8);
-        DeferedPreShadowShader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
-        if (i == CSM_SPLIT_NUM - 1)
-            DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", Last_CSM_update_matrix);
-        else
-            DeferedPreShadowShader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", csm_dirlight.light_projection_matrix[i]);
-
-    }
-
-    framebuffers->SpotlightMapfbo.BindTexture(12);
-    DeferedPreShadowShader.SetUniform1i("shadowMap.SpotShadow", 12);
-    DeferedPreShadowShader.SetUniformmatri4fv("SpotlightSpaceMatrix", spotlight.SpotlightSpaceMatrix);
-
-    framebuffers->PreShadowFBO.Bind();//
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-    renderer.DrawArray(vertex_arrays->quadVa, DeferedPreShadowShader);
-    glEnable(GL_DEPTH_TEST);
-    framebuffers->PreShadowFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
+    pointlight.lightintensity = keyinput.pointlight_Intensity;
 }
-void Game::Generate_Origin_Screen(Shader& DeferedLighting_shader, KeyInput& keyinput, FrameBuffers* framebuffers,
-    Sun_DATA& sun, PointLight_DATA& pointlight, SpotLight_DATA& spotlight, Renderer& renderer, VertexArrays* vertex_arrays)
-{
-    DeferedLighting_shader.Bind();
-    DeferedLighting_shader.SetUniform1f("material.metallic", keyinput.metallic);
-    DeferedLighting_shader.SetUniform1f("material.roughness", keyinput.roughness);
-    if (camera.third_view)
-        DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position - glm::vec3(3.0f) * camera.Front);
-    else
-        DeferedLighting_shader.SetUniform3f("camera.viewPos", camera.Position);
-    framebuffers->gbuffer.BindTexture(1, 0);
-    DeferedLighting_shader.SetUniform1i("gPosition", 1);
-    framebuffers->gbuffer.BindTexture(2, 1);
-    DeferedLighting_shader.SetUniform1i("gNormal", 2);
-    framebuffers->gbuffer.BindTexture(3, 2);
-    DeferedLighting_shader.SetUniform1i("gAlbedoSpec", 3);
-    framebuffers->envcubemap_convolutionFBO.BindTexture(4);
-    DeferedLighting_shader.SetUniform1i("EnvLight", 4);
-    framebuffers->envcubemap_spec_convolutionFBO.BindTexture(5);
-    DeferedLighting_shader.SetUniform1i("EnvLight_spec", 5);
-    framebuffers->envcubemap_spec_BRDF_FBO.BindTexture(6);
-    DeferedLighting_shader.SetUniform1i("EnvLight_spec_BRDF", 6);
-    DeferedLighting_shader.SetUniform1i("use_EnvLight_spec", keyinput.EnvLight_spec);
-
-    framebuffers->PreShadowFBO.BindTexture(8, 0);
-    DeferedLighting_shader.SetUniform1i("predirshadow", 8);//平行光
-
-    framebuffers->PreShadowFBO.BindTexture(9, 1);
-    DeferedLighting_shader.SetUniform1i("prepointshadow", 9);//点光
-    framebuffers->PreShadowFBO.BindTexture(10, 2);
-    DeferedLighting_shader.SetUniform1i("prespotshadow", 10);//聚光
-    DeferedLighting_shader.SetUniform1i("useSSAO", keyinput.useSSAO);
-    if (keyinput.useSSAO)
-    {
-        framebuffers->ssaoblurFBO.BindTexture(13);
-        DeferedLighting_shader.SetUniform1i("ssao", 13);
-    }
-
-    //平行光
-    DeferedLighting_shader.SetUniform3f("dirlight.color", keyinput.SunColor);
-    DeferedLighting_shader.SetUniform1f("dirlight.LightIntensity", keyinput.SunIntensity);
-    DeferedLighting_shader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
-    //点光
-    for (int i = 0; i < 4; i++)
-    {
-        DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointlight.color[i] * pointlight.lightintensity);
-        DeferedLighting_shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.position[i]);
-        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", pointlight.lightintensity);
-        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.far_plane);
-        DeferedLighting_shader.SetUniform1f("pointlight[" + std::to_string(i) + "].near_plane", pointlight.near_plane);
-    }
-    //聚光手电
-    DeferedLighting_shader.SetUniform3f("spotlight.color", glm::vec3(30.0f));
-    DeferedLighting_shader.SetUniform3f("spotlight.direction", spotlight.direction);
-    DeferedLighting_shader.SetUniform3f("spotlight.position", spotlight.position);
-    DeferedLighting_shader.SetUniform1f("spotlight.LightIntensity", 1.0f * keyinput.TorchOn);
-    DeferedLighting_shader.SetUniform1f("spotlight.inner_CutOff", glm::cos(glm::radians(10.5f)));//spotlight范围
-    DeferedLighting_shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
-
-    framebuffers->hdrfbo.Bind();//使用非默认帧缓冲来提供HDR
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-    renderer.DrawArray(vertex_arrays->quadVa, DeferedLighting_shader);
-    glEnable(GL_DEPTH_TEST);
-    framebuffers->hdrfbo.UnBind();
-}
-void Game::Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuffers* framebuffers, Camera& camera, KeyInput& keyinput,
-    VertexArrays* vertex_arrays, Renderer& renderer, Textures* textures, Models* models)
-{
-    //读取深度信息
-    if (keyinput.show_mesh)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    framebuffers->hdrfbo.Bind();
-    framebuffers->gbuffer.Read();
-    framebuffers->hdrfbo.Write();
-    framebuffers->gbuffer.BlitDepthBuffer();
-
-    basic_shader.Bind();
-    basic_shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    basic_shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-    for (unsigned int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        basic_shader.SetUniform3f("color", pointlight.color[i] * pointlight.lightintensity);
-        basic_shader.SetUniformmatri4fv("model", pointlight.space[i].GetModelSpace());
-        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
-    }
-    basic_shader.SetUniform3f("color", keyinput.SunColor * keyinput.SunIntensity * glm::vec3(10));
-    ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
-    dirlightspace.Translate(sun.Sun_Position);
-    //dirlightspace.Scale(glm::vec3(0.3f));
-    basic_shader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
-    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
-    //天空盒       
-    skyboxShader.Bind();
-    glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));//降维移除第四列的位移
-    skyboxShader.SetUniformmatri4fv("view", view);
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
-    skyboxShader.SetUniformmatri4fv("projection", projection);
-    textures->skybox.Bind();
-    //envcubemapFBO.BindTexture();
-    //envcubemap_spec_convolutionFBO.BindTexture();
-    renderer.DrawArray(vertex_arrays->skyboxVa, skyboxShader);
-    if (keyinput.show_d3particle)
-    {
-        Generate_D3Particle();
-        d3particle_generator.update_Particle();
-    }
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    framebuffers->hdrfbo.UnBind();
-}
-void Game::Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader, Shader& basicscreen_shader,
-    FrameBuffers* framebuffers, Renderer& renderer, VertexArrays* vertex_arrays, KeyInput& keyinput)
-{
-    framebuffers->blooming_hightlightFBO.Bind();
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
-    blooming_highlightshader.Bind();
-    framebuffers->hdrfbo.BindTexture(0, 0);;//原画
-    blooming_highlightshader.SetUniform1i("screenTexture", 0);
-    renderer.DrawArray(vertex_arrays->quadVa, blooming_highlightshader);
-    framebuffers->blooming_hightlightFBO.UnBind();
-    //将高亮贴图进行高斯模糊
-    Gaussian_Blured_Texture(1, 10, blooming_blurshader, framebuffers->blooming_hightlightFBO, framebuffers->blooming_blur_horizontalFBO, framebuffers->blooming_blur_verticalFBO, renderer, vertex_arrays->quadVa);
-    //结合原画和模糊后的图片形成泛光
-    screenShader.Bind();
-    screenShader.SetUniform1i("gamma", keyinput.gamma);
-    screenShader.SetUniform1f("exposure", keyinput.exposure);
-
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    framebuffers->blooming_hightlightFBO.BindTexture(0);
-    screenShader.SetUniform1i("screenTexture", 0);
-    framebuffers->blooming_blur_verticalFBO.BindTexture(1);
-    screenShader.SetUniform1i("blooming_screenTexture", 1);
-    framebuffers->ssaoFBO.BindTexture(2);
-    screenShader.SetUniform1i("assistTexture", 2);
-    renderer.DrawArray(vertex_arrays->quadVa, screenShader);
-    if (keyinput.assist_screen)
-    {
-        glViewport(0, 0, int(screenWidth * 0.4), int(screenHeight * 0.4));
-        basicscreen_shader.Bind();
-        framebuffers->ssaoFBO.BindTexture(0);
-        renderer.DrawArray(vertex_arrays->quadVa, basicscreen_shader);
-        glViewport(0, 0, screenWidth, screenHeight);
-    }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    framebuffers->FXAA_FBO.Write();
-    glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    if(keyinput.fxaa_on)
-    {
-        framebuffers->FXAA_FBO.Bind();
-        framebuffers->FXAA_FBO.BindTexture();
-        shaders->FXAA_shader.Bind();
-        shaders->FXAA_shader.SetUniform1i("fxaaOn", keyinput.fxaa_on);
-        shaders->FXAA_shader.SetUniform1f("screen_width", float(screenWidth));
-        shaders->FXAA_shader.SetUniform1f("screen_height", float(screenHeight));
-
-        shaders->FXAA_shader.SetUniform1f("lumaThreshold", keyinput.fxaa_lumaThreshold);
-        shaders->FXAA_shader.SetUniform1f("mulReduce", keyinput.fxaa_mulReduce);
-        shaders->FXAA_shader.SetUniform1f("minReduce", keyinput.fxaa_minReduce);
-        shaders->FXAA_shader.SetUniform1f("maxSpan", keyinput.fxaa_maxSpan);
-        renderer.DrawArray(vertex_arrays->quadVa, shaders->FXAA_shader);
-        framebuffers->FXAA_FBO.UnBind();
-    }
-    framebuffers->FXAA_FBO.Read();
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-}
-
-void Game::Generate_CubeTexture()
-{
-    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-    glm::mat4 captureViews[] =
-    {
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
-    shaders->EnvCubeMapShader.Bind();
-    shaders->EnvCubeMapShader.SetUniformmatri4fv("projection", captureProjection);
-    framebuffers->envcubemapFBO.SetViewPort();
-    textures->equirectangularMap.Bind();
-    for (unsigned int i = 0; i < 6; ++i)
-    {
-        framebuffers->envcubemapFBO.Bind(i);
-        shaders->EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMapShader);
-    }
-    framebuffers->envcubemapFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-
-}
-
-void Game::Generate_EnvLight_Diffuse()
-{
-    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-    glm::mat4 captureViews[] =
-    {
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
-    shaders->EnvCubeMap_ConvolutionShader.Bind();
-    shaders->EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
-    framebuffers->envcubemap_convolutionFBO.SetViewPort();
-    textures->skybox.Bind();
-    for (unsigned int i = 0; i < 6; ++i)
-    {
-        framebuffers->envcubemap_convolutionFBO.Bind(i);
-        shaders->EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMap_ConvolutionShader);
-    }
-    framebuffers->envcubemap_convolutionFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-
-void Game::Generate_EnvLight_Specular()
-{
-    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-    glm::mat4 captureViews[] =
-    {
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-    };
-    shaders->EnvCubeMap_spec_ConvolutionShader.Bind();
-    shaders->EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
-    unsigned int maxMipLevels = 5;
-    textures->skybox.Bind();
-    for (unsigned int i = 0; i < maxMipLevels; ++i)
-    {
-        unsigned int mipWidth = 1024 * static_cast<unsigned int>(std::pow(0.5, i));
-        unsigned int mipHeight = 1024 * static_cast<unsigned int>(std::pow(0.5, i));
-        framebuffers->envcubemap_spec_convolutionFBO.Bindmip_Renderbuffer(mipWidth, mipHeight);
-        framebuffers->envcubemap_spec_convolutionFBO.SetViewPort(mipWidth, mipHeight);
-        float roughness = (float)i / (float)(maxMipLevels - 1);
-        shaders->EnvCubeMap_spec_ConvolutionShader.SetUniform1f("roughness", roughness);
-        for (int j = 0; j < 6; j++)
-        {
-            framebuffers->envcubemap_spec_convolutionFBO.Bind(j, i);
-            shaders->EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMap_spec_ConvolutionShader);
-        }
-    }
-    textures->skybox.UnBind();
-    framebuffers->envcubemap_spec_convolutionFBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-
-void Game::Generate_EnvLight_Specular_BRDF()
-{
-    shaders->EnvCubeMap_spec_BRDF_Shader.Bind();
-    framebuffers->envcubemap_spec_BRDF_FBO.Bind();
-    framebuffers->envcubemap_spec_BRDF_FBO.SetViewPort();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-    renderer.DrawArray(vertex_arrays->quadVa, shaders->EnvCubeMap_spec_BRDF_Shader);
-    glEnable(GL_DEPTH_TEST);
-    framebuffers->envcubemap_spec_BRDF_FBO.UnBind();
-    glViewport(0, 0, screenWidth, screenHeight);
-}
-
 void Game::Initialize_Models_Positions()
 {
     models->Nano.position.Scale(glm::vec3(0.1f));
@@ -883,17 +381,17 @@ void Game::Initialize_Models_Positions()
     models->Nano.position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
     models->Marry.position.Scale(0.5f);
     models->Marry.position.Translate(glm::vec3(5.0f, 0.0f, 0.0f));
-    
+
     models->Planet.position.Translate(glm::vec3(10.0f, 0, 0));
     models->Floor.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models->Sphere.position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
-    models->Main_character.position.Scale(glm::vec3(0.1f));
+    models->Main_character.position.Scale(glm::vec3(0.05f));
     models->Main_character.position.Rotate(-180.0, glm::vec3(0.0, 1.0, 0.0));
     models->Main_character.position.Translate(camera.Position);
-    
+
     //x_bot
-   // models->models_map["x_bot"]->position.Scale(glm::vec3(0.1f));
-    //models->models_map["x_bot"]->position.Translate(glm::vec3(2.0f, 0.0f, 0.0f));
+    /*models->models_map["x_bot"]->position.Scale(glm::vec3(0.05f));
+    models->models_map["x_bot"]->position.Translate(glm::vec3(2.0f, 0.0f, 0.0f));*/
     std::map<std::string, Model*>::iterator iter;
     iter = models->models_map.begin();
     for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
@@ -909,7 +407,7 @@ void Game::Update_Models_Positions()
     theta = camera.Front.x > 0 ? theta : static_cast<float>((2 * PI - theta));
     float character_view = static_cast<float>(theta * 180.0f / PI);
     ModelSpace modd;
-    modd.Scale(glm::vec3(0.1f));
+    modd.Scale(glm::vec3(0.05f));
     modd.Rotate(180.0f + character_view, glm::vec3(0.0, -1.0, 0.0));
     if (!camera.third_view)
     {
@@ -974,16 +472,13 @@ void Game::Initialize_Vertex_Arrays()
     models->Floor.va->AddBuffer(floorVb, floorLayout);
     //sphere
     sphere_data sphere = SphereData();
-    models->Sphere.Get_index(&sphere.index[0], sphere.index.size());
+    models->Sphere.Get_index(&sphere.index[0], static_cast<unsigned int>(sphere.index.size()));
     VertexBuffer sphereVb(&sphere.vertex[0], sizeof(float) * static_cast<unsigned int>(sphere.vertex.size()));
     VertexBufferLayout sphereLayout;
     sphereLayout.Push<float>(3);//position
     sphereLayout.Push<float>(3);//normal
     sphereLayout.Push<float>(2);//texcoord
     models->Sphere.va->AddBuffer(sphereVb, sphereLayout);
-    //sphere instance
-    models->Sphere_instance.Get_index(&sphere.index[0], sphere.index.size());
-    models->Sphere_instance.va->AddBuffer(sphereVb, sphereLayout);
     //quad
     std::string quad_vertex_attr = "quad_vertex_attr";
     std::vector<float> quad_vertex = config.ReadVector(quad_vertex_attr);
@@ -1023,6 +518,575 @@ void Game::Initialize_Vertex_Arrays()
     vertex_arrays->particleVa.AddBuffer(particleVb, particleLayout);
 
 }
+void Game::Generate_Dir_CSM()
+{
+    int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM - 1;//每两帧更新一次3级csm
+    if (Last_CSM_update)
+    {
+        update_CSM_SPLIT_NUM = CSM_SPLIT_NUM;
+        Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
+    }
+    Last_CSM_update = !Last_CSM_update;
+    Shader& shader = shaders->DirLightShadowshader;
+    for (int i = 0; i < update_CSM_SPLIT_NUM; i++)
+    {
+        shader.Bind();
+        shader.SetUniformmatri4fv("LightSpace", csm_dirlight.light_projection_matrix[i]);
+
+        framebuffers->csm_mapFBO[i].Bind();//帧缓冲存储贴图
+        framebuffers->csm_mapFBO[i].SetViewPort();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //绘制       
+        std::map<std::string, Model*>::iterator iter;
+        iter = models->models_map.begin();
+        for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+        {
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+            iter->second->DrawShadow(shader);           
+        }
+        for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+        {
+            auto transforms = animator->GetFinalBoneMatrices();
+            for (int i = 0; i < transforms.size(); ++i)
+                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+            iter->second->DrawShadow(shader);
+        }
+        shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
+        renderer.DrawArray(*models->Floor.va, shader);
+
+        shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
+        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+        framebuffers->csm_mapFBO[i].UnBind();
+
+    }
+    glViewport(0, 0, screenWidth, screenHeight);
+
+}
+void Game::Generate_Point_SM()
+{
+    Shader& shader = shaders->PointLightShadowshader;
+    shader.Bind();
+    glm::mat4 PointlightProjection = glm::perspective(glm::radians(90.0f), 1.0f, pointlight.near_plane, pointlight.far_plane);//aspect应为阴影宽高比
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        std::vector<glm::mat4> shadowTransforms;
+        glm::vec3 position = pointlight.position[i];
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//右
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));//左
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));//上
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));//下
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));//前
+        shadowTransforms.push_back(PointlightProjection *
+            glm::lookAt(position, position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));//后
+        
+        for (int face = 0; face < 6; face++)
+        {
+            shader.SetUniformmatri4fv("shadowMatrices[" + std::to_string(face) + "]", shadowTransforms[face]);
+        }
+        shader.SetUniform3f("lightPos", position);
+        shader.SetUniform1f("far_plane", pointlight.far_plane);
+        framebuffers->PointlightMapfbo[i].Bind();//帧缓冲存储贴图
+        framebuffers->PointlightMapfbo[i].SetViewPort();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //绘制
+        std::map<std::string, Model*>::iterator iter;
+        iter = models->models_map.begin();
+        for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+        {
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+            iter->second->DrawShadow(shader);
+        }
+        for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+        {
+            auto transforms = animator->GetFinalBoneMatrices();
+            for (int i = 0; i < transforms.size(); ++i)
+                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+            iter->second->DrawShadow(shader);
+        }
+        shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
+        renderer.DrawArray(*models->Floor.va, shader);
+
+        shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
+        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+        framebuffers->PointlightMapfbo[i].UnBind();
+    }
+    glViewport(0, 0, screenWidth, screenHeight);
+
+}
+void Game::Generate_Spot_SM()
+{
+    Shader& shader = shaders->SpotLightShadowshader;
+    shader.Bind();
+    shader.SetUniformmatri4fv("LightSpace", spotlight.SpotlightSpaceMatrix);
+    framebuffers->SpotlightMapfbo.Bind();//帧缓冲存储贴图
+    framebuffers->SpotlightMapfbo.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //绘制
+
+    std::map<std::string, Model*>::iterator iter;
+    iter = models->models_map.begin();
+    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        iter->second->DrawShadow(shader);
+    }
+    for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        auto transforms = animator->GetFinalBoneMatrices();
+        for (int i = 0; i < transforms.size(); ++i)
+            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        iter->second->DrawShadow(shader);
+    }
+    shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
+    renderer.DrawArray(*models->Floor.va, shader);
+
+    shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
+    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+    framebuffers->SpotlightMapfbo.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Game::Generate_Defered_basicDATA()
+{
+    if(keyinput.show_mesh)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    Shader& shader = shaders->DeferedShader;
+    shader.Bind();
+    shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    if (camera.third_view)
+        shader.SetUniform3f("viewPos", camera.Position - glm::vec3(3.0f) * camera.Front);
+    else
+        shader.SetUniform3f("viewPos", camera.Position);
+    framebuffers->gbuffer.Bind();
+    framebuffers->gbuffer.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
+    shader.SetUniform1i("use_HeightMap", keyinput.useheight);
+    shader.SetUniformmatri4fv("model", models->Nano.position.GetModelSpace());
+    models->Nano.Draw(shader);
+
+    shader.SetUniformmatri4fv("model", models->Marry.position.GetModelSpace());
+    models->Marry.Draw(shader);
+    shader.SetUniformmatri4fv("model", models->Planet.position.GetModelSpace());
+    models->Planet.Draw(shader);
+    shader.SetUniformmatri4fv("model", models->Main_character.position.GetModelSpace());
+    models->Main_character.Draw(shader);
+    //anime
+    shader.SetUniformmatri4fv("model", models->Robot_boxing.position.GetModelSpace());
+    auto transforms = animator->GetFinalBoneMatrices();
+    for (int i = 0; i < transforms.size(); ++i)
+        shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+    models->anime_models_map["Robot_boxing"]->Draw(shader);
+    //地板  
+    textures->floor_diffuse.Bind(0);
+    shader.SetUniform1i("material.texture_diffuse1", 0);
+    textures->floor_specular.Bind(1);
+    shader.SetUniform1i("material.texture_specular1", 1);
+    textures->floor_normal.Bind(2);
+    shader.SetUniform1i("material.texture_normal1", 2);
+    textures->floor_height.Bind(3);
+    shader.SetUniform1i("material.texture_height1", 3);
+    shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
+    renderer.DrawArray(*models->Floor.va, shader);
+    //球体
+    shader.SetUniform1i("use_NormalMap", 0);
+    shader.SetUniform1i("use_HeightMap", 0);
+    shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
+    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+    if(keyinput.use_terrain)
+        Generate_Terrain_gpu();
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    framebuffers->gbuffer.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Game::Generate_SSAO()
+{
+    framebuffers->ssaoFBO.Bind();
+    framebuffers->ssaoFBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shaders->SSAOShader.Bind();
+    shaders->SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    shaders->SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    shaders->SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
+    shaders->SSAOShader.SetUniform1f("bias", keyinput.SSAO_bias);
+    shaders->SSAOShader.SetUniform1f("radius", keyinput.SSAO_radius);
+    shaders->SSAOShader.SetUniform1f("rangecheck", keyinput.SSAO_rangecheck);
+
+    framebuffers->cameradepthFBO.BindTexture(0);
+    shaders->SSAOShader.SetUniform1i("camera.Depth", 0);
+    framebuffers->gbuffer.BindTexture(1, 0);
+    shaders->SSAOShader.SetUniform1i("gPosition", 1);
+    framebuffers->gbuffer.BindTexture(2, 1);
+    shaders->SSAOShader.SetUniform1i("gNormal", 2);
+    framebuffers->ssaoFBO.BindNoiseTexture(3);
+    shaders->SSAOShader.SetUniform1i("Noise", 3);
+    for (int i = 0; i < 64; i++)
+    {
+        shaders->SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers->ssaoFBO.ssao_data.ssaokernel[i]);
+    }
+    renderer.DrawArray(vertex_arrays->quadVa, shaders->SSAOShader);
+    framebuffers->ssaoFBO.UnBind();
+}
+void Game::Generate_SSAO_blur()
+{
+    framebuffers->ssaoblurFBO.Bind();
+    framebuffers->ssaoblurFBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    shaders->SSAOBlurShader.Bind();
+    framebuffers->ssaoFBO.BindTexture(0);
+    shaders->SSAOBlurShader.SetUniform1i("ssaoInput", 0);
+    renderer.DrawArray(vertex_arrays->quadVa, shaders->SSAOBlurShader);
+    framebuffers->ssaoblurFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Game::Generate_PreShadow()
+{
+    Shader& shader = shaders->DeferedPreShadowShader;
+    shader.Bind();
+    shader.SetUniform3f("camera.viewPos", camera.Position);
+    shader.SetUniform1f("camera.far_plane", camera.far_plane);
+    shader.SetUniform1f("camera.near_plane", camera.near_plane);
+    shader.SetUniform1f("sun_sm_bias", keyinput.sun_sm_bias);
+    shader.SetUniform1f("point_sm_radius", keyinput.point_sm_radius);
+    shader.SetUniform1f("point_sm_pcf", keyinput.point_sm_pcf);
+    shader.SetUniform1i("sun_pcf", keyinput.sun_pcf);
+    shader.SetUniform1f("sun_pcf_radius", keyinput.sun_pcf_radius);
+    shader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
+    for (int i = 0; i < 4; i++)
+    {
+        shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.position[i]);
+        shader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.far_plane);
+    }
+    framebuffers->cameradepthFBO.BindTexture(0);
+    shader.SetUniform1i("camera.Depth", 0);
+    framebuffers->gbuffer.BindTexture(1, 0);
+    shader.SetUniform1i("gPosition", 1);
+    framebuffers->gbuffer.BindTexture(2, 1);
+    shader.SetUniform1i("gNormal", 2);
+    framebuffers->gbuffer.BindTexture(3, 2);
+
+    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        framebuffers->PointlightMapfbo[i].BindTexture(i + 4);
+        shader.SetUniform1i("shadowMap.PointShadow[" + std::to_string(i) + "]", i + 4);
+    }
+    for (int i = 0; i < CSM_SPLIT_NUM; i++)
+    {
+        shader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
+        shader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
+        shader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
+        framebuffers->csm_mapFBO[i].BindTexture(i + 8);
+        shader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
+        if (i == CSM_SPLIT_NUM - 1)
+            shader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", Last_CSM_update_matrix);
+        else
+            shader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", csm_dirlight.light_projection_matrix[i]);
+
+    }
+
+    framebuffers->SpotlightMapfbo.BindTexture(12);
+    shader.SetUniform1i("shadowMap.SpotShadow", 12);
+    shader.SetUniformmatri4fv("SpotlightSpaceMatrix", spotlight.SpotlightSpaceMatrix);
+
+    framebuffers->PreShadowFBO.Bind();//
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays->quadVa, shader);
+    glEnable(GL_DEPTH_TEST);
+    framebuffers->PreShadowFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+void Game::Generate_Origin_Screen()
+{
+    Shader& shader = shaders->DeferedLighting_shader;
+    shader.Bind();
+    shader.SetUniform1f("material.metallic", keyinput.metallic);
+    shader.SetUniform1f("material.roughness", keyinput.roughness);
+    if (camera.third_view)
+        shader.SetUniform3f("camera.viewPos", camera.Position - glm::vec3(3.0f) * camera.Front);
+    else
+        shader.SetUniform3f("camera.viewPos", camera.Position);
+    framebuffers->gbuffer.BindTexture(1, 0);
+    shader.SetUniform1i("gPosition", 1);
+    framebuffers->gbuffer.BindTexture(2, 1);
+    shader.SetUniform1i("gNormal", 2);
+    framebuffers->gbuffer.BindTexture(3, 2);
+    shader.SetUniform1i("gAlbedoSpec", 3);
+    pre_framebuffers->envcubemap_convolutionFBO.BindTexture(4);
+    shader.SetUniform1i("EnvLight", 4);
+    pre_framebuffers->envcubemap_spec_convolutionFBO.BindTexture(5);
+    shader.SetUniform1i("EnvLight_spec", 5);
+    pre_framebuffers->envcubemap_spec_BRDF_FBO.BindTexture(6);
+    shader.SetUniform1i("EnvLight_spec_BRDF", 6);
+    shader.SetUniform1i("use_EnvLight_spec", keyinput.EnvLight_spec);
+
+    framebuffers->PreShadowFBO.BindTexture(8, 0);
+    shader.SetUniform1i("predirshadow", 8);//平行光
+
+    framebuffers->PreShadowFBO.BindTexture(9, 1);
+    shader.SetUniform1i("prepointshadow", 9);//点光
+    framebuffers->PreShadowFBO.BindTexture(10, 2);
+    shader.SetUniform1i("prespotshadow", 10);//聚光
+    shader.SetUniform1i("useSSAO", keyinput.useSSAO);
+    if (keyinput.useSSAO)
+    {
+        framebuffers->ssaoblurFBO.BindTexture(13);
+        shader.SetUniform1i("ssao", 13);
+    }
+
+    //平行光
+    shader.SetUniform3f("dirlight.color", keyinput.SunColor * keyinput.SunIntensity);
+    shader.SetUniform1f("dirlight.LightIntensity", keyinput.SunIntensity);
+    shader.SetUniform3f("dirlight.direction", sun.Sun_Direction);
+    //点光
+    for (int i = 0; i < 4; i++)
+    {
+        shader.SetUniform3f("pointlight[" + std::to_string(i) + "].color", pointlight.color[i] * pointlight.lightintensity);
+        shader.SetUniform3f("pointlight[" + std::to_string(i) + "].position", pointlight.position[i]);
+        shader.SetUniform1f("pointlight[" + std::to_string(i) + "].LightIntensity", pointlight.lightintensity);
+        shader.SetUniform1f("pointlight[" + std::to_string(i) + "].far_plane", pointlight.far_plane);
+        shader.SetUniform1f("pointlight[" + std::to_string(i) + "].near_plane", pointlight.near_plane);
+    }
+    //聚光手电
+    shader.SetUniform3f("spotlight.color", keyinput.torch_color * (keyinput.torch_intensity * keyinput.TorchOn));
+    shader.SetUniform3f("spotlight.direction", spotlight.direction);
+    shader.SetUniform3f("spotlight.position", spotlight.position);
+    shader.SetUniform1f("spotlight.LightIntensity", keyinput.torch_intensity * keyinput.TorchOn);
+    shader.SetUniform1f("spotlight.inner_CutOff", glm::cos(glm::radians(10.5f)));//spotlight范围
+    shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
+
+    framebuffers->hdrfbo.Bind();//使用非默认帧缓冲来提供HDR
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays->quadVa, shader);
+    glEnable(GL_DEPTH_TEST);
+    framebuffers->hdrfbo.UnBind();
+}
+void Game::Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuffers* framebuffers, Camera& camera, KeyInput& keyinput,
+    VertexArrays* vertex_arrays, Renderer& renderer, Textures* textures, Models* models)
+{
+    //读取深度信息
+    if (keyinput.show_mesh)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    framebuffers->hdrfbo.Bind();
+    framebuffers->gbuffer.Read();
+    framebuffers->hdrfbo.Write();
+    framebuffers->gbuffer.BlitDepthBuffer();
+
+    basic_shader.Bind();
+    basic_shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    basic_shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    for (unsigned int i = 0; i < POINT_LIGHTS_NUM; i++)
+    {
+        basic_shader.SetUniform3f("color", pointlight.color[i] * pointlight.lightintensity);
+        basic_shader.SetUniformmatri4fv("model", pointlight.space[i].GetModelSpace());
+        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
+    }
+    basic_shader.SetUniform3f("color", keyinput.SunColor * keyinput.SunIntensity * glm::vec3(10));
+    ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
+    dirlightspace.Translate(sun.Sun_Position + camera.Position);
+    //dirlightspace.Scale(glm::vec3(0.3f));
+    basic_shader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
+    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
+    //天空盒       
+    skyboxShader.Bind();
+    glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));//降维移除第四列的位移
+    skyboxShader.SetUniformmatri4fv("view", view);
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
+    skyboxShader.SetUniformmatri4fv("projection", projection);
+    textures->skybox.Bind();
+    //envcubemapFBO.BindTexture();
+    //envcubemap_spec_convolutionFBO.BindTexture();
+    renderer.DrawArray(vertex_arrays->skyboxVa, skyboxShader);
+    if (keyinput.show_d3particle)
+    {
+        Generate_D3Particle();
+        d3particle_generator.update_Particle();
+    }
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    framebuffers->hdrfbo.UnBind();
+}
+void Game::Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader, Shader& basicscreen_shader,
+    FrameBuffers* framebuffers, Renderer& renderer, VertexArrays* vertex_arrays, KeyInput& keyinput)
+{
+    framebuffers->blooming_hightlightFBO.Bind();
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
+    blooming_highlightshader.Bind();
+    framebuffers->hdrfbo.BindTexture(0);;//原画
+    blooming_highlightshader.SetUniform1i("screenTexture", 0);
+    renderer.DrawArray(vertex_arrays->quadVa, blooming_highlightshader);
+    framebuffers->blooming_hightlightFBO.UnBind();
+    //将高亮贴图进行高斯模糊
+    Gaussian_Blured_Texture(1, keyinput.bloom_times, blooming_blurshader, framebuffers->blooming_hightlightFBO, framebuffers->blooming_blur_horizontalFBO, framebuffers->blooming_blur_verticalFBO, renderer, vertex_arrays->quadVa);
+    //结合原画和模糊后的图片形成泛光
+    screenShader.Bind();
+    screenShader.SetUniform1i("gamma", keyinput.gamma);
+    screenShader.SetUniform1f("exposure", keyinput.exposure);
+
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    framebuffers->blooming_hightlightFBO.BindTexture(0);
+    screenShader.SetUniform1i("screenTexture", 0);
+    framebuffers->blooming_blur_verticalFBO.BindTexture(1);
+    screenShader.SetUniform1i("blooming_screenTexture", 1);
+    framebuffers->ssaoFBO.BindTexture(2);
+    screenShader.SetUniform1i("assistTexture", 2);
+    renderer.DrawArray(vertex_arrays->quadVa, screenShader);
+    if (keyinput.assist_screen)
+    {
+        glViewport(0, 0, int(screenWidth * 0.4), int(screenHeight * 0.4));
+        basicscreen_shader.Bind();
+        framebuffers->ssaoFBO.BindTexture(0);
+        renderer.DrawArray(vertex_arrays->quadVa, basicscreen_shader);
+        glViewport(0, 0, screenWidth, screenHeight);
+    }
+    
+    if(keyinput.fxaa_on)
+    {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        framebuffers->FXAA_FBO.Write();
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        framebuffers->FXAA_FBO.Bind();
+        framebuffers->FXAA_FBO.BindTexture();
+        shaders->FXAA_shader.Bind();
+        shaders->FXAA_shader.SetUniform1i("fxaaOn", keyinput.fxaa_on);
+        shaders->FXAA_shader.SetUniform1f("screen_width", float(screenWidth));
+        shaders->FXAA_shader.SetUniform1f("screen_height", float(screenHeight));
+
+        shaders->FXAA_shader.SetUniform1f("lumaThreshold", keyinput.fxaa_lumaThreshold);
+        shaders->FXAA_shader.SetUniform1f("mulReduce", keyinput.fxaa_mulReduce);
+        shaders->FXAA_shader.SetUniform1f("minReduce", keyinput.fxaa_minReduce);
+        shaders->FXAA_shader.SetUniform1f("maxSpan", keyinput.fxaa_maxSpan);
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->FXAA_shader);
+        framebuffers->FXAA_FBO.UnBind();
+        framebuffers->FXAA_FBO.Read();
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
+
+
+}
+
+void Game::Generate_CubeTexture()
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    shaders->EnvCubeMapShader.Bind();
+    shaders->EnvCubeMapShader.SetUniformmatri4fv("projection", captureProjection);
+    pre_framebuffers->envcubemapFBO.SetViewPort();
+    textures->equirectangularMap.Bind();
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        pre_framebuffers->envcubemapFBO.Bind(i);
+        shaders->EnvCubeMapShader.SetUniformmatri4fv("view", captureViews[i]);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMapShader);
+    }
+    pre_framebuffers->envcubemapFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+
+}
+
+void Game::Generate_EnvLight_Diffuse()
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    shaders->EnvCubeMap_ConvolutionShader.Bind();
+    shaders->EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+    pre_framebuffers->envcubemap_convolutionFBO.SetViewPort();
+    textures->skybox.Bind();
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        pre_framebuffers->envcubemap_convolutionFBO.Bind(i);
+        shaders->EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("view", captureViews[i]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMap_ConvolutionShader);
+    }
+    pre_framebuffers->envcubemap_convolutionFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+void Game::Generate_EnvLight_Specular()
+{
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+    shaders->EnvCubeMap_spec_ConvolutionShader.Bind();
+    shaders->EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
+    unsigned int maxMipLevels = 5;
+    textures->skybox.Bind();
+    for (unsigned int i = 0; i < maxMipLevels; ++i)
+    {
+        unsigned int mipWidth = 1024 * static_cast<unsigned int>(std::pow(0.5, i));
+        unsigned int mipHeight = 1024 * static_cast<unsigned int>(std::pow(0.5, i));
+        pre_framebuffers->envcubemap_spec_convolutionFBO.Bindmip_Renderbuffer(mipWidth, mipHeight);
+        pre_framebuffers->envcubemap_spec_convolutionFBO.SetViewPort(mipWidth, mipHeight);
+        float roughness = (float)i / (float)(maxMipLevels - 1);
+        shaders->EnvCubeMap_spec_ConvolutionShader.SetUniform1f("roughness", roughness);
+        for (int j = 0; j < 6; j++)
+        {
+            pre_framebuffers->envcubemap_spec_convolutionFBO.Bind(j, i);
+            shaders->EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("view", captureViews[j]);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderer.DrawArray(vertex_arrays->cubeVa, shaders->EnvCubeMap_spec_ConvolutionShader);
+        }
+    }
+    textures->skybox.UnBind();
+    pre_framebuffers->envcubemap_spec_convolutionFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+void Game::Generate_EnvLight_Specular_BRDF()
+{
+    shaders->EnvCubeMap_spec_BRDF_Shader.Bind();
+    pre_framebuffers->envcubemap_spec_BRDF_FBO.Bind();
+    pre_framebuffers->envcubemap_spec_BRDF_FBO.SetViewPort();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    renderer.DrawArray(vertex_arrays->quadVa, shaders->EnvCubeMap_spec_BRDF_Shader);
+    glEnable(GL_DEPTH_TEST);
+    pre_framebuffers->envcubemap_spec_BRDF_FBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
+}
+
+
 
 void Game::RenderText(Shader& text_shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color, VertexArrays* vertex_arrays,
     VertexBuffers* vertex_buffers)
@@ -1123,33 +1187,12 @@ void Game::Update_Spotlight()
     spotlight.bias_direction = bias * (right - camera.Front);
     spotlight.position = camera.Position + spotlight.bias_direction;
     spotlight.direction = camera.Front - spotlight.bias_direction;
+    spotlight.spotlight_far_plane = keyinput.spot_far_plane;
     glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.spotlight_near_plane, spotlight.spotlight_far_plane);
     glm::mat4 SpotlightView = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
     spotlight.SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
 }
 
-void Game::Update_Pointlight()
-{
-    pointlight.lightintensity = keyinput.pointlight_Intensity;
-    pointlight.far_plane = keyinput.point_far_plane;
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-        pointlight.color[i] = keyinput.point_color;
-
-}
-void Game::Initialize_Pointlight()
-{
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointlight.position[i] = glm::vec3(i * 3, 2, 0);
-        pointlight.space[i].Translate(pointlight.position[i]);
-        pointlight.space[i].Scale(glm::vec3(0.3f));
-    }
-    for (int i = 0; i < POINT_LIGHTS_NUM; i++)
-    {
-        pointlight.color[i] = glm::vec3(1.0f);
-    }
-    pointlight.lightintensity = keyinput.pointlight_Intensity;
-}
 
 void Game::Generate_Particle()
 {
@@ -1195,7 +1238,7 @@ void Game::Initialize_Terrain_cpu()
 {
     assert(terrain.vertex.empty());
     terrain = Get_TerrainData_cpu();
-    models->Terrain.Get_index(&terrain.index[0], terrain.index.size());
+    models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
     VertexBuffer terrainVb(&terrain.vertex[0], sizeof(float) * static_cast<unsigned int>(terrain.vertex.size()));
     VertexBufferLayout terrainLayout;
     terrainLayout.Push<float>(3);//position
@@ -1205,7 +1248,7 @@ void Game::Initialize_Terrain_gpu()
 {
     assert(terrain.vertex.empty());
     terrain = Get_TerrainData_gpu(textures->Terrain_texture.Get_width(), textures->Terrain_texture.Get_height());
-    models->Terrain.Get_index(&terrain.index[0], terrain.index.size());
+    models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
     VertexBuffer terrainVb(&terrain.vertex[0], sizeof(float) * static_cast<unsigned int>(terrain.vertex.size()));
     VertexBufferLayout terrainLayout;
     terrainLayout.Push<float>(3);//position
@@ -1234,7 +1277,7 @@ void Game::Generate_Terrain_cpu()
     models->Terrain.va->Bind();
     models->Terrain.ib->Bind();
     //        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (unsigned int strip = 0; strip < terrain.numStrips; strip++)
+    for (int strip = 0; strip < terrain.numStrips; strip++)
     {
         glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
             terrain.numTrisPerStrip,   // number of indices to render
@@ -1281,7 +1324,7 @@ void Game::Generate_Health_bar()
 {
     Shader& shader = shaders->Health_bar_shader;
     shader.Bind();
-    shader.SetUniform1f("screenHeight", screenHeight);
+    shader.SetUniform1f("screenHeight", static_cast<float>(screenHeight));
 
     shader.SetUniform1f("max_life", my_state.max_life);
     shader.SetUniform1f("current_life", my_state.current_life);

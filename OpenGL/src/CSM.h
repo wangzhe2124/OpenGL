@@ -92,7 +92,7 @@ CSM_Dirlight::~CSM_Dirlight()
 //生成CSM所需的资源(分片光空间变换矩阵，眼空间到光空间变换矩阵(负灯光向量))
 void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& DirlightPosition) 
 { 
-    lightView = glm::lookAt(DirlightPosition, camera.Position, glm::vec3(0.0f, 1.0f, 0.0f));
+    lightView = glm::lookAt(DirlightPosition, glm::vec3(0), glm::vec3(0.0f, 1.0f, 0.0f));
     split_camera_frustum(camera);
     //更新摄像机视锥分块的世界空间位置(8个顶点)
     camera_frustum_points(camera);

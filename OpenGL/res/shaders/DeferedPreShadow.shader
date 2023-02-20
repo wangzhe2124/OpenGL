@@ -125,7 +125,9 @@ void main()
 		PointShadowCalculation(3, normal, FragPos));
 	SpotPreShadow = vec4(SpotShadowCalculation( normal,FragPos), 0.0, 0.0, 1.0);
 };
-
+uniform float sun_sm_bias;
+uniform bool sun_pcf;
+uniform float sun_pcf_radius;
 float DirShadowCalculation(vec3 normal, vec3 FragPos)
 {
 	vec4 DirLightCSMSpace[SPLITNUM];
@@ -160,7 +162,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	float theta = clamp(acos(costheta), 0.0, 89 * 3.14 / 180);
 	float texSize = 1.0 / textureSize(shadowMap.csm_map[index], 0).x ;
 	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 1.0);
-	float bias = 1.0 * texSize * tan(theta) / z_distance[index] *view_distance;//根据视锥体z高度调整bias
+	float bias = sun_sm_bias * texSize * tan(theta) / z_distance[index] *view_distance;//根据视锥体z高度调整bias
 	float shadow = 0.0;
 
 /*	float mean = texture(shadowMap.csm_map[index], projCoords.xy, 3).r;
@@ -168,28 +170,29 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	float var = square - mean * mean;
 	float prob = 1 - var / (var + pow(closestDepth - mean, 2));
 	float blocker = (mean - prob * currentDepth) / (1 - prob);*///vssm
-
-	vec2 poissonDisk[25];
-	int L = 2;
-	for (int t = -L; t <= L; t++)
+	float soft_shadow = 1.0f + (currentDepth - closestDepth) * 1000;
+	if (sun_pcf)
 	{
-		for (int j = -L; j <= L; j++)
+		vec2 poissonDisk[25];
+		int L = 2;
+		for (int t = -L; t <= L; t++)
 		{
-			int temp = (t + L) * (2 * L + 1) + j + L;
-			poissonDisk[temp] = texSize * vec2(j, t);
+			for (int j = -L; j <= L; j++)
+			{
+				int temp = (t + L) * (2 * L + 1) + j + L;
+				poissonDisk[temp] = soft_shadow * sun_pcf_radius * texSize * vec2(j, t);
+			}
 		}
-	}
-	if (currentDepth - bias > closestDepth)
-	{
 		for (int x = 0; x < 25; x++)
 		{
-			//int index = int(25.0 * random(fs_in.TexCoord.xyy, x)) % 25;
-			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + 2 * poissonDisk[x] / pow(xy_distance[index],0.5)).r;
-			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;		
+			int random_index = int(25.0 * random(fs_in.TexCoord.xyy, x)) % 25;
+			float pcfDepth = texture(shadowMap.csm_map[index], projCoords.xy + poissonDisk[random_index] / pow(xy_distance[index], 0.5)).r;
+			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 		}
-		shadow /= 25;
+		shadow /= 25;		
 	}
-	//shadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+	else
+		shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 	return shadow;
 }
 uniform float point_sm_radius;
@@ -246,7 +249,7 @@ float SpotShadowCalculation(vec3 normal, vec3 FragPos)
 	projCoords = projCoords * 0.5 + 0.5;//-1到1 变成0到1
 	float closestDepth = texture(shadowMap.SpotShadow, projCoords.xy).r;//距离光源位置最近的深度
 	float currentDepth = projCoords.z;//光源视角下当前片元的深度
-	float shadow = currentDepth - 0.001 > closestDepth ? 1.0 : 0.0;
+	float shadow = currentDepth - 0.01 > closestDepth ? 1.0 : 0.0;
 	/*float shadow = 0.0;
 	float texelSize = 1.0 / textureSize(shadowMap.SpotShadow, 0).x;
 	vec2 poissonDisk[25];

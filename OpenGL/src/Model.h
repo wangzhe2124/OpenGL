@@ -261,7 +261,8 @@ private:
     }
     void ExtractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene)
     {
-        for (int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
+
+        for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
         {
             int boneID = -1;
             std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
@@ -272,7 +273,9 @@ private:
                 newBoneInfo.offset = AssimpGLMHelpers::ConvertMatrixToGLMFormat(
                     mesh->mBones[boneIndex]->mOffsetMatrix);
                 m_BoneInfoMap[boneName] = newBoneInfo;
+                
                 boneID = m_BoneCounter;
+
                 m_BoneCounter++;
             }
             else
@@ -487,11 +490,11 @@ static TerrainData Get_TerrainData_cpu() //without uv
     std::cout << "Loaded " << terrain_data.vertex.size() / 3 << " vertices" << std::endl;
     stbi_image_free(data);
 
-    for (unsigned int i = 0; i < height - 1; i += rez)
+    for (int i = 0; i < height - 1; i += rez)
     {
-        for (unsigned int j = 0; j < width; j += rez)
+        for (int j = 0; j < width; j += rez)
         {
-            for (unsigned int k = 0; k < 2; k++)
+            for (int k = 0; k < 2; k++)
             {
                 terrain_data.index.push_back(j + width * (i + k * rez));
             }
@@ -550,6 +553,7 @@ private:
     
 public:
     std::map<std::string, Model*> models_map;
+    std::map<std::string, Model*> anime_models_map;
     Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     Model Marry = Model("res/objects/Marry/Marry.obj");
     Model Planet = Model("res/objects/planet/planet.obj");
@@ -558,18 +562,22 @@ public:
     Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
     Model Terrain = Model();
     Model Sphere_instance = Model();
-    Model x_bot = Model("res/objects/x_bot/X_Bot.dae");
-    void Get_modelss()
+    Model Robot_boxing = Model("res/objects/Robot_boxing.dae");
+    void Get_models()
     {
         models_map["Nano"] = &Nano;
         models_map["Marry"] = &Marry;
         models_map["Planet"] = &Planet;
         models_map["Main_character"] = &Main_character;
-        models_map["x_bot"] = &x_bot;
+    }
+    void Get_anime_models()
+    {
+        anime_models_map["Robot_boxing"] = &Robot_boxing;
     }
     Models()
     {
-        Get_modelss();
+        Get_models();
+        Get_anime_models();
     }
     void CreatModel(string const& path, string const& name, float life = 100.0f)
     {

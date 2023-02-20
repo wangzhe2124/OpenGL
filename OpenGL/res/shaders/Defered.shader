@@ -24,35 +24,37 @@ out VS_OUT{
 void main()
 {
     //anime
-    if (with_anime)
+    mat4 transMatrix = mat4(0.0f);
+    bool no_bone = true;
+    for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
-        vec4 totalPosition = vec4(0.0f);
-        for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+        no_bone = no_bone && (boneIds[i] == -1);
+        if (boneIds[i] == -1)
         {
-            if (boneIds[i] == -1)
-                continue;
-            if (boneIds[i] >= MAX_BONES)
-            {
-                totalPosition = vec4(Position, 1.0f);
-                break;
-            }
-            vec4 localPosition = finalBonesMatrices[boneIds[i]] * vec4(Position, 1.0f);
-            totalPosition += localPosition * weights[i];
-            vec3 localNormal = mat3(finalBonesMatrices[boneIds[i]]) * Normal;
+            
+            continue;
         }
-        gl_Position = projection * view * model * totalPosition;
+        if (boneIds[i] >= MAX_BONES)
+        {
+            transMatrix = mat4(1.0f);
+            break;
+        }
+        transMatrix += finalBonesMatrices[boneIds[i]] * weights[i];          
     }
-    else
-        gl_Position = projection * view * model * vec4(Position, 1.0f);
-
-    vs_out.FragPos = vec3(model * vec4(Position, 1.0));
-    vs_out.Normal = mat3(transpose(inverse(model))) * Normal;//法线变换到世界空间，应设置uniform在主程序执行提升效率	
+    if (no_bone)
+        transMatrix = mat4(1.0f);
+    vec4 totalPosition = transMatrix * vec4(Position, 1.0f);
+    gl_Position = projection * view * model * totalPosition;
+    vs_out.FragPos = vec3(model * totalPosition);
+    vs_out.Normal = mat3(transpose(inverse(model))) * mat3(transpose(inverse(transMatrix))) * Normal;
+ 
+    //法线变换到世界空间
     vs_out.TexCoord = TexCoord;
-    vec3 T = normalize(vec3(model * vec4(tangent, 0.0)));
-    vec3 N = normalize(vec3(model * vec4(Normal, 0.0)));
+    vec3 T = normalize(vec3(model * transMatrix * vec4(tangent, 0.0)));
+    vec3 N = normalize(vs_out.Normal);
 
     //T = normalize(T - dot(T, N) * N);	
-    vec3 B = normalize(vec3(model * vec4(bitangent, 0.0)));
+    vec3 B = normalize(vec3(model * transMatrix * vec4(bitangent, 0.0)));
     //vec3 B = cross(T, N);
     vs_out.TBN = mat3(T, B, N);
 };

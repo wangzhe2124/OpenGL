@@ -62,7 +62,7 @@ public:
 		glViewport(0, 0, c_screenWidth, c_screenHeight);
 	}
 };
-static struct SSAO_DATA
+struct SSAO_DATA
 {
 	std::vector<glm::vec3> ssaokernel;
 	std::vector<glm::vec3> ssaonoise;
@@ -267,7 +267,7 @@ public:
 		{
 
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -314,138 +314,6 @@ public:
 	}
 };
 
-class Blooming_Blur_HorizontalFBO
-{
-private:
-	unsigned int frameBufferId;
-	unsigned int textureColorId;
-	unsigned int RenderBufferId;
-	unsigned int c_screenWidth;
-	unsigned int c_screenHeight;
-public:
-	Blooming_Blur_HorizontalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
-	{
-		glGenFramebuffers(1, &frameBufferId);
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-		BindTextureBuffer();
-		//BindRenderBuffer();
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTextureBuffer()
-	{
-		glGenTextures(1, &textureColorId);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
-		glGenerateMipmap(GL_TEXTURE_2D);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorId, 0);	
-
-	};
-	void BindRenderBuffer()
-	{
-		glGenRenderbuffers(1, &RenderBufferId);
-		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
-	};
-	~Blooming_Blur_HorizontalFBO()
-	{
-		glDeleteFramebuffers(1, &frameBufferId);
-		glDeleteFramebuffers(1, &textureColorId);
-	};
-	void Bind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-	};
-	void UnBind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTexture(unsigned int slot = 0)
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-	};
-	void Write()
-	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
-	};
-	void SetViewPort()
-	{
-		glViewport(0, 0, c_screenWidth, c_screenHeight);
-	}
-};
-class Blooming_Blur_VerticalFBO
-{
-private:
-	unsigned int frameBufferId;
-	unsigned int textureColorId;
-	unsigned int RenderBufferId;
-	unsigned int c_screenWidth;
-	unsigned int c_screenHeight;
-public:
-	Blooming_Blur_VerticalFBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
-	{
-		glGenFramebuffers(1, &frameBufferId);
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-		BindTextureBuffer();
-		//BindRenderBuffer();
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTextureBuffer()
-	{
-		glGenTextures(1, &textureColorId);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
-		glGenerateMipmap(GL_TEXTURE_2D);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorId, 0);
-
-	};
-	void BindRenderBuffer()
-	{
-		glGenRenderbuffers(1, &RenderBufferId);
-		glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferId);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferId);
-	};
-	~Blooming_Blur_VerticalFBO()
-	{
-		glDeleteFramebuffers(1, &frameBufferId);
-		glDeleteFramebuffers(1, &textureColorId);
-	};
-	void Bind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-	};
-	void UnBind()
-	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	};
-	void BindTexture(unsigned int slot = 0)
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, textureColorId);
-	};
-	void Write()
-	{
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
-	};
-	void SetViewPort()
-	{
-		glViewport(0, 0, c_screenWidth, c_screenHeight);
-	}
-};
 class basic_FBO
 {
 private:
@@ -469,7 +337,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -558,7 +426,7 @@ public:
 		for (int i = 0; i < 3; i++)
 		{
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -733,7 +601,7 @@ public:
 		for (int i = 0; i < 1; i++)
 		{
 			glBindTexture(GL_TEXTURE_2D, textureColorId);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -767,7 +635,7 @@ public:
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	};
-	void BindTexture(unsigned int slot = 0, int i = 0)
+	void BindTexture(unsigned int slot = 0)
 	{
 		glActiveTexture(GL_TEXTURE0 + slot);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
@@ -819,8 +687,8 @@ public:
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
-		//glDrawBuffer(GL_NONE);
-		//glReadBuffer(GL_NONE);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
 		//BindRenderBuffer();
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -1292,15 +1160,24 @@ public:
 	}
 };
 
+class Pre_FrameBuffers
+{
+public:
 
-extern unsigned int screenWidth;
-extern unsigned int screenHeight;
+
+	//环境光照
+	EnvCubeMapFBO envcubemapFBO = EnvCubeMapFBO(1024, 1024);
+	EnvCubeMap_ConvolutionFBO envcubemap_convolutionFBO = EnvCubeMap_ConvolutionFBO(32, 32);
+	EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO = EnvCubeMap_spec_ConvolutionFBO(1024, 1024);
+	EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO = EnvCubeMap_spec_BRDF_FBO(1024, 1024);
+};
 class FrameBuffers
 {
 private:
-
+	unsigned int screenWidth;
+	unsigned int screenHeight;
 public:
-	FrameBuffers(unsigned int width, unsigned int height)
+	FrameBuffers(unsigned int width = 960, unsigned int height = 640) :screenWidth(width), screenHeight(height)
 	{
 	}
 	DirLightDepthMapFBO csm_mapFBO[4] =
@@ -1312,23 +1189,18 @@ public:
 
 	};
 	PointLightDepthMapFBO PointlightMapfbo[4] = {
-		 PointLightDepthMapFBO(1024, 1024),
-		 PointLightDepthMapFBO(1024, 1024),
-		 PointLightDepthMapFBO(1024, 1024),
-		 PointLightDepthMapFBO(1024, 1024)
+	 PointLightDepthMapFBO(1024, 1024),
+	 PointLightDepthMapFBO(1024, 1024),
+	 PointLightDepthMapFBO(1024, 1024),
+	 PointLightDepthMapFBO(1024, 1024)
 	};
 	SpotLightDepthMapFBO SpotlightMapfbo = SpotLightDepthMapFBO(1024, 1024);
-	//环境光照
-	EnvCubeMapFBO envcubemapFBO = EnvCubeMapFBO(1024, 1024);
-	EnvCubeMap_ConvolutionFBO envcubemap_convolutionFBO = EnvCubeMap_ConvolutionFBO(32, 32);
-	EnvCubeMap_spec_ConvolutionFBO envcubemap_spec_convolutionFBO = EnvCubeMap_spec_ConvolutionFBO(1024, 1024);
-	EnvCubeMap_spec_BRDF_FBO envcubemap_spec_BRDF_FBO = EnvCubeMap_spec_BRDF_FBO(1024, 1024);
 	HDRFBO hdrfbo = HDRFBO(screenWidth, screenHeight);
-	MSAAFrameBuffer msaa = MSAAFrameBuffer(screenWidth, screenHeight, 4);
+	//MSAAFrameBuffer msaa = MSAAFrameBuffer(screenWidth, screenHeight, 4);
 	CameraDepthFBO cameradepthFBO = CameraDepthFBO(screenWidth, screenHeight);
 	Blooming_HighlightFBO blooming_hightlightFBO = Blooming_HighlightFBO(screenWidth, screenHeight);
-	Blooming_Blur_HorizontalFBO blooming_blur_horizontalFBO = Blooming_Blur_HorizontalFBO(screenWidth, screenHeight);
-	Blooming_Blur_VerticalFBO blooming_blur_verticalFBO = Blooming_Blur_VerticalFBO(screenWidth, screenHeight);
+	basic_FBO blooming_blur_horizontalFBO = basic_FBO(screenWidth, screenHeight);
+	basic_FBO blooming_blur_verticalFBO = basic_FBO(screenWidth, screenHeight);
 	basic_FBO shadow_blur_horizontalFBO = basic_FBO(screenWidth, screenHeight);
 	basic_FBO shadow_blur_verticalFBO = basic_FBO(screenWidth, screenHeight);
 	basic_FBO FXAA_FBO = basic_FBO(screenWidth, screenHeight);
@@ -1337,5 +1209,4 @@ public:
 	//SSAO采样样本
 	SSAOFBO ssaoFBO = SSAOFBO(screenWidth, screenHeight);
 	SSAOBlurFBO ssaoblurFBO = SSAOBlurFBO(screenWidth, screenHeight);
-
 };

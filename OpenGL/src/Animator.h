@@ -50,7 +50,7 @@ private:
 		dest.transformation = AssimpGLMHelpers::ConvertMatrixToGLMFormat(src->mTransformation);
 		dest.childrenCount = src->mNumChildren;
 
-		for (int i = 0; i < src->mNumChildren; i++)
+		for (unsigned int i = 0; i < src->mNumChildren; i++)
 		{
 			AssimpNodeData newData;
 			ReadHierarchyData(newData, src->mChildren[i]);
@@ -65,10 +65,16 @@ public:
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
 		assert(scene && scene->mRootNode);
-		std::cout << sizeof(scene->mAnimations) << std::endl;
 		auto animation = scene->mAnimations[0];
-		m_Duration = animation->mDuration;
-		m_TicksPerSecond = animation->mTicksPerSecond;
+		m_Duration = static_cast<float>(animation->mDuration);
+		std::fstream out;
+		out.open("src/debug.log", std::ios::app);
+		out << "action nums:" << sizeof(scene->mAnimations) << std::endl;
+		out << "duration per action:" << m_Duration << std::endl;
+		
+		m_TicksPerSecond = static_cast<int>(animation->mTicksPerSecond);
+		out << "TicksPerSecond:" << m_TicksPerSecond << std::endl;
+
 		aiMatrix4x4 globalTransformation = scene->mRootNode->mTransformation;
 		globalTransformation = globalTransformation.Inverse();
 		ReadHierarchyData(m_RootNode, scene->mRootNode);
@@ -141,7 +147,7 @@ public:
 	{
 		std::string nodeName = node->name;
 		glm::mat4 nodeTransform = node->transformation;
-
+		//std::cout << nodeName << std::endl;
 		Bone* Bone = m_CurrentAnimation->FindBone(nodeName);
 
 		if (Bone)
@@ -149,6 +155,7 @@ public:
 			Bone->Update(m_CurrentTime);
 			nodeTransform = Bone->GetLocalTransform();
 		}
+
 
 		glm::mat4 globalTransformation = parentTransform * nodeTransform;
 

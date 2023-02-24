@@ -213,7 +213,7 @@ vec3 CalcSpotLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	float intensity = clamp((theta - spotlight.outer_CutOff) / epsilon, 0.0, 1.0);
 	vec3 color;
 	if (distance < 20)
-		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) * (1 - shadow)) * intensity;
+		color = (ambient / (vec3(1.0) + ambient)) * intensity;
 	else
 		color = vec3(0);
 	return color * spotlight.LightIntensity;

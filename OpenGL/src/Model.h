@@ -559,20 +559,41 @@ public:
     Model Planet = Model("res/objects/planet/planet.obj");
     Model Floor;
     Model Sphere = Model();
-    Model Main_character = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
+    Model Main_character = Model("res/objects/Robot_catwalk.dae");
     Model Terrain = Model();
     Model Sphere_instance = Model();
     Model Robot_boxing = Model("res/objects/Robot_boxing.dae");
+    Model Robot_pray = Model("res/objects/Robot_pray.dae");
+    Model Robot_catwalk = Model("res/objects/Robot_catwalk.dae");
+    Model Robot_walk = Model("res/objects/Robot_walk.dae");
     void Get_models()
     {
+        //std::thread t1(&Models::CreatNano, this);
+        //std::cout << " task start" << std::endl;
+        //thread t2(&Models::CreatMarry, this);
+        //thread t3(&Models::CreatPlanet, this);
+        //thread t4(&Models::CreatMain_character, this);
+        //t1.join();
+        //std::cout << "over" << std::endl;
+        //t2.join();
+        //t3.join();
+        //t4.join();
+        /*CreatNano();
+        CreatMarry();
+        CreatPlanet();
+        CreatMain_character();*/
         models_map["Nano"] = &Nano;
         models_map["Marry"] = &Marry;
         models_map["Planet"] = &Planet;
-        models_map["Main_character"] = &Main_character;
+        
     }
     void Get_anime_models()
     {
+        models_map["Main_character"] = &Main_character;
         anime_models_map["Robot_boxing"] = &Robot_boxing;
+        anime_models_map["Robot_pray"] = &Robot_pray;
+        anime_models_map["Robot_catwalk"] = &Robot_catwalk;
+        anime_models_map["Robot_walk"] = &Robot_walk;
     }
     Models()
     {
@@ -583,6 +604,22 @@ public:
     {
         Model* newmodel = new Model(path, life);
         models_map[name] = newmodel;
+    }
+    void CreatNano()
+    {
+        Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
+    }
+    void CreatMarry()
+    {
+        Marry = Model("res/objects/Marry/Marry.obj");
+    }
+    void CreatPlanet()
+    {
+        Planet = Model("res/objects/planet/planet.obj");
+    }
+    void CreatMain_character()
+    {
+        Main_character = Model("res/objects/Robot_catwalk.dae");
     }
 };
 

@@ -28,7 +28,6 @@ uniform sampler2D Texture;
 uniform vec3 color;
 void main()
 {
-	vec3 result = vec3(1.0) * color;
 	//result += vec3(texture(Texture, fs_in.TexCoord));
-	FragColor = vec4(result, 1.0); // 将向量的四个分量全部设置为1.0
+	FragColor = vec4(color, 1.0);
 }

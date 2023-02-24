@@ -87,7 +87,7 @@ public:
             return glm::lookAt(Position - glm::vec3(3.0f) * Front, Position, Up);
         }
         else
-            return glm::lookAt(Position, Position + Front, Up);
+            return glm::lookAt(Position + glm::vec3(0.4)* Front, Position + Front, Up);
     }
     void Set_third_view(bool t)
     {
@@ -126,7 +126,7 @@ public:
             Position += (-Front + Right) * velocity * glm::vec3(0.707f);
         character_pos = Position - glm::vec3(3.0f) * Front;
         if(!free_view)
-            Position.y = 1.4f;
+            Position.y = 1.6f;
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -143,8 +143,8 @@ public:
         {
             if (Pitch > 89.0f)
                 Pitch = 89.0f;
-            if (Pitch < -89.0f)
-                Pitch = -89.0f;
+            if (Pitch < -60.0f)
+                Pitch = -60.0f;
         }
 
         // update Front, Right and Up Vectors using the updated Euler angles

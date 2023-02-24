@@ -115,18 +115,18 @@ int main(void)
         ////cameradepthFBO.BindTexture();
         ////blooming_hightlightFBO.BindTexture(0,1);
         ////blooming_blur_verticalFBO.BindTexture();
-        //game.framebuffers->hdrfbo.BindTexture(0);
+        ////game.framebuffers->hdrfbo.BindTexture(0);
         ////global_dirshadowfbo.BindTexture();
         ////shadow_blur_verticalFBO.BindTexture();
         ////game.framebuffers->FXAA_FBO.BindTexture(0);
         ////game.framebuffers->gbuffer.BindTexture(0, 1);
-        ////game.framebuffers->csm_mapFBO[0].BindTexture();
+        //game.framebuffers->csm_mapFBO[1].BindTexture();
         ////envcubemap_spec_BRDF_FBO.BindTexture();
         ////ssaoFBO.BindTexture();
         ////SpotlightMapfbo.BindTexture();
         ////glBindTexture(GL_TEXTURE_2D, Characters[10].TextureID);
         //game.renderer.DrawArray(game.vertex_arrays->quadVa, game.shaders->basicscreen_shader);
-        //       
+               
 
         /* Poll for and process events */
         glfwPollEvents();//触发键盘鼠标输入事件
@@ -353,6 +353,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);//锁定鼠标
     }
+    ImGui::EndFrame();
 }
 
 void GUI_Initialize(GLFWwindow* window)

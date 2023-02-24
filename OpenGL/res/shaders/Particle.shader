@@ -8,7 +8,7 @@ uniform mat4 projection;
 uniform vec2 offset;
 void main()
 {
-    float scale = 1.0f;
+    float scale = 3.0f;
     gl_Position = projection * vec4(position.xy * scale + offset, 0.0f, 1.0f);
     fragTexcoord = Texcoord;
 };

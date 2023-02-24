@@ -426,7 +426,7 @@ public:
 		for (int i = 0; i < 3; i++)
 		{
 			glBindTexture(GL_TEXTURE_2D, textureColorId[i]);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//必须32
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -700,10 +700,10 @@ public:
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);//只需要深度
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthTextureId, 0);
 	}

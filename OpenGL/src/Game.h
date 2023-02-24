@@ -6,8 +6,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <irrKlang.h>
+#include <functional>
 
+#include <irrKlang.h>
 #include "Debugger.h"
 #include "Shader.h"
 #include "KeyInput.h"
@@ -86,7 +87,7 @@ private:
     TerrainData terrain;
     float deltaTime;
     Animator* animator;
-    Animation* danceAnimation;
+    Animations* animations;
 public:
     Character_state my_state;
     KeyInput keyinput;
@@ -120,107 +121,11 @@ public:
         delete vertex_arrays;
         delete vertex_buffers;
         delete animator;
-        delete danceAnimation;
+        delete animations;
     }
-    void ready_render()
-    {
-        shaders = new Shaders;
-        textures = new Textures;
-        models = new Models;
-        pre_framebuffers = new Pre_FrameBuffers();
-        framebuffers = new FrameBuffers(screenWidth, screenHeight);
-        vertex_arrays = new VertexArrays;
-        vertex_buffers = new VertexBuffers;
-        Debug();
-        read_config();
-        Initialize_Models_Positions();   
-        Initialize_Pointlight();
-        Initialize_Vertex_Arrays();
-        Initialize_Terrain_gpu();
-        TextFBO::Init();
-        Generate_CubeTexture();
-        Generate_EnvLight_Diffuse();
-        Generate_EnvLight_Specular();
-        Generate_EnvLight_Specular_BRDF();
-        //models->CreatModel("res/objects/x_bot/X_Bot.dae", "x_bot");
-        
-        danceAnimation = new Animation("res/objects/Robot_boxing.dae", models->anime_models_map["Robot_boxing"]);
-        animator = new Animator(danceAnimation);
 
-    }
-    void start_render()
-    {
-        animator->UpdateAnimation(deltaTime);
-        camera.Set_third_view(keyinput.third_view);
-        camera.Set_free_view(keyinput.free_view);
-        glEnable(GL_DEPTH_TEST);
-        Update_Pointlight();
-        Update_Models_Positions();
-        Update_Sun();
-        csm_dirlight.Get_light_projection(camera, sun.Sun_Position);
-        Generate_Dir_CSM();
-        //点光阴影贴图
-        if(pointlight.lightintensity> 0)
-            Generate_Point_SM();
 
-        //聚光阴影贴图
-        Update_Spotlight();
-        Generate_Spot_SM();
-
-        //defered shading 绘制基本信息    
-        Generate_Defered_basicDATA();
-
-        framebuffers->gbuffer.Read();
-        framebuffers->cameradepthFBO.Write();
-        framebuffers->gbuffer.BlitDepthBuffer();
-        framebuffers->gbuffer.UnBind();
-
-        if (keyinput.useSSAO)
-        {
-            Generate_SSAO();
-            //blur
-            Generate_SSAO_blur();
-        }
-        Generate_PreShadow();
-
-        //对preshdow模糊处理
-        if(keyinput.blur_shadow)
-        {
-            int j = 0;
-            Gaussian_Blured_Texture(j, 4, shaders->shadow_blurshader, framebuffers->PreShadowFBO, framebuffers->shadow_blur_horizontalFBO, framebuffers->shadow_blur_verticalFBO, renderer, vertex_arrays->quadVa);
-            framebuffers->shadow_blur_verticalFBO.Bind();
-            framebuffers->shadow_blur_verticalFBO.ReadTexture();
-            framebuffers->PreShadowFBO.WriteTexture(j);
-            framebuffers->shadow_blur_verticalFBO.UnBind();
-        }
-
-        //设置uniform      着色
-        Generate_Origin_Screen();
-        //点光源模型 
-        //读取gbuffer的深度信息以结合正向渲染    
-        Generate_SkyBox(shaders->basic_shader, shaders->skyboxShader, framebuffers, camera, keyinput,
-            vertex_arrays, renderer, textures, models);
-
-        //后期处理
-        Generate_PostProcess(shaders->screenShader, shaders->blooming_highlightshader, shaders->blooming_blurshader, shaders->basicscreen_shader,
-            framebuffers, renderer, vertex_arrays, keyinput);
-
-        glEnable(GL_BLEND);
-        std::string text_render = Collision_detection();
-        RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
-        if (keyinput.show_particle)
-        {
-            Generate_Particle();
-            particle_generator.update_Particle(glm::vec2(screenWidth /2, 0));
-        }
-        if(float(glfwGetTime()) < 10.0)
-        {
-            RenderText(shaders->text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
-        }
-        glDisable(GL_BLEND);
-        Generate_Health_bar();
-    }
-    void read_config()
+    inline void read_config()
     {
         out.open(strConfigFileName, std::ios::app);
         if (out.is_open()) {
@@ -232,14 +137,18 @@ public:
     template <typename T1, typename T2, typename T3>
     void Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
         T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa);
-    void GetDeltaTime(float t)
+    inline void GetDeltaTime(float t)
     {
         deltaTime = t;
     }
-    unsigned int GetSwidth() { return screenWidth; }
-    void SetSwidth(unsigned int sw) { screenWidth = sw; }
-    unsigned int GetSheight() { return screenHeight; }
-    void SetSheight(unsigned int sh) { screenHeight = sh; }
+    void ready_render();
+
+    void start_render();
+
+    inline unsigned int GetSwidth() { return screenWidth; }
+    inline void SetSwidth(unsigned int sw) { screenWidth = sw; }
+    inline unsigned int GetSheight() { return screenHeight; }
+    inline void SetSheight(unsigned int sh) { screenHeight = sh; }
 
     void Update_Sun();
 
@@ -268,11 +177,9 @@ public:
 
     void Generate_Origin_Screen();
 
-    void Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuffers* framebuffers, Camera& camera, KeyInput& keyinput,
-        VertexArrays* vertex_arrays, Renderer& renderer, Textures* textures, Models* models);
+    void Generate_SkyBox();
 
-    void Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader, Shader& basic_shader,
-        FrameBuffers* framebuffers, Renderer& renderer, VertexArrays* vertex_arrays, KeyInput& keyinput);
+    void Generate_PostProcess();
 
     void Generate_CubeTexture();
 
@@ -298,7 +205,7 @@ public:
     void Generate_Health_bar();
     void Generate_Health_bar_enemy();
     std::string Collision_detection();
-    void ResetResolution(unsigned int width, unsigned int height)
+    inline void ResetResolution(unsigned int width, unsigned int height)
     {
         delete framebuffers;
         framebuffers = new FrameBuffers(width, height);
@@ -346,10 +253,8 @@ void Game::Update_Sun()
     float sun_height = 20;
     float east_x = static_cast<float>(sin(glfwGetTime()* keyinput.sun_speed)) * sun_height;
     float west_y = static_cast<float>(cos(glfwGetTime() * keyinput.sun_speed)) * sun_height;
-    glm::vec3 SunPosition = glm::vec3(east_x, west_y, -10.0f);
-    glm::vec3 SunDireciton = -glm::vec3(east_x, west_y, -10.0f);
-    sun.Sun_Position = SunPosition;
-    sun.Sun_Direction = SunDireciton;
+    sun.Sun_Position = glm::vec3(east_x, west_y, -10.0f) + camera.Position;
+    sun.Sun_Direction = -glm::vec3(east_x, west_y, -10.0f);
 }
 
 void Game::Update_Pointlight()
@@ -362,6 +267,7 @@ void Game::Update_Pointlight()
 }
 void Game::Initialize_Pointlight()
 {
+    
     for (int i = 0; i < POINT_LIGHTS_NUM; i++)
     {
         pointlight.position[i] = glm::vec3(i * 3, 2, 0);
@@ -373,9 +279,11 @@ void Game::Initialize_Pointlight()
         pointlight.color[i] = glm::vec3(1.0f);
     }
     pointlight.lightintensity = keyinput.pointlight_Intensity;
+    
 }
 void Game::Initialize_Models_Positions()
 {
+    
     models->Nano.position.Scale(glm::vec3(0.1f));
     models->Nano.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models->Nano.position.Translate(glm::vec3(0.0f, 1.0f, 0.0f));
@@ -385,19 +293,24 @@ void Game::Initialize_Models_Positions()
     models->Planet.position.Translate(glm::vec3(10.0f, 0, 0));
     models->Floor.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models->Sphere.position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
-    models->Main_character.position.Scale(glm::vec3(0.05f));
+
     models->Main_character.position.Rotate(-180.0, glm::vec3(0.0, 1.0, 0.0));
     models->Main_character.position.Translate(camera.Position);
 
-    //x_bot
-    /*models->models_map["x_bot"]->position.Scale(glm::vec3(0.05f));
-    models->models_map["x_bot"]->position.Translate(glm::vec3(2.0f, 0.0f, 0.0f));*/
     std::map<std::string, Model*>::iterator iter;
     iter = models->models_map.begin();
+    int i = 0;
+    for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        i++;
+        iter->second->position.Translate(glm::vec3(0.0f, 0.0f, i * 5.0f));
+        iter->second->Get_AABB();
+    }
     for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
         iter->second->Get_AABB();
     }
+    
 }
 
 void Game::Update_Models_Positions()
@@ -407,7 +320,6 @@ void Game::Update_Models_Positions()
     theta = camera.Front.x > 0 ? theta : static_cast<float>((2 * PI - theta));
     float character_view = static_cast<float>(theta * 180.0f / PI);
     ModelSpace modd;
-    modd.Scale(glm::vec3(0.05f));
     modd.Rotate(180.0f + character_view, glm::vec3(0.0, -1.0, 0.0));
     if (!camera.third_view)
     {
@@ -452,7 +364,7 @@ void Game::Update_Models_Positions()
             mod = models->Main_character.position.GetModelSpace();
     }
     mod[3][0] = camera.Position.x;
-    mod[3][1] = camera.Position.y - 1.4f;
+    mod[3][1] = camera.Position.y - 1.6f;
     mod[3][2] = camera.Position.z;
     models->Main_character.position.SetModel(mod);
     models->Main_character.Get_AABB();
@@ -460,6 +372,7 @@ void Game::Update_Models_Positions()
 
 void Game::Initialize_Vertex_Arrays()
 {
+    
     std::string floor_vertex_attr = "floor_vertex_attr";
     std::vector<float> floor_vertex = config.ReadVector(floor_vertex_attr);
     VertexBuffer floorVb(&floor_vertex[0], static_cast<unsigned int>(floor_vertex.size()) * sizeof(float));
@@ -516,7 +429,13 @@ void Game::Initialize_Vertex_Arrays()
     particleLayout.Push<float>(2);
     particleLayout.Push<float>(2);
     vertex_arrays->particleVa.AddBuffer(particleVb, particleLayout);
-
+    
+}
+void RootAnimation(glm::mat4& m1, glm::mat4& m2, float grade)
+{
+    m1[3][0] -= m2[3][0] * grade;
+    m1[3][1] -= m2[3][1] * grade;
+    m1[3][2] -= m2[3][2];
 }
 void Game::Generate_Dir_CSM()
 {
@@ -547,8 +466,12 @@ void Game::Generate_Dir_CSM()
         for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
         {
             auto transforms = animator->GetFinalBoneMatrices();
+            auto roottrans = animator->RootTransform;
             for (int i = 0; i < transforms.size(); ++i)
+            {
+                RootAnimation(transforms[i], roottrans, 0.5);
                 shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            }
             shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
             iter->second->DrawShadow(shader);
         }
@@ -595,6 +518,13 @@ void Game::Generate_Point_SM()
         framebuffers->PointlightMapfbo[i].SetViewPort();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //绘制
+        auto transforms = animator->GetFinalBoneMatrices();
+        auto roottrans = animator->RootTransform;
+        for (int i = 0; i < transforms.size(); ++i)
+        {
+            RootAnimation(transforms[i], roottrans, 0.5);
+            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        }
         std::map<std::string, Model*>::iterator iter;
         iter = models->models_map.begin();
         for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
@@ -604,9 +534,6 @@ void Game::Generate_Point_SM()
         }
         for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
         {
-            auto transforms = animator->GetFinalBoneMatrices();
-            for (int i = 0; i < transforms.size(); ++i)
-                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
             shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
             iter->second->DrawShadow(shader);
         }
@@ -640,8 +567,12 @@ void Game::Generate_Spot_SM()
     for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
         auto transforms = animator->GetFinalBoneMatrices();
+        auto roottrans = animator->RootTransform;
         for (int i = 0; i < transforms.size(); ++i)
+        {
+            RootAnimation(transforms[i], roottrans, 0.5);
             shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        }
         shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
         iter->second->DrawShadow(shader);
     }
@@ -670,21 +601,25 @@ void Game::Generate_Defered_basicDATA()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
     shader.SetUniform1i("use_HeightMap", keyinput.useheight);
-    shader.SetUniformmatri4fv("model", models->Nano.position.GetModelSpace());
-    models->Nano.Draw(shader);
-
-    shader.SetUniformmatri4fv("model", models->Marry.position.GetModelSpace());
-    models->Marry.Draw(shader);
-    shader.SetUniformmatri4fv("model", models->Planet.position.GetModelSpace());
-    models->Planet.Draw(shader);
-    shader.SetUniformmatri4fv("model", models->Main_character.position.GetModelSpace());
-    models->Main_character.Draw(shader);
-    //anime
-    shader.SetUniformmatri4fv("model", models->Robot_boxing.position.GetModelSpace());
     auto transforms = animator->GetFinalBoneMatrices();
+    auto roottrans = animator->RootTransform;
     for (int i = 0; i < transforms.size(); ++i)
+    {
+        RootAnimation(transforms[i], roottrans, 0.5);
         shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-    models->anime_models_map["Robot_boxing"]->Draw(shader);
+    }
+    std::map<std::string, Model*>::iterator iter;
+    iter = models->models_map.begin();
+    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        iter->second->DrawShadow(shader);
+    }
+    for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        iter->second->DrawShadow(shader);
+    }
     //地板  
     textures->floor_diffuse.Bind(0);
     shader.SetUniform1i("material.texture_diffuse1", 0);
@@ -701,8 +636,10 @@ void Game::Generate_Defered_basicDATA()
     shader.SetUniform1i("use_HeightMap", 0);
     shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
     renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
-    if(keyinput.use_terrain)
+    if (keyinput.use_terrain)
+    {
         Generate_Terrain_gpu();
+    }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     framebuffers->gbuffer.UnBind();
     glViewport(0, 0, screenWidth, screenHeight);
@@ -871,8 +808,7 @@ void Game::Generate_Origin_Screen()
     glEnable(GL_DEPTH_TEST);
     framebuffers->hdrfbo.UnBind();
 }
-void Game::Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuffers* framebuffers, Camera& camera, KeyInput& keyinput,
-    VertexArrays* vertex_arrays, Renderer& renderer, Textures* textures, Models* models)
+void Game::Generate_SkyBox()
 {
     //读取深度信息
     if (keyinput.show_mesh)
@@ -881,32 +817,32 @@ void Game::Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuff
     framebuffers->gbuffer.Read();
     framebuffers->hdrfbo.Write();
     framebuffers->gbuffer.BlitDepthBuffer();
-
-    basic_shader.Bind();
-    basic_shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    basic_shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    Shader& shader = shaders->basic_shader;
+    shader.Bind();
+    shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
     for (unsigned int i = 0; i < POINT_LIGHTS_NUM; i++)
     {
-        basic_shader.SetUniform3f("color", pointlight.color[i] * pointlight.lightintensity);
-        basic_shader.SetUniformmatri4fv("model", pointlight.space[i].GetModelSpace());
-        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
+        shader.SetUniform3f("color", pointlight.color[i] * pointlight.lightintensity);
+        shader.SetUniformmatri4fv("model", pointlight.space[i].GetModelSpace());
+        renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
     }
-    basic_shader.SetUniform3f("color", keyinput.SunColor * keyinput.SunIntensity * glm::vec3(10));
+    shader.SetUniform3f("color", keyinput.SunColor * keyinput.SunIntensity * glm::vec3(10));
     ModelSpace dirlightspace;//太阳位置会变化，所以动态改变位置       
-    dirlightspace.Translate(sun.Sun_Position + camera.Position);
+    dirlightspace.Translate(sun.Sun_Position);
     //dirlightspace.Scale(glm::vec3(0.3f));
-    basic_shader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
-    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, basic_shader);
+    shader.SetUniformmatri4fv("model", dirlightspace.GetModelSpace());
+    renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
     //天空盒       
-    skyboxShader.Bind();
+    shaders->skyboxShader.Bind();
     glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));//降维移除第四列的位移
-    skyboxShader.SetUniformmatri4fv("view", view);
+    shaders->skyboxShader.SetUniformmatri4fv("view", view);
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
-    skyboxShader.SetUniformmatri4fv("projection", projection);
+    shaders->skyboxShader.SetUniformmatri4fv("projection", projection);
     textures->skybox.Bind();
     //envcubemapFBO.BindTexture();
     //envcubemap_spec_convolutionFBO.BindTexture();
-    renderer.DrawArray(vertex_arrays->skyboxVa, skyboxShader);
+    renderer.DrawArray(vertex_arrays->skyboxVa, shaders->skyboxShader);
     if (keyinput.show_d3particle)
     {
         Generate_D3Particle();
@@ -917,40 +853,40 @@ void Game::Generate_SkyBox(Shader& basic_shader, Shader& skyboxShader, FrameBuff
 
     framebuffers->hdrfbo.UnBind();
 }
-void Game::Generate_PostProcess(Shader& screenShader, Shader& blooming_highlightshader, Shader& blooming_blurshader, Shader& basicscreen_shader,
-    FrameBuffers* framebuffers, Renderer& renderer, VertexArrays* vertex_arrays, KeyInput& keyinput)
+void Game::Generate_PostProcess()
 {
+
     framebuffers->blooming_hightlightFBO.Bind();
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
-    blooming_highlightshader.Bind();
+    shaders->blooming_highlightshader.Bind();
     framebuffers->hdrfbo.BindTexture(0);;//原画
-    blooming_highlightshader.SetUniform1i("screenTexture", 0);
-    renderer.DrawArray(vertex_arrays->quadVa, blooming_highlightshader);
+    shaders->blooming_highlightshader.SetUniform1i("screenTexture", 0);
+    renderer.DrawArray(vertex_arrays->quadVa, shaders->blooming_highlightshader);
     framebuffers->blooming_hightlightFBO.UnBind();
     //将高亮贴图进行高斯模糊
-    Gaussian_Blured_Texture(1, keyinput.bloom_times, blooming_blurshader, framebuffers->blooming_hightlightFBO, framebuffers->blooming_blur_horizontalFBO, framebuffers->blooming_blur_verticalFBO, renderer, vertex_arrays->quadVa);
+    Gaussian_Blured_Texture(1, keyinput.bloom_times, shaders->blooming_blurshader, framebuffers->blooming_hightlightFBO, framebuffers->blooming_blur_horizontalFBO, framebuffers->blooming_blur_verticalFBO, renderer, vertex_arrays->quadVa);
     //结合原画和模糊后的图片形成泛光
-    screenShader.Bind();
-    screenShader.SetUniform1i("gamma", keyinput.gamma);
-    screenShader.SetUniform1f("exposure", keyinput.exposure);
+    shaders->screenShader.Bind();
+    shaders->screenShader.SetUniform1i("gamma", keyinput.gamma);
+    shaders->screenShader.SetUniform1f("exposure", keyinput.exposure);
 
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     framebuffers->blooming_hightlightFBO.BindTexture(0);
-    screenShader.SetUniform1i("screenTexture", 0);
+    shaders->screenShader.SetUniform1i("screenTexture", 0);
     framebuffers->blooming_blur_verticalFBO.BindTexture(1);
-    screenShader.SetUniform1i("blooming_screenTexture", 1);
-    framebuffers->ssaoFBO.BindTexture(2);
-    screenShader.SetUniform1i("assistTexture", 2);
-    renderer.DrawArray(vertex_arrays->quadVa, screenShader);
+    shaders->screenShader.SetUniform1i("blooming_screenTexture", 1);
+    framebuffers->cameradepthFBO.BindTexture(2);
+    shaders->screenShader.SetUniform1i("assistTexture", 2);
+    renderer.DrawArray(vertex_arrays->quadVa, shaders->screenShader);
     if (keyinput.assist_screen)
     {
         glViewport(0, 0, int(screenWidth * 0.4), int(screenHeight * 0.4));
-        basicscreen_shader.Bind();
+        shaders->basicscreen_shader.Bind();
         framebuffers->ssaoFBO.BindTexture(0);
-        renderer.DrawArray(vertex_arrays->quadVa, basicscreen_shader);
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->basicscreen_shader);
         glViewport(0, 0, screenWidth, screenHeight);
     }
     
@@ -1236,7 +1172,7 @@ void Game::Generate_D3Particle()
 
 void Game::Initialize_Terrain_cpu()
 {
-    assert(terrain.vertex.empty());
+
     terrain = Get_TerrainData_cpu();
     models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
     VertexBuffer terrainVb(&terrain.vertex[0], sizeof(float) * static_cast<unsigned int>(terrain.vertex.size()));
@@ -1245,19 +1181,19 @@ void Game::Initialize_Terrain_cpu()
     models->Terrain.va->AddBuffer(terrainVb, terrainLayout);
 }
 void Game::Initialize_Terrain_gpu()
-{
-    assert(terrain.vertex.empty());
+{  
     terrain = Get_TerrainData_gpu(textures->Terrain_texture.Get_width(), textures->Terrain_texture.Get_height());
-    models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
+    //models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
     VertexBuffer terrainVb(&terrain.vertex[0], sizeof(float) * static_cast<unsigned int>(terrain.vertex.size()));
     VertexBufferLayout terrainLayout;
     terrainLayout.Push<float>(3);//position
     terrainLayout.Push<float>(2);
     models->Terrain.va->AddBuffer(terrainVb, terrainLayout);
+    
 }
 void Game::Generate_Terrain_cpu()
 {
-    assert(!terrain.index.empty());
+
     Shader& shader = shaders->Terrain_cpu_shader;
     shader.Bind();
     // view/projection transformations
@@ -1290,7 +1226,7 @@ void Game::Generate_Terrain_cpu()
 }
 void Game::Generate_Terrain_gpu()
 {
-    assert(terrain.index.empty());
+
     Shader& shader = shaders->Terrain_gpu_shader;
     shader.Bind();
     // view/projection transformations
@@ -1350,7 +1286,7 @@ void Game::Generate_Health_bar_enemy()
             sorted[distance] = iter->first;
         }
     }
-    csm_dirlight.Set_far_plane(sorted.rbegin()->first);
+    csm_dirlight.Set_far_plane(sorted.rbegin()->first * 10);
     for (std::map<float, std::string>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
     {
         float health_bar_xcenter = (models->models_map[it->second]->aabb[0] + models->models_map[it->second]->aabb[1]) * 0.5f;
@@ -1376,4 +1312,94 @@ void Game::Generate_Health_bar_enemy()
         if(theta > 0.707 && length < 20.0f)
             renderer.DrawArray(vertex_arrays->quadVa, shader);
     }
+}
+
+void Game::ready_render()
+{
+    shaders = new Shaders;
+    textures = new Textures;
+    models = new Models;
+    pre_framebuffers = new Pre_FrameBuffers();
+    framebuffers = new FrameBuffers(screenWidth, screenHeight);
+    vertex_arrays = new VertexArrays;
+    vertex_buffers = new VertexBuffers;
+    animations = new Animations(&models->Robot_boxing);
+    animator = new Animator(animations->Animation_walk);
+    Debug();
+    read_config();
+
+    Initialize_Models_Positions();   
+    Initialize_Pointlight();
+    Initialize_Vertex_Arrays();
+    Initialize_Terrain_gpu();
+    TextFBO::Init();
+    Generate_CubeTexture();
+    Generate_EnvLight_Diffuse();
+    Generate_EnvLight_Specular();
+    Generate_EnvLight_Specular_BRDF();
+    //models->CreatModel("res/objects/x_bot/X_Bot.dae", "x_bot");
+    //animator->PlayAnimation(animations->Animation_boxing);
+    animator->UpdateAnimation(deltaTime);
+}
+
+void Game::start_render()
+{
+    if(camera.is_move)
+        animator->UpdateAnimation(deltaTime);
+
+    camera.Set_third_view(keyinput.third_view);
+    camera.Set_free_view(keyinput.free_view);
+    glEnable(GL_DEPTH_TEST);
+    Update_Pointlight();
+    Update_Models_Positions();
+    Update_Sun();
+    csm_dirlight.Get_light_projection(camera, sun.Sun_Position);
+    Generate_Dir_CSM();
+    //点光阴影贴图
+    if (pointlight.lightintensity > 0)
+        Generate_Point_SM();
+
+    //聚光阴影贴图
+    Update_Spotlight();
+    Generate_Spot_SM();
+
+    //defered shading 绘制基本信息    
+    Generate_Defered_basicDATA();
+
+    framebuffers->gbuffer.Read();
+    framebuffers->cameradepthFBO.Write();
+    framebuffers->gbuffer.BlitDepthBuffer();
+    framebuffers->gbuffer.UnBind();
+
+    if (keyinput.useSSAO)
+    {
+        Generate_SSAO();
+        //blur
+        Generate_SSAO_blur();
+    }
+    Generate_PreShadow();
+
+    //设置uniform      着色
+    Generate_Origin_Screen();
+    //点光源模型 
+    //读取gbuffer的深度信息以结合正向渲染    
+    Generate_SkyBox();
+
+    //后期处理
+    Generate_PostProcess();
+
+    glEnable(GL_BLEND);
+    /*std::string text_render = Collision_detection();
+    RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);*/
+    if (keyinput.show_particle)
+    {
+        Generate_Particle();
+        particle_generator.update_Particle(glm::vec2(screenWidth / 2, 0));
+    }
+    if (true)
+    {
+        RenderText(shaders->text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
+    }
+    glDisable(GL_BLEND);
+    Generate_Health_bar();
 }

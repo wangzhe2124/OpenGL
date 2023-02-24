@@ -14,7 +14,7 @@ uniform mat4 finalBonesMatrices[MAX_BONES];
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
-uniform bool with_anime;
+
 out VS_OUT{
  vec3 Normal;
  vec3 FragPos;
@@ -50,11 +50,11 @@ void main()
  
     //法线变换到世界空间
     vs_out.TexCoord = TexCoord;
-    vec3 T = normalize(vec3(model * transMatrix * vec4(tangent, 0.0)));
+    vec3 T = normalize(vec3(model * transMatrix * vec4(tangent, 1.0)));
     vec3 N = normalize(vs_out.Normal);
 
     //T = normalize(T - dot(T, N) * N);	
-    vec3 B = normalize(vec3(model * transMatrix * vec4(bitangent, 0.0)));
+    vec3 B = normalize(vec3(model * transMatrix * vec4(bitangent, 1.0)));
     //vec3 B = cross(T, N);
     vs_out.TBN = mat3(T, B, N);
 };

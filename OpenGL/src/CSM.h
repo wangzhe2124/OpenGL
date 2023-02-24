@@ -73,6 +73,7 @@ public:
     float Get_z_distance(int i) { return z_distance[i]; }
     float Get_xy_distance(int i) { return xy_distance[i]; }
     void Set_far_plane(float fp) { far_plane_distance = fp; }
+    float Get_far_plane() { return far_plane_distance; }
 };
 CSM_Dirlight::CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.9f) :splitNum(splitnum), lambda(weight)
 {
@@ -92,7 +93,7 @@ CSM_Dirlight::~CSM_Dirlight()
 //生成CSM所需的资源(分片光空间变换矩阵，眼空间到光空间变换矩阵(负灯光向量))
 void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& DirlightPosition) 
 { 
-    lightView = glm::lookAt(DirlightPosition, glm::vec3(0), glm::vec3(0.0f, 1.0f, 0.0f));
+    lightView = glm::lookAt(DirlightPosition, camera.Position, glm::vec3(0.0f, 1.0f, 0.0f));
     split_camera_frustum(camera);
     //更新摄像机视锥分块的世界空间位置(8个顶点)
     camera_frustum_points(camera);
@@ -102,7 +103,7 @@ void CSM_Dirlight::Get_light_projection(Camera& camera, const glm::vec3& Dirligh
 //计算摄像机视线空间中每个平截头体切片的近距离和远距离
 void CSM_Dirlight::split_camera_frustum(Camera& camera) {
     float near_plane = camera.near_plane;
-    float far_plane = far_plane_distance * 10;
+    float far_plane = min(far_plane_distance, 200.0f);
     float ratio = far_plane / near_plane;
     camera_frustums[0].Setnear(near_plane);
     for (int i = 1; i < splitNum; i++) {

@@ -68,12 +68,9 @@ public:
 		auto animation = scene->mAnimations[0];
 		m_Duration = static_cast<float>(animation->mDuration);
 		std::fstream out;
-		out.open("src/debug.log", std::ios::app);
-		out << "action nums:" << sizeof(scene->mAnimations) << std::endl;
-		out << "duration per action:" << m_Duration << std::endl;
-		
+
 		m_TicksPerSecond = static_cast<int>(animation->mTicksPerSecond);
-		out << "TicksPerSecond:" << m_TicksPerSecond << std::endl;
+
 
 		aiMatrix4x4 globalTransformation = scene->mRootNode->mTransformation;
 		globalTransformation = globalTransformation.Inverse();
@@ -107,6 +104,20 @@ public:
 	}
 };
 
+class Animations
+{
+public:
+	Animation* Animation_catwalk;
+	Animation* Animation_boxing;
+	Animation* Animation_walk;
+	Animations(Model* model)
+	{
+		Animation_catwalk = new Animation("res/objects/Robot_catwalk.dae", model);
+		Animation_boxing = new Animation("res/objects/Robot_boxing.dae", model);
+		Animation_walk = new Animation("res/objects/Robot_walk.dae", model);
+		
+	}
+};
 class Animator
 {
 private:
@@ -115,6 +126,7 @@ private:
 	float m_CurrentTime;
 	float m_DeltaTime;
 public:
+	glm::mat4 RootTransform;
 	Animator(Animation* animation)
 	{
 		m_CurrentTime = 0.0;
@@ -136,13 +148,44 @@ public:
 			CalculateBoneTransform(&m_CurrentAnimation->GetRootNode(), glm::mat4(1.0f));
 		}
 	}
-
+	float GetCurrentTime()
+	{
+		return m_CurrentTime;
+	}
+	void ResetTime(float time)
+	{
+		m_CurrentTime = time;
+	}
+	float GetRatio()
+	{
+		return m_CurrentTime / m_CurrentAnimation->GetDuration();
+	}
 	void PlayAnimation(Animation* pAnimation)
 	{
 		m_CurrentAnimation = pAnimation;
 		m_CurrentTime = 0.0f;
 	}
-
+	void CalculateRootTransform()
+	{
+		Bone* Bone = m_CurrentAnimation->FindBone("mixamorig_Hips");
+		if (Bone)
+		{
+			RootTransform = Bone->GetLocalTransform();
+			auto boneInfoMap = m_CurrentAnimation->GetBoneIDMap();
+			int index = boneInfoMap["mixamorig_Hips"].id;
+			glm::mat4 offset = boneInfoMap["mixamorig_Hips"].offset;
+			RootTransform = RootTransform * offset;
+			for (int i = 0; i < 4; i++)
+			{
+				for (int j = 0; j < 4; j++)
+				{
+					std::cout << RootTransform[i][j] << "  ";
+					if (j == 3)
+						std::cout << endl;
+				}
+			}
+		}
+	}
 	void CalculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
 	{
 		std::string nodeName = node->name;
@@ -165,6 +208,10 @@ public:
 			int index = boneInfoMap[nodeName].id;
 			glm::mat4 offset = boneInfoMap[nodeName].offset;
 			m_FinalBoneMatrices[index] = globalTransformation * offset;
+			if (index == 0)
+			{
+				RootTransform = m_FinalBoneMatrices[index];
+			}
 		}
 
 		for (int i = 0; i < node->childrenCount; i++)

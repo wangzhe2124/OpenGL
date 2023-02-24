@@ -35,9 +35,9 @@ void main()
 };
 #shader fragment
 #version 420 core
-out vec4 fragcolor;
+//out vec4 fragcolor;
 void main()
 {
 	gl_FragDepth = gl_FragCoord.z;
-	fragcolor = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0);
+	//fragcolor = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0);
 }

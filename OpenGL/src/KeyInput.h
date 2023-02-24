@@ -43,10 +43,11 @@ KeyInput::KeyInput()
     :blinn_phong(true),
     
     gamma(true),
-    useheight(true), exposure(2.0f),
+    exposure(2.0f),
     useSSAO(true),
     ui(false),
-    NormalMap(true),
+    NormalMap(false),
+    useheight(false),
     metallic(0.5f),
     roughness(0.8f),
     use_terrain(false),
@@ -61,7 +62,7 @@ KeyInput::KeyInput()
     //bloom
     bloom_window(false), bloom_times(8), bloom_halox(0.8f),bloom_haloy(0.8f), bloom_haloz(0.8f),
     //sun
-    sun_window(false), SunIntensity(3.0f), SunColor(1.0f), sun_sm_bias(0.1f), sun_speed(0.001f), sun_pcf(true), sun_pcf_radius(1.0f),
+    sun_window(false), SunIntensity(3.0f), SunColor(1.0f), sun_sm_bias(0.3f), sun_speed(0.001f), sun_pcf(true), sun_pcf_radius(1.0f),
     //spotlight
     spotlight_window(false), st_bias_x(0.15f), st_bias_y(0.15f), st_bias_z(0.15f), spot_far_plane(20.0f), TorchOn(false), torch_color(1.0f), torch_intensity(5.0f),
     //pointlight

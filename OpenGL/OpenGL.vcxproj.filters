@@ -107,6 +107,7 @@
     <None Include="res\shaders\Terrain_gpu.shader" />
     <None Include="res\shaders\Health_bar.shader" />
     <None Include="res\shaders\Health_bar_enemy.shader" />
+    <None Include="res\shaders\Defered_Instance.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">

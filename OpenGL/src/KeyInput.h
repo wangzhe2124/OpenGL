@@ -2,6 +2,8 @@
 #include "Camera.h"
 #include <GLFW/glfw3.h>
 #include <queue>
+#include <unordered_map>
+#include <string>
 namespace Chord_Key
 {
     struct key_element
@@ -14,10 +16,13 @@ namespace Chord_Key
 class KeyInput
 {
 private:
-    
+    std::queue<Chord_Key::key_element> sequence_k;
+    std::unordered_map<std::string, int> control_map;
 public:
+    bool keysPressed[1024];
+    bool keysReleased[1024] = { true };
     bool blinn_phong;
-    std::queue<Chord_Key::key_element> chord_k;
+    
     bool gamma;
     float exposure;
     float metallic;
@@ -49,6 +54,7 @@ public:
     bool particle_window; bool show_particle; float particle_scale; float particle_offset; int new_particle_num; float particle_vel; float particle_life_reduce; bool show_d3particle;
     bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_mulReduce; float fxaa_minReduce; float fxaa_maxSpan;
     KeyInput();
+    void RecordKey(int key, int action);
     void ProcessKey(GLFWwindow* window, int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime, float& energy);
 };

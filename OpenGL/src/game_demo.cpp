@@ -122,15 +122,10 @@ int main(void)
         deltaTime = average_dt.Average();
         //deltaTime = static_cast<float>(currentFrame - lastFrame);
         lastFrame = currentFrame;
-        for (int i = 0; i < game.keyinput.chord_k.size(); i++)
-        {
-            Chord_Key::key_element temp = game.keyinput.chord_k.front();
-            std::cout << " start: " << temp.key << std::endl;
-            game.keyinput.chord_k.pop(); game.keyinput.chord_k.push(temp);
-
-        }
+        
         game.GetDeltaTime(deltaTime);
-        game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//¼üÅÌÊäÈëÒÆ¶¯
+        if(!game.Get_Response_action())
+            game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//¼üÅÌÊäÈëÒÆ¶¯
         game.start_render();
         if (game.keyinput.full_screen)
         {
@@ -211,7 +206,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
         game.keyinput.gamma  = !game.keyinput.gamma;
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !game.keyinput.ui)
-        game.play_boxing();
+    {
+        game.attack();
+    }
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -224,23 +221,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
-bool keysPressed[1024];
-bool keysReleased[1024] = { true };
+
 void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
-    if (key >= 0 && key <= 1024)
-    {
-        if (action == GLFW_PRESS && keysReleased[key])
-        {
-            keysPressed[key] = true;
-            keysReleased[key] = false;
-        }
-        else if (action == GLFW_RELEASE)
-        {
-            keysPressed[key] = false;
-            keysReleased[key] = true;
-        }
-    }
+    game.keyinput.RecordKey(key, action);
     game.keyinput.ProcessKey(window, key, action);
 }
 void windowSize_callback(GLFWwindow* window, int cx, int cy)

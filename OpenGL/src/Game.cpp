@@ -1,5 +1,8 @@
 #include "Game.h"
 #include <thread>
+void Generate_Instance(Model& m, int amount);
+void Draw_Instance(Model& m, int amount);
+
 template <typename T1, typename T2, typename T3>
 void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
     T3& shadow_blur_verticalFBO, Renderer& renderer, VertexArray& quadVa)
@@ -385,7 +388,7 @@ void Game::Generate_Defered_basicDATA()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
     shader.SetUniform1i("use_HeightMap", keyinput.useheight);
-
+    shader.SetUniform1i("is_instance", 0);
     std::map<std::string, Model*>::iterator iter;
     iter = models->models_map.begin();
     for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
@@ -404,6 +407,9 @@ void Game::Generate_Defered_basicDATA()
         shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
         iter->second->DrawShadow(shader);
     }
+    shader.SetUniform1i("is_instance", 1);
+    Draw_Instance(*models->models_map["Rock"], 1000);
+    shader.SetUniform1i("is_instance", 0);
     //地板  
     textures->floor_diffuse.Bind(0);
     shader.SetUniform1i("material.texture_diffuse1", 0);
@@ -424,6 +430,7 @@ void Game::Generate_Defered_basicDATA()
     {
         Generate_Terrain_gpu();
     }
+    
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     framebuffers->gbuffer.UnBind();
     glViewport(0, 0, screenWidth, screenHeight);
@@ -1037,7 +1044,7 @@ void Game::Generate_Terrain_gpu()
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDrawArrays(GL_PATCHES, 0, 4 * terrain.rez * terrain.rez);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+    textures->floor_diffuse.UnBind();
     models->Terrain.va->Unbind();
     shader.UnBind();
 }
@@ -1124,30 +1131,26 @@ void Game::ready_render()
     Initialize_Pointlight();
     Initialize_Vertex_Arrays();
     Initialize_Terrain_gpu();
-    thread t4(TextFBO::Init);
-    t4.detach();
-    //TextFBO::Init();
+    TextFBO::Init();
     Generate_CubeTexture();
 
     Generate_EnvLight_Diffuse();
     Generate_EnvLight_Specular();
     Generate_EnvLight_Specular_BRDF();
-    //models->CreatModel("res/objects/x_bot/X_Bot.dae", "x_bot");
-    //animator->PlayAnimation(animations->Animation_boxing);
-    //animator->UpdateAnimation(deltaTime);
+
     for (std::unordered_map<std::string, Animator>::iterator iter = models->animator_map.begin(); iter != models->animator_map.end(); iter++)
     {
-        iter->second.PlayAnimation(animations->Animation_boxing);
+        iter->second.PlayAnimation(animations->Animation_walk);
         iter->second.UpdateAnimation(deltaTime);
     }
+    Generate_Instance(*models->models_map["Rock"], 1000);
 }
 
 void Game::start_render()
 {
-    if (camera.is_move)
+    if (camera.is_move && !response_action)
     {
         models->animator_map["Main_character"].UpdateAnimation(deltaTime);
-        //animator->UpdateAnimation(deltaTime);
     }
     if (keyinput.chage_animation)
     {
@@ -1156,6 +1159,17 @@ void Game::start_render()
             iter->second.PlayAnimation(animations->animations_map[keyinput.animation_type]);
         }
         keyinput.chage_animation = false;
+        response_action = true;
+    }
+    if (response_action)
+    {
+        models->animator_map["Main_character"].UpdateAnimation(deltaTime);
+        if (models->animator_map["Main_character"].GetCurrentTime() > models->animator_map["Main_character"].GetDuration() * 0.95f)
+        {
+            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->walk]);
+            models->animator_map["Main_character"].UpdateAnimation(deltaTime);
+            response_action = false;
+        }
     }
     camera.Set_third_view(keyinput.third_view);
     camera.Set_free_view(keyinput.free_view);
@@ -1215,7 +1229,81 @@ void Game::start_render()
     Generate_Health_bar();
 }
 
-void Game::play_boxing()
+void Game::attack()
 {
-    models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->boxing]);
+    if (!response_action)
+    {
+        if (keyinput.keysPressed[GLFW_KEY_LEFT_SHIFT])
+        {    //重击
+            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->attack]);
+        }
+        else
+            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->punching]);
+        response_action = true;
+    }
+}
+
+void Generate_Instance(Model& m, int amount)
+{
+    //unsigned int amount = 10000;
+    std::vector<glm::mat4> modelMatrices(amount);
+    std::srand(glfwGetTime()); // 初始化随机种子    
+    float radius = 75.0;
+    float offset = 15.0f;
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        // 1. 位移：分布在半径为 'radius' 的圆形上，偏移的范围是 [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // 让行星带的高度比x和z的宽度要小
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        // 2. 缩放：在 0.05 和 0.25f 之间缩放
+        float scale = (rand() % 20) / 100.0f + 0.05;
+        model = glm::scale(model, glm::vec3(scale));
+
+        // 3. 旋转：绕着一个（半）随机选择的旋转轴向量进行随机的旋转
+        float rotAngle = (rand() % 360);
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        // 4. 添加到矩阵的数组中
+        modelMatrices[i] = model;
+    }
+
+    VertexBuffer Vb(&modelMatrices[0], modelMatrices.size() * sizeof(glm::mat4));
+    for (unsigned int i = 0; i < m.meshes.size(); i++)
+    {
+        unsigned int VAO = m.meshes[i].VAO;
+        glBindVertexArray(VAO);
+        // 顶点属性
+        GLsizei vec4Size = sizeof(glm::vec4);
+        glEnableVertexAttribArray(7);
+        glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
+        glEnableVertexAttribArray(8);
+        glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(vec4Size));
+        glEnableVertexAttribArray(9);
+        glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
+        glEnableVertexAttribArray(10);
+        glVertexAttribPointer(10, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
+
+        glVertexAttribDivisor(7, 1);
+        glVertexAttribDivisor(8, 1);
+        glVertexAttribDivisor(9, 1);
+        glVertexAttribDivisor(10, 1);
+        glBindVertexArray(0);
+    }
+}
+
+void Draw_Instance(Model& m, int amount)
+{
+    for (unsigned int i = 0; i < m.meshes.size(); i++)
+    {
+        glBindVertexArray(m.meshes[i].VAO);
+        glDrawElementsInstanced(GL_TRIANGLES, m.meshes[i].indices.size(), GL_UNSIGNED_INT, 0, amount);
+    }
 }

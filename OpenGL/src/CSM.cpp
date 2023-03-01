@@ -48,7 +48,7 @@ void CSM_Dirlight::split_camera_frustum(Camera& camera) {
     for (int i = 1; i < splitNum; i++) {
         float si = i / (float)splitNum;
         float t_near = lambda * near_plane * powf(ratio, si) + (1 - lambda) * (near_plane + (far_plane - near_plane) * si);
-        float t_far = t_near * 1.5f;//略微增加重合，避免断裂
+        float t_far = t_near * 1.1f;//略微增加重合，避免断裂
         camera_frustums[i].Setnear(t_near);
         camera_frustums[i - 1].Setfar(t_far);
     }
@@ -60,7 +60,7 @@ void CSM_Dirlight::camera_frustum_points(Camera& camera) {
     if (camera.third_view)
         center = camera.Get_third_position();
     else
-        center = camera.Position;
+        center = camera.Get_first_position();
     glm::vec3 view_dir = camera.Front;
     glm::vec3 up(0.0f, 1.0f, 0.0f);
     glm::vec3 right = glm::cross(view_dir, up);

@@ -87,6 +87,7 @@ private:
     TerrainData terrain;
     float deltaTime;
     Animations* animations;
+    bool response_action;
 public:
     Character_state my_state;
     KeyInput keyinput;
@@ -142,12 +143,13 @@ public:
     void ready_render();
 
     void start_render();
-    void play_boxing();
+    void attack();
+    void ProcessAction();
     inline unsigned int GetSwidth() { return screenWidth; }
     inline void SetSwidth(unsigned int sw) { screenWidth = sw; }
     inline unsigned int GetSheight() { return screenHeight; }
     inline void SetSheight(unsigned int sh) { screenHeight = sh; }
-
+    inline bool Get_Response_action() { return response_action; }
     void Update_Sun();
 
     void Update_Spotlight();

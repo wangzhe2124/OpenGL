@@ -36,7 +36,9 @@ KeyInput::KeyInput()
     particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f),particle_life_reduce(0.002f), show_d3particle(false),
     //fxaa
     fxaa_window(false), fxaa_on(true), fxaa_lumaThreshold(0.2f), fxaa_mulReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f)
-{}
+{
+
+}
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime, float& energy)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -130,27 +132,43 @@ void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTi
             exposure = 0.0f;
     }
 }
-void KeyInput::ProcessKey(GLFWwindow* window, int key, int action)
+void KeyInput::RecordKey(int key, int action)
 {
+    if (key >= 0 && key <= 1024)
+    {
+        if (action == GLFW_PRESS && keysReleased[key])
+        {
+            keysPressed[key] = true;
+            keysReleased[key] = false;
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            keysPressed[key] = false;
+            keysReleased[key] = true;
+        }
+    }
+
     float time = static_cast<float>(glfwGetTime());
     Chord_Key::key_element k = { key, time };
-    if (chord_k.empty())
+    if (sequence_k.empty())
     {
-        chord_k.push(k);
+        sequence_k.push(k);
     }
     else
     {
-        if (chord_k.size() > 3)
-            chord_k.pop();
-        while (!chord_k.empty() && (time - chord_k.front().time) > 0.5)
+        if (sequence_k.size() > 3)
+            sequence_k.pop();
+        while (!sequence_k.empty() && (time - sequence_k.front().time) > 1.0f)
         {
-            chord_k.pop();
+            sequence_k.pop();
         }
-        chord_k.push(k);
-        //processChord();
+        sequence_k.push(k);
+        //processSequence();
     }
-
-    
+}
+void KeyInput::ProcessKey(GLFWwindow* window, int key, int action)
+{
+  
     //°´BÇÐ»»blinn_phongºÍphong
     if (key == GLFW_KEY_B && action == GLFW_PRESS)
     {

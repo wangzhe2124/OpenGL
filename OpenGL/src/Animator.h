@@ -107,23 +107,22 @@ public:
 class Animations
 {
 public:
-	static enum {walk, catwalk, boxing, pray, MAX};
-	Animation* Animation_catwalk;
-	Animation* Animation_boxing;
+	static enum {walk, death, punching, attack, MAX};
+	Animation* Animation_death;
+	Animation* Animation_punching;
 	Animation* Animation_walk;
-	Animation* Animation_pray;
+	Animation* Animation_attack;
 	std::unordered_map<int, Animation*> animations_map;
 	Animations(Model* model)
 	{
-		Animation_catwalk = new Animation("res/objects/Robot_catwalk.dae", model);
-		animations_map[catwalk] = Animation_catwalk;
-		Animation_boxing = new Animation("res/objects/Robot_boxing.dae", model);
-		animations_map[boxing] = Animation_boxing;
-		Animation_walk = new Animation("res/objects/Robot_walk.dae", model);
+		Animation_death = new Animation("res/objects/death.dae", model);
+		animations_map[death] = Animation_death;
+		Animation_punching = new Animation("res/objects/Punching.dae", model);
+		animations_map[punching] = Animation_punching;
+		Animation_walk = new Animation("res/objects/walking.dae", model);
 		animations_map[walk] = Animation_walk;
-		Animation_pray = new Animation("res/objects/Robot_pray.dae", model);
-		animations_map[pray] = Animation_pray;
-
+		Animation_attack = new Animation("res/objects/attack.dae", model);
+		animations_map[attack] = Animation_attack;
 	}
 	~Animations()
 	{
@@ -138,6 +137,7 @@ private:
 	Animation* m_CurrentAnimation;
 	float m_CurrentTime;
 	float m_DeltaTime;
+	float Duration;
 	bool is_RootAnime;
 public:
 	glm::mat4 RootTransform;
@@ -150,6 +150,8 @@ public:
 
 		for (int i = 0; i < 100; i++)
 			m_FinalBoneMatrices.push_back(glm::mat4(1.0f));
+		if(m_CurrentAnimation)
+			Duration = m_CurrentAnimation->GetDuration();
 	}
 
 	void UpdateAnimation(float dt)
@@ -170,7 +172,11 @@ public:
 	{
 		return m_CurrentTime;
 	}
-	void ResetTime(float time)
+	float GetDuration()
+	{
+		return Duration;
+	}
+	void SetCurrentTime(float time)
 	{
 		m_CurrentTime = time;
 	}
@@ -182,6 +188,8 @@ public:
 	{
 		m_CurrentAnimation = pAnimation;
 		m_CurrentTime = 0.0f;
+		if(m_CurrentAnimation)
+			Duration = m_CurrentAnimation->GetDuration();
 	}
 
 	void CalculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
@@ -206,7 +214,7 @@ public:
 			int index = boneInfoMap[nodeName].id;
 			glm::mat4 offset = boneInfoMap[nodeName].offset;
 			m_FinalBoneMatrices[index] = globalTransformation * offset;
-			if (index == 0)
+			if (nodeName == "mixamorig_Hips")
 			{
 				RootTransform = m_FinalBoneMatrices[index];
 			}
@@ -233,29 +241,30 @@ public:
 	Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
 	Model Marry = Model("res/objects/Marry/Marry.obj");
 	Model Planet = Model("res/objects/planet/planet.obj");
+	Model Rock = Model("res/objects/rock/rock.obj");
 	Model Floor;
 	Model Sphere = Model();
-	Model Main_character = Model("res/objects/Robot_catwalk.dae");
+	Model Main_character = Model("res/objects/Erika Archer/Erika Archer.dae");
 	Model Terrain = Model();
 	Model Sphere_instance = Model();
-	Model Robot_boxing = Model("res/objects/Robot_boxing.dae");
-	Model Robot_pray = Model("res/objects/Robot_pray.dae");
-	Model Robot_catwalk = Model("res/objects/Robot_catwalk.dae");
-	Model Robot_walk = Model("res/objects/Robot_walk.dae");
+	Model Robot_boxing = Main_character;
+	Model Robot_pray = Main_character;
+	Model Robot_death = Main_character;
+	Model Robot_walk = Main_character;
 	void Get_models()
 	{
 
 		models_map["Nano"] = &Nano;
 		models_map["Marry"] = &Marry;
 		models_map["Planet"] = &Planet;
-
+		models_map["Rock"] = &Rock;
 	}
 	void Get_anime_models()
 	{
 		anime_models_map["Main_character"] = &Main_character;
 		anime_models_map["Robot_boxing"] = &Robot_boxing;
 		anime_models_map["Robot_pray"] = &Robot_pray;
-		anime_models_map["Robot_catwalk"] = &Robot_catwalk;
+		anime_models_map["Robot_death"] = &Robot_death;
 		anime_models_map["Robot_walk"] = &Robot_walk;
 		for (std::map<std::string, Model*>::iterator iter = anime_models_map.begin(); iter != anime_models_map.end(); iter++)
 		{

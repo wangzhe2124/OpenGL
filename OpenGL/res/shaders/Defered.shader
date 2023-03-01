@@ -7,6 +7,8 @@ layout(location = 3) in vec3 tangent;
 layout(location = 4) in vec3 bitangent;
 layout(location = 5) in ivec4 boneIds;
 layout(location = 6) in vec4 weights;
+
+layout(location = 7) in mat4 instanceMatrix;
 const int MAX_BONES = 100;
 const int MAX_BONE_INFLUENCE = 4;
 uniform mat4 finalBonesMatrices[MAX_BONES];
@@ -15,6 +17,7 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 
+uniform bool is_instance;
 out VS_OUT{
  vec3 Normal;
  vec3 FragPos;
@@ -22,7 +25,12 @@ out VS_OUT{
  mat3 TBN;
 }vs_out;
 void main()
-{
+{   
+    mat4 model_matrix;
+    if (is_instance)
+        model_matrix = instanceMatrix;
+    else
+        model_matrix = model;
     //anime
     mat4 transMatrix = mat4(0.0f);
     bool no_bone = true;
@@ -44,17 +52,17 @@ void main()
     if (no_bone)
         transMatrix = mat4(1.0f);
     vec4 totalPosition = transMatrix * vec4(Position, 1.0f);
-    gl_Position = projection * view * model * totalPosition;
-    vs_out.FragPos = vec3(model * totalPosition);
-    vs_out.Normal = mat3(transpose(inverse(model))) * mat3(transpose(inverse(transMatrix))) * Normal;
+    gl_Position = projection * view * model_matrix * totalPosition;
+    vs_out.FragPos = vec3(model_matrix * totalPosition);
+    vs_out.Normal = mat3(transpose(inverse(model_matrix))) * mat3(transpose(inverse(transMatrix))) * Normal;
  
     //法线变换到世界空间
     vs_out.TexCoord = TexCoord;
-    vec3 T = normalize(vec3(model * transMatrix * vec4(tangent, 1.0)));
+    vec3 T = normalize(vec3(model_matrix * transMatrix * vec4(tangent, 1.0)));
     vec3 N = normalize(vs_out.Normal);
 
     //T = normalize(T - dot(T, N) * N);	
-    vec3 B = normalize(vec3(model * transMatrix * vec4(bitangent, 1.0)));
+    vec3 B = normalize(vec3(model_matrix * transMatrix * vec4(bitangent, 1.0)));
     //vec3 B = cross(T, N);
     vs_out.TBN = mat3(T, B, N);
 };

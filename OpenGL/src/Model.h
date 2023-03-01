@@ -13,17 +13,18 @@
 #include <thread>
 using namespace std;
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma = false);
-
+enum {min_x, max_x, min_y, max_y, min_z, max_z};
 class Model
 {
 public:
     // model data 
     vector<MeshTexture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     vector<Mesh>    meshes;
-    vector<float> position_x;
+    /*vector<float> position_x;
     vector<float> position_y;
-    vector<float> position_z;
-    vector<float> aabb;
+    vector<float> position_z;*/
+
+    vector<float> aabb = vector<float>(6);
     vector<glm::vec3> aabb_vertex;
     string directory;
     bool gammaCorrection;
@@ -35,6 +36,7 @@ public:
     // constructor, expects a filepath to a 3D model.
     Model(string const& path, bool gamma = false, float Life = 100.0f) : gammaCorrection(gamma), va(nullptr), ib(nullptr), max_life(Life), current_life(Life)
     {
+        Initialize_aabb();
         loadModel(path);
         AABB();
     }
@@ -44,7 +46,23 @@ public:
     }
     Model(float Life = 100.0f) : ib(nullptr), gammaCorrection(false), max_life(Life), current_life(Life)
     {
+        Initialize_aabb();
+        AABB();
         va = new VertexArray();
+    }
+    Model& operator=(const Model& m)
+    {
+        textures_loaded = m.textures_loaded;
+        meshes = m.meshes;
+        aabb = m.aabb;
+        aabb_vertex = m.aabb_vertex;
+        directory = m.directory;
+        gammaCorrection = m.gammaCorrection;
+        position = m.position;
+        max_life = m.max_life;
+        current_life = m.current_life;
+        va = m.va;
+        ib = m.ib;
     }
     // draws the model, and thus all its meshes
     ~Model()
@@ -65,31 +83,39 @@ public:
         for (unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].DrawShadow(shader);
     }
+    void Initialize_aabb()
+    {
+        aabb[min_x] = aabb[min_y] = aabb[min_z] = 10000.0f;
+        aabb[max_x] = aabb[max_y] = aabb[max_z] = -10000.0f;
+    }
     void AABB()
     {
-        sort(begin(position_x), end(position_x));
+        /*sort(begin(position_x), end(position_x));
         sort(begin(position_y), end(position_y));
         sort(begin(position_z), end(position_z));
-        aabb = { (position_x[0]),
-        position_x.back(),
-        position_y[0],
-        position_y.back(),
-        position_z[0],
-        position_z.back()};
+        aabb = { (aabb[min_x]),
+        aabb[max_x],
+        aabb[min_y],
+        aabb[max_y],
+        aabb[min_z],
+        aabb[max_z]};*/
         aabb_vertex = {
-        glm::vec3(position_x[0], position_y[0],position_z[0]),
-        glm::vec3(position_x.back(), position_y[0],position_z[0]),
-        glm::vec3(position_x.back(), position_y[0],position_z.back()),
-        glm::vec3(position_x[0], position_y[0],position_z.back()),
-        glm::vec3(position_x[0], position_y.back(),position_z[0]),
-        glm::vec3(position_x.back(), position_y.back(),position_z[0]),
-        glm::vec3(position_x.back(), position_y.back(),position_z.back()),
-        glm::vec3(position_x[0], position_y.back(),position_z.back()),
+        glm::vec3(aabb[min_x], aabb[min_y],aabb[min_z]),
+        glm::vec3(aabb[max_x], aabb[min_y],aabb[min_z]),
+
+        glm::vec3(aabb[max_x], aabb[min_y],aabb[max_z]),
+        glm::vec3(aabb[min_x], aabb[min_y],aabb[max_z]),
+
+        glm::vec3(aabb[min_x], aabb[max_y],aabb[min_z]),
+        glm::vec3(aabb[max_x], aabb[max_y],aabb[min_z]),
+
+        glm::vec3(aabb[max_x], aabb[max_y],aabb[max_z]),
+        glm::vec3(aabb[min_x], aabb[max_y],aabb[max_z]),
         };
     }
     void Get_AABB()
     {
-        position_x.clear();
+        /*position_x.clear();
         position_y.clear();
         position_z.clear();
         glm::vec4 temp_position;
@@ -103,13 +129,33 @@ public:
 
         sort(begin(position_x), end(position_x));
         sort(begin(position_y), end(position_y));
-        sort(begin(position_z), end(position_z));
-        aabb = { (position_x[0]),
-        position_x.back(),
-        position_y[0],
-        position_y.back(),
-        position_z[0],
-        position_z.back() };
+        sort(begin(position_z), end(position_z));*/
+        Initialize_aabb();
+        for (int i = 0; i < aabb_vertex.size(); i++)
+        {
+            glm::vec4 temp = glm::vec4(position.GetModelSpace() * glm::vec4(aabb_vertex[i], 1.0f));  
+            if (temp.x > aabb[max_x])
+                aabb[max_x] = temp.x;
+            else if (temp.x < aabb[min_x])
+                aabb[min_x] = temp.x;
+
+            if (temp.y > aabb[max_y])
+                aabb[max_y] = temp.y;
+            else if (temp.y < aabb[min_y])
+                aabb[min_y] = temp.y;
+
+            if (temp.z > aabb[max_z])
+                aabb[max_z] = temp.z;
+            else if (temp.z < aabb[min_z])
+                aabb[min_z] = temp.z;
+            //aabb_vertex[i] = temp;
+        }
+        /*aabb = { (aabb[min_x]),
+        aabb[max_x],
+        aabb[min_y],
+        aabb[max_y],
+        aabb[min_z],
+        aabb[max_z] };*/
     }
     auto& GetBoneInfoMap() { return m_BoneInfoMap; }
     int& GetBoneCount() { return m_BoneCounter; }
@@ -169,6 +215,7 @@ private:
         vector<MeshTexture> textures;
 
         // walk through each of the mesh's vertices
+        
         auto f1 = [&]() {
             for (unsigned int i = 0; i < mesh->mNumVertices; i++)
             {
@@ -180,9 +227,24 @@ private:
                 vector.y = mesh->mVertices[i].y;
                 vector.z = mesh->mVertices[i].z;
                 vertex.Position = vector;
-                position_x.push_back(vector.x);
+                if (vector.x > aabb[max_x])
+                    aabb[max_x] = vector.x;
+                else if (vector.x < aabb[min_x])
+                    aabb[min_x] = vector.x;
+
+                if (vector.y > aabb[max_y])
+                    aabb[max_y] = vector.y;
+                else if (vector.y < aabb[min_y])
+                    aabb[min_y] = vector.y;
+
+                if (vector.z > aabb[max_z])
+                    aabb[max_z] = vector.z;
+                else if (vector.z < aabb[min_z])
+                    aabb[min_z] = vector.z;
+
+                /*position_x.push_back(vector.x);
                 position_y.push_back(vector.y);
-                position_z.push_back(vector.z);
+                position_z.push_back(vector.z);*/
                 // normals
                 if (mesh->HasNormals())
                 {
@@ -259,6 +321,7 @@ private:
         f1();
         f2();
         f3();
+
         ExtractBoneWeightForVertices(vertices, mesh, scene);
         
         // return a mesh object created from the extracted mesh data

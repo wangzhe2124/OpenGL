@@ -107,15 +107,28 @@ public:
 class Animations
 {
 public:
+	static enum {walk, catwalk, boxing, pray, MAX};
 	Animation* Animation_catwalk;
 	Animation* Animation_boxing;
 	Animation* Animation_walk;
+	Animation* Animation_pray;
+	std::unordered_map<int, Animation*> animations_map;
 	Animations(Model* model)
 	{
 		Animation_catwalk = new Animation("res/objects/Robot_catwalk.dae", model);
+		animations_map[catwalk] = Animation_catwalk;
 		Animation_boxing = new Animation("res/objects/Robot_boxing.dae", model);
+		animations_map[boxing] = Animation_boxing;
 		Animation_walk = new Animation("res/objects/Robot_walk.dae", model);
-		
+		animations_map[walk] = Animation_walk;
+		Animation_pray = new Animation("res/objects/Robot_pray.dae", model);
+		animations_map[pray] = Animation_pray;
+
+	}
+	~Animations()
+	{
+		for (std::unordered_map<int, Animation*>::iterator iter = animations_map.begin(); iter != animations_map.end(); iter++)
+			delete iter->second;
 	}
 };
 class Animator
@@ -125,9 +138,10 @@ private:
 	Animation* m_CurrentAnimation;
 	float m_CurrentTime;
 	float m_DeltaTime;
+	bool is_RootAnime;
 public:
 	glm::mat4 RootTransform;
-	Animator(Animation* animation)
+	Animator(Animation* animation = nullptr, bool is_root = false) : is_RootAnime(is_root)
 	{
 		m_CurrentTime = 0.0;
 		m_CurrentAnimation = animation;
@@ -146,6 +160,10 @@ public:
 			m_CurrentTime += m_CurrentAnimation->GetTicksPerSecond() * dt;
 			m_CurrentTime = fmod(m_CurrentTime, m_CurrentAnimation->GetDuration());
 			CalculateBoneTransform(&m_CurrentAnimation->GetRootNode(), glm::mat4(1.0f));
+			for (glm::mat4& m1 : m_FinalBoneMatrices)
+			{
+				m1[3][2] -= RootTransform[3][2];
+			}
 		}
 	}
 	float GetCurrentTime()
@@ -165,27 +183,7 @@ public:
 		m_CurrentAnimation = pAnimation;
 		m_CurrentTime = 0.0f;
 	}
-	void CalculateRootTransform()
-	{
-		Bone* Bone = m_CurrentAnimation->FindBone("mixamorig_Hips");
-		if (Bone)
-		{
-			RootTransform = Bone->GetLocalTransform();
-			auto boneInfoMap = m_CurrentAnimation->GetBoneIDMap();
-			int index = boneInfoMap["mixamorig_Hips"].id;
-			glm::mat4 offset = boneInfoMap["mixamorig_Hips"].offset;
-			RootTransform = RootTransform * offset;
-			for (int i = 0; i < 4; i++)
-			{
-				for (int j = 0; j < 4; j++)
-				{
-					std::cout << RootTransform[i][j] << "  ";
-					if (j == 3)
-						std::cout << endl;
-				}
-			}
-		}
-	}
+
 	void CalculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
 	{
 		std::string nodeName = node->name;
@@ -222,4 +220,57 @@ public:
 	{
 		return m_FinalBoneMatrices;
 	}
+};
+
+class Models
+{
+private:
+
+public:
+	std::map<std::string, Model*> models_map;
+	std::map<std::string, Model*> anime_models_map;
+	std::unordered_map<std::string, Animator> animator_map;
+	Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
+	Model Marry = Model("res/objects/Marry/Marry.obj");
+	Model Planet = Model("res/objects/planet/planet.obj");
+	Model Floor;
+	Model Sphere = Model();
+	Model Main_character = Model("res/objects/Robot_catwalk.dae");
+	Model Terrain = Model();
+	Model Sphere_instance = Model();
+	Model Robot_boxing = Model("res/objects/Robot_boxing.dae");
+	Model Robot_pray = Model("res/objects/Robot_pray.dae");
+	Model Robot_catwalk = Model("res/objects/Robot_catwalk.dae");
+	Model Robot_walk = Model("res/objects/Robot_walk.dae");
+	void Get_models()
+	{
+
+		models_map["Nano"] = &Nano;
+		models_map["Marry"] = &Marry;
+		models_map["Planet"] = &Planet;
+
+	}
+	void Get_anime_models()
+	{
+		anime_models_map["Main_character"] = &Main_character;
+		anime_models_map["Robot_boxing"] = &Robot_boxing;
+		anime_models_map["Robot_pray"] = &Robot_pray;
+		anime_models_map["Robot_catwalk"] = &Robot_catwalk;
+		anime_models_map["Robot_walk"] = &Robot_walk;
+		for (std::map<std::string, Model*>::iterator iter = anime_models_map.begin(); iter != anime_models_map.end(); iter++)
+		{
+			animator_map[iter->first] = Animator();
+		}
+	}
+	Models()
+	{
+		Get_models();
+		Get_anime_models();
+	}
+	void CreatModel(string const& path, string const& name, float life = 100.0f)
+	{
+		Model* newmodel = new Model(path, life);
+		models_map[name] = newmodel;
+	}
+
 };

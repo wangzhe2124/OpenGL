@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Game.h"
+#include <queue>
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
@@ -23,12 +25,42 @@ float lastX = screenWidth / 2.0f;
 float lastY = screenHeight / 2.0f;
 bool firstMouse = true;
 float deltaTime = 0.0f;	// 当前帧与上一帧的时间差
-float lastFrame = 0.0f; // 上一帧的时间
+double lastFrame = 0.0f; // 上一帧的时间
 Game game;
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
+class Average_dt
+{
+private:
+    std::queue<double> q;
+    double sum;
+public:
+    Average_dt() :sum(0)
+    {}
+    void Add(double t)
+    {
+        if (q.size() < 4)
+        {
+            sum += t;
+            q.push(t);
+        }
+        else
+        {
+            sum += t;
+            sum -= q.front();
+            q.pop();
+            q.push(t);
+            assert(q.size() <= 4);
+        }
+    }
+    float Average()
+    {
+        assert(q.size() > 0);
+        return static_cast<float>(sum / q.size());
+    }
+}average_dt;
 int main(void)
 {
     /* Initialize the library */
@@ -57,6 +89,7 @@ int main(void)
     //鼠标回调函数
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, keys_callback);
     glfwSetWindowSizeCallback(window, windowSize_callback);
@@ -84,9 +117,18 @@ int main(void)
     SoundEngine->play2D("res/music/girl.mp3", GL_TRUE);
     while (!glfwWindowShouldClose(window))
     {
-        float currentFrame = float(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
+        double currentFrame = glfwGetTime();
+        average_dt.Add(currentFrame - lastFrame);
+        deltaTime = average_dt.Average();
+        //deltaTime = static_cast<float>(currentFrame - lastFrame);
         lastFrame = currentFrame;
+        for (int i = 0; i < game.keyinput.chord_k.size(); i++)
+        {
+            Chord_Key::key_element temp = game.keyinput.chord_k.front();
+            std::cout << " start: " << temp.key << std::endl;
+            game.keyinput.chord_k.pop(); game.keyinput.chord_k.push(temp);
+
+        }
         game.GetDeltaTime(deltaTime);
         game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//键盘输入移动
         game.start_render();
@@ -163,6 +205,15 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     if(!game.keyinput.ui)
         game.camera.ProcessMouseMovement(xoffset, yoffset);
 }
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+        game.keyinput.gamma  = !game.keyinput.gamma;
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !game.keyinput.ui)
+        game.play_boxing();
+}
+
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     game.camera.ProcessMouseScroll(static_cast<float>(yoffset));
@@ -286,6 +337,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::SliderFloat("bloom halox", &keyinput.bloom_halox, 0.0f, 1.5f);
         ImGui::SliderFloat("bloom haloy", &keyinput.bloom_haloy, 0.0f, 1.5f);
         ImGui::SliderFloat("bloom haloz", &keyinput.bloom_haloz, 0.0f, 1.5f);
+        ImGui::SliderFloat("bloom edge", &keyinput.bloom_edge, 0.1f, 5.0f);
         ImGui::End();
     }
     ImGui::Checkbox("assist screen", &keyinput.assist_screen);
@@ -311,6 +363,11 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         if (ImGui::Button("Close Me"))
             keyinput.particle_window = false;
         ImGui::Checkbox("2d particle", &keyinput.show_particle);
+        ImGui::SliderFloat("particle scale", &keyinput.particle_scale, 1.0f, 100.0f);
+        ImGui::SliderFloat("particle offset", &keyinput.particle_offset, 0.0f, 15.0f);
+        ImGui::SliderInt("new particle num", &keyinput.new_particle_num, 1, 20);
+        ImGui::SliderFloat("particle velocity", &keyinput.particle_vel, 0.0f, 10.0f);
+        ImGui::SliderFloat("particle life reduce", &keyinput.particle_life_reduce, 0.0f, 0.05f);
         ImGui::Checkbox("3d particle", &keyinput.show_d3particle);
         ImGui::End();
     }
@@ -327,6 +384,17 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::SliderFloat("fxaa mulReduce", &keyinput.fxaa_mulReduce, 0.0f, 1.0f);
         ImGui::SliderFloat("fxaa minReduce", &keyinput.fxaa_minReduce, 0.0f, 1.0f);
         ImGui::SliderFloat("fxaa maxSpan", &keyinput.fxaa_maxSpan, 0.0f, 16.0f);
+        ImGui::End();
+    }
+    //animation
+    ImGui::Checkbox("animation Window", &keyinput.animation_window);
+    if (keyinput.animation_window)
+    {
+        ImGui::Begin("animation Window", &keyinput.animation_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+        if (ImGui::Button("Close Me"))
+            keyinput.animation_window = false;
+        ImGui::Checkbox("change animation", &keyinput.chage_animation);
+        ImGui::SliderInt("animation type", &keyinput.animation_type, 0, Animations::MAX);
         ImGui::End();
     }
     static int counter = 0;

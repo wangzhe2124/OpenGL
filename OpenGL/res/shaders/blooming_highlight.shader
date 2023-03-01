@@ -17,7 +17,7 @@ layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
 in vec2 fragTexcoord;
 uniform sampler2D screenTexture;
-
+uniform float edge;
 void main()
 {
     //反相
@@ -25,7 +25,7 @@ void main()
 
     vec3 color = texture(screenTexture, fragTexcoord).rgb ;
     float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));//提取高亮
-    if (brightness > 3.0)
+    if (brightness > edge)
         BrightColor = vec4(color.rgb, 1.0);
     else
         BrightColor = vec4(0.0, 0.0, 0.0, 1.0);

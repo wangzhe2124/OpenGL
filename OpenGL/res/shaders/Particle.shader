@@ -6,9 +6,10 @@ layout(location = 1) in vec2 Texcoord;
 out vec2 fragTexcoord;
 uniform mat4 projection;
 uniform vec2 offset;
+uniform float scale;
 void main()
 {
-    float scale = 3.0f;
+    //float scale = 30.0f;
     gl_Position = projection * vec4(position.xy * scale + offset, 0.0f, 1.0f);
     fragTexcoord = Texcoord;
 };

@@ -84,10 +84,14 @@ public:
     {
         if (third_view)
         {
-            return glm::lookAt(Position - glm::vec3(3.0f) * Front, Position, Up);
+            return glm::lookAt(Get_third_position(), Position, Up);
         }
         else
             return glm::lookAt(Position + glm::vec3(0.4)* Front, Position + Front, Up);
+    }
+    glm::vec3 Get_third_position()
+    {
+        return Position - glm::vec3(3.0f) * Front;
     }
     void Set_third_view(bool t)
     {

@@ -10,6 +10,7 @@
 #include "Bone.h"
 #include <vector>
 #include <map>
+#include <thread>
 using namespace std;
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma = false);
 
@@ -168,82 +169,98 @@ private:
         vector<MeshTexture> textures;
 
         // walk through each of the mesh's vertices
-        for (unsigned int i = 0; i < mesh->mNumVertices; i++)
-        {
-            Vertex vertex;
-            SetVertexBoneDataToDefault(vertex);
-            glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
-            // positions
-            vector.x = mesh->mVertices[i].x;
-            vector.y = mesh->mVertices[i].y;
-            vector.z = mesh->mVertices[i].z;
-            vertex.Position = vector;
-            position_x.push_back(vector.x);
-            position_y.push_back(vector.y);
-            position_z.push_back(vector.z);
-            // normals
-            if (mesh->HasNormals())
+        auto f1 = [&]() {
+            for (unsigned int i = 0; i < mesh->mNumVertices; i++)
             {
-                vector.x = mesh->mNormals[i].x;
-                vector.y = mesh->mNormals[i].y;
-                vector.z = mesh->mNormals[i].z;
-                vertex.Normal = vector;
-            }
-            // texture coordinates
-            if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
-            {
-                glm::vec2 vec;
-                // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
-                // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
-                vec.x = mesh->mTextureCoords[0][i].x;
-                vec.y = mesh->mTextureCoords[0][i].y;
-                vertex.TexCoords = vec;
-                // tangent
-                vector.x = mesh->mTangents[i].x;
-                vector.y = mesh->mTangents[i].y;
-                vector.z = mesh->mTangents[i].z;
-                vertex.Tangent = vector;
-                // bitangent
-                vector.x = mesh->mBitangents[i].x;
-                vector.y = mesh->mBitangents[i].y;
-                vector.z = mesh->mBitangents[i].z;
-                vertex.Bitangent = vector;
-            }
-            else
-                vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+                Vertex vertex;
+                SetVertexBoneDataToDefault(vertex);
+                glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
+                // positions
+                vector.x = mesh->mVertices[i].x;
+                vector.y = mesh->mVertices[i].y;
+                vector.z = mesh->mVertices[i].z;
+                vertex.Position = vector;
+                position_x.push_back(vector.x);
+                position_y.push_back(vector.y);
+                position_z.push_back(vector.z);
+                // normals
+                if (mesh->HasNormals())
+                {
+                    vector.x = mesh->mNormals[i].x;
+                    vector.y = mesh->mNormals[i].y;
+                    vector.z = mesh->mNormals[i].z;
+                    vertex.Normal = vector;
+                }
+                // texture coordinates
+                if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+                {
+                    glm::vec2 vec;
+                    // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
+                    // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
+                    vec.x = mesh->mTextureCoords[0][i].x;
+                    vec.y = mesh->mTextureCoords[0][i].y;
+                    vertex.TexCoords = vec;
+                    // tangent
+                    vector.x = mesh->mTangents[i].x;
+                    vector.y = mesh->mTangents[i].y;
+                    vector.z = mesh->mTangents[i].z;
+                    vertex.Tangent = vector;
+                    // bitangent
+                    vector.x = mesh->mBitangents[i].x;
+                    vector.y = mesh->mBitangents[i].y;
+                    vector.z = mesh->mBitangents[i].z;
+                    vertex.Bitangent = vector;
+                }
+                else
+                    vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 
-            vertices.push_back(vertex);
-        }
+                vertices.push_back(vertex);
+            }
+        };
         // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
-        for (unsigned int i = 0; i < mesh->mNumFaces; i++)
-        {
-            aiFace face = mesh->mFaces[i];
-            // retrieve all indices of the face and store them in the indices vector
-            for (unsigned int j = 0; j < face.mNumIndices; j++)
-                indices.push_back(face.mIndices[j]);
-        }
+        auto f2 = [&]() {
+            for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+            {
+                aiFace face = mesh->mFaces[i];
+                // retrieve all indices of the face and store them in the indices vector
+                for (unsigned int j = 0; j < face.mNumIndices; j++)
+                    indices.push_back(face.mIndices[j]);
+            }
+        };
         // process materials
-        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-        // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-        // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-        // Same applies to other texture as the following list summarizes:
-        // diffuse: texture_diffuseN
-        // specular: texture_specularN
-        // normal: texture_normalN
+        auto f3 = [&]() {
+            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+            // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
+            // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
+            // Same applies to other texture as the following list summarizes:
+            // diffuse: texture_diffuseN
+            // specular: texture_specularN
+            // normal: texture_normalN
 
-        // 1. diffuse maps
-        vector<MeshTexture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-        // 2. specular maps
-        vector<MeshTexture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-        textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-        // 3. normal maps
-        std::vector<MeshTexture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-        // 4. height maps
-        std::vector<MeshTexture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+            // 1. diffuse maps
+            vector<MeshTexture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+            textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+            // 2. specular maps
+            vector<MeshTexture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
+            textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+            // 3. normal maps
+            std::vector<MeshTexture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+            textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+            // 4. height maps
+            std::vector<MeshTexture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
+            textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+        };
+        /*thread t1(f1);
+        thread t2(f2);
+        f3();
+        t1.join();
+        t2.join();*/
+
+        f1();
+        f2();
+        f3();
         ExtractBoneWeightForVertices(vertices, mesh, scene);
+        
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
     }
@@ -329,7 +346,7 @@ private:
     }
 };
 
-unsigned int TextureFromFile(const char* path, const string& directory, bool gamma)
+static unsigned int TextureFromFile(const char* path, const string& directory, bool gamma)
 {
     string filename = string(path);
     filename = directory + '/' + filename;
@@ -547,79 +564,4 @@ static TerrainData Get_TerrainData_gpu(int width, int height)
     std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
     return terrain_data;
 }
-class Models
-{
-private:
-    
-public:
-    std::map<std::string, Model*> models_map;
-    std::map<std::string, Model*> anime_models_map;
-    Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
-    Model Marry = Model("res/objects/Marry/Marry.obj");
-    Model Planet = Model("res/objects/planet/planet.obj");
-    Model Floor;
-    Model Sphere = Model();
-    Model Main_character = Model("res/objects/Robot_catwalk.dae");
-    Model Terrain = Model();
-    Model Sphere_instance = Model();
-    Model Robot_boxing = Model("res/objects/Robot_boxing.dae");
-    Model Robot_pray = Model("res/objects/Robot_pray.dae");
-    Model Robot_catwalk = Model("res/objects/Robot_catwalk.dae");
-    Model Robot_walk = Model("res/objects/Robot_walk.dae");
-    void Get_models()
-    {
-        //std::thread t1(&Models::CreatNano, this);
-        //std::cout << " task start" << std::endl;
-        //thread t2(&Models::CreatMarry, this);
-        //thread t3(&Models::CreatPlanet, this);
-        //thread t4(&Models::CreatMain_character, this);
-        //t1.join();
-        //std::cout << "over" << std::endl;
-        //t2.join();
-        //t3.join();
-        //t4.join();
-        /*CreatNano();
-        CreatMarry();
-        CreatPlanet();
-        CreatMain_character();*/
-        models_map["Nano"] = &Nano;
-        models_map["Marry"] = &Marry;
-        models_map["Planet"] = &Planet;
-        
-    }
-    void Get_anime_models()
-    {
-        models_map["Main_character"] = &Main_character;
-        anime_models_map["Robot_boxing"] = &Robot_boxing;
-        anime_models_map["Robot_pray"] = &Robot_pray;
-        anime_models_map["Robot_catwalk"] = &Robot_catwalk;
-        anime_models_map["Robot_walk"] = &Robot_walk;
-    }
-    Models()
-    {
-        Get_models();
-        Get_anime_models();
-    }
-    void CreatModel(string const& path, string const& name, float life = 100.0f)
-    {
-        Model* newmodel = new Model(path, life);
-        models_map[name] = newmodel;
-    }
-    void CreatNano()
-    {
-        Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
-    }
-    void CreatMarry()
-    {
-        Marry = Model("res/objects/Marry/Marry.obj");
-    }
-    void CreatPlanet()
-    {
-        Planet = Model("res/objects/planet/planet.obj");
-    }
-    void CreatMain_character()
-    {
-        Main_character = Model("res/objects/Robot_catwalk.dae");
-    }
-};
 

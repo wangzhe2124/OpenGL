@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <GL/glew.h>
-#include "Debugger.h"
 struct VertexBufferElement
 {
 	unsigned int type;
@@ -51,13 +50,13 @@ public:
 		m_Stride += count * VertexBufferElement::GetSizeOfType(GL_UNSIGNED_BYTE);
 
 	}
-	template<>
+	/*template<>
 	void Push<glm::vec4>(unsigned int count)
 	{
 		m_Elements.push_back({ GL_FLOAT_VEC4,count,GL_TRUE });
 		m_Stride += count * VertexBufferElement::GetSizeOfType(GL_FLOAT_VEC4);
 
-	}
+	}*/
 	inline const std::vector<VertexBufferElement> GetElements() const { return m_Elements; }
 	inline unsigned int GetStride() const { return m_Stride; }
 };

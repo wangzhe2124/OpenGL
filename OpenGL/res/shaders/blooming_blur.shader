@@ -23,9 +23,10 @@ uniform float weight[5] = float[](0.3, 0.15, 0.07, 0.05, 0.03);
 uniform float halox;
 uniform float haloy;
 uniform float haloz;
+uniform int radius;
 void main()
 {
-    vec2 tex_offset = 1.0 / textureSize(image, 0); // gets size of single texel
+    vec2 tex_offset = float(radius) / textureSize(image, 0); // gets size of single texel
     vec3 result = texture(image, fragTexcoord).rgb * weight[0]; // current fragment's contribution
     if (horizontal)
     {

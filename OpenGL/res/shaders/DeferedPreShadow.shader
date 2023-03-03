@@ -162,7 +162,7 @@ float DirShadowCalculation(vec3 normal, vec3 FragPos)
 	float theta = acos(costheta);
 	float texSize = 1.0 / textureSize(shadowMap.csm_map[index], 0).x ;
 	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 1.0);
-	float bias = sun_sm_bias * texSize * tan(theta) / z_distance[index];// *view_distance;//根据视锥体z高度调整bias
+	float bias = sun_sm_bias * texSize * tan(theta) * pow(xy_distance[index], 0.5);// *view_distance;//根据视锥体z高度调整bias
 	float shadow = 0.0;
 
 /*	float mean = texture(shadowMap.csm_map[index], projCoords.xy, 3).r;
@@ -199,17 +199,19 @@ uniform float point_sm_radius;
 uniform bool point_sm_pcf;
 float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 {
+	PointLight pt = pointlight[i];
 	float view_distance = clamp(length(camera.viewPos - FragPos), 0.3, 0.5);
-	vec3 lightDir = normalize(FragPos - pointlight[i].position);
+	vec3 lightDir = normalize(FragPos - pt.position);
 	float closestDepth = texture(shadowMap.PointShadow[i], lightDir).r;
-	closestDepth *= pointlight[i].far_plane;
-	float currentDepth = length(FragPos - pointlight[i].position);
+	closestDepth *= pt.far_plane;
+	float currentDepth = length(FragPos - pt.position);
 	float costheta = max(dot(normal, -lightDir), 0);
 	float theta = clamp(acos(costheta), 0.0, 89 * 3.14 / 180);
 	float texSize = 1.0 / textureSize(shadowMap.PointShadow[i], 0).x;
-	float bias = texSize * tan(theta) * pointlight[i].far_plane * view_distance;
+	float bias = texSize * tan(theta) * pt.far_plane * view_distance;
 	float shadow = 0.0;
-	if (point_sm_pcf)
+	float distance = length(pt.position - FragPos);
+	if (point_sm_pcf && (distance < pt.far_plane))
 	{
 		vec3 up = vec3(0.0, 0.0, 1.0);
 		vec3 offset1 = normalize(cross(up, lightDir));
@@ -218,20 +220,21 @@ float PointShadowCalculation(int i, vec3 normal, vec3 FragPos)
 		int sampleNum = 25;
 		vec3 poissonDisk[25];
 		int L = 2;
+		float pcf_radius = point_sm_radius / 1000.0f;
 		for (int t = -L; t <= L; t++)
 		{
 			vec3 offset = offset1 + t * offset2;
 			for (int j = -L; j <= L; j++)
 			{
 				int temp = (t + L) * (2 * L + 1) + j + L;
-				poissonDisk[temp] = point_sm_radius * j * offset;
+				poissonDisk[temp] = pcf_radius * j * offset;
 			}
 		}
 		for (int t = 0; t < sampleNum; t++)
 		{
 			int index = int(25.0 * random(fs_in.TexCoord.xyy, t)) % 25;
 			float pcfDepth = texture(shadowMap.PointShadow[i], lightDir + poissonDisk[index]).r;
-			pcfDepth *= pointlight[i].far_plane;  // Undo mapping [0;1]
+			pcfDepth *= pt.far_plane;  // Undo mapping [0;1]
 			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 		}
 		shadow /= float(sampleNum);

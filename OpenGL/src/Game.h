@@ -47,8 +47,8 @@ struct Sun_DATA
 
 struct SpotLight_DATA
 {
-    float spotlight_near_plane = 0.1f;
-    float spotlight_far_plane = 20.0f;
+    float near_plane = 0.1f;
+    float far_plane = 20.0f;
     glm::vec3 bias_direction;
     glm::vec3 position;
     glm::vec3 direction;
@@ -144,6 +144,10 @@ public:
 
     void start_render();
     void attack();
+    bool isOnFrustum(std::vector<float>& aabb);
+    void cutoffFrustum();
+    void drawModels(Shader& shader);
+    void drawModelsShadow(Shader& shader);
     void ProcessAction();
     inline unsigned int GetSwidth() { return screenWidth; }
     inline void SetSwidth(unsigned int sw) { screenWidth = sw; }

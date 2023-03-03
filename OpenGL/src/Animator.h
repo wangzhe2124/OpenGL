@@ -235,8 +235,8 @@ class Models
 private:
 
 public:
-	std::map<std::string, Model*> models_map;
-	std::map<std::string, Model*> anime_models_map;
+	std::unordered_map<std::string, Model*> models_map;
+	std::unordered_map<std::string, Model*> anime_models_map;
 	std::unordered_map<std::string, Animator> animator_map;
 	Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
 	Model Marry = Model("res/objects/Marry/Marry.obj");
@@ -266,7 +266,7 @@ public:
 		anime_models_map["Robot_pray"] = &Robot_pray;
 		anime_models_map["Robot_death"] = &Robot_death;
 		anime_models_map["Robot_walk"] = &Robot_walk;
-		for (std::map<std::string, Model*>::iterator iter = anime_models_map.begin(); iter != anime_models_map.end(); iter++)
+		for (std::unordered_map<std::string, Model*>::iterator iter = anime_models_map.begin(); iter != anime_models_map.end(); iter++)
 		{
 			animator_map[iter->first] = Animator();
 		}

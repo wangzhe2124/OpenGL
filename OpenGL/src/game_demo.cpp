@@ -260,7 +260,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     
     
     ImGui::SliderFloat("exposure", &keyinput.exposure, 0.0f, 100.0f);
-    ImGui::SliderInt("tess level", &keyinput.tess_level, 0, 100);
+    ImGui::SliderInt("tess level", &keyinput.tess_level, 0, 3);
     //sun
     ImGui::Checkbox("sun Window", &keyinput.sun_window);
     if (keyinput.sun_window)
@@ -285,9 +285,9 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::Begin("pointlight Window", &keyinput.pointlight_window);
         if (ImGui::Button("Close Me"))
             keyinput.pointlight_window = false;
-        ImGui::SliderFloat("pt_sm_radius", &keyinput.point_sm_radius, 0.0f, 0.01f);
-        ImGui::SliderFloat("pt_intensity", &keyinput.pointlight_Intensity, 0.0f, 50.0f);
-        ImGui::SliderFloat("pt_far_plane", &keyinput.point_far_plane, 0.0f, 100.0f);
+        ImGui::SliderFloat("pt_sm_radius", &keyinput.point_sm_radius, 0.0f, 10.0f);
+        ImGui::SliderFloat("pt_intensity", &keyinput.pointlight_Intensity, 0.0f, 10.0f);
+        ImGui::SliderFloat("pt_far_plane", &keyinput.point_far_plane, 0.0f, 20.0f);
         ImGui::Checkbox("pt_sm_pcf", &keyinput.point_sm_pcf);
         ImGui::ColorEdit3("pt_color", (float*)&keyinput.point_color);
         ImGui::End();
@@ -321,6 +321,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::SliderFloat("bloom halox", &keyinput.bloom_halox, 0.0f, 1.5f);
         ImGui::SliderFloat("bloom haloy", &keyinput.bloom_haloy, 0.0f, 1.5f);
         ImGui::SliderFloat("bloom haloz", &keyinput.bloom_haloz, 0.0f, 1.5f);
+        ImGui::SliderInt("bloom radius", &keyinput.bloom_radius, 0, 16);
         ImGui::SliderFloat("bloom edge", &keyinput.bloom_edge, 0.1f, 5.0f);
         ImGui::End();
     }
@@ -334,7 +335,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
             keyinput.SSAO_window = false;
         ImGui::Checkbox("SSAO", &keyinput.useSSAO);
         ImGui::SliderFloat("SSAO sample radius", &keyinput.SSAO_radius, 0.0f, 10.0f);
-        ImGui::SliderFloat("SSAO sample bias", &keyinput.SSAO_bias, 0.0f, 5.0f);
+        ImGui::SliderFloat("SSAO sample bias", &keyinput.SSAO_bias, 0.0f, 20.0f);
         ImGui::SliderFloat("SSAO sample rangecheck", &keyinput.SSAO_rangecheck, 0.0f, 1.0f);
         ImGui::End();
     }

@@ -42,21 +42,21 @@ void main()
         // "distance" from camera scaled between 0 and 1
         float distance00 = clamp((abs(eyeSpacePos00.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
         float distance01 = clamp((abs(eyeSpacePos01.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
-        //float distance10 = clamp((abs(eyeSpacePos10.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
-        //float distance11 = clamp((abs(eyeSpacePos11.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
+        float distance10 = clamp((abs(eyeSpacePos10.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
+        float distance11 = clamp((abs(eyeSpacePos11.z) - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE), 0.0, 1.0);
 
-        //float tessLevel0 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance10, distance00));
+        float tessLevel0 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance10, distance00));
         float tessLevel1 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance00, distance01));
-        //float tessLevel2 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance01, distance11));
-        //float tessLevel3 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance11, distance10));
+        float tessLevel2 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance01, distance11));
+        float tessLevel3 = mix(MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance11, distance10));
 
-        gl_TessLevelOuter[0] = tessLevel1 * tess_level;
+        gl_TessLevelOuter[0] = tessLevel0 * tess_level;
         gl_TessLevelOuter[1] = tessLevel1 * tess_level;
-        gl_TessLevelOuter[2] = tessLevel1 * tess_level;
-        gl_TessLevelOuter[3] = tessLevel1 * tess_level;
+        gl_TessLevelOuter[2] = tessLevel2 * tess_level;
+        gl_TessLevelOuter[3] = tessLevel3 * tess_level;
 
         gl_TessLevelInner[0] = tessLevel1 * tess_level;
-        gl_TessLevelInner[1] = tessLevel1 * tess_level;
+        gl_TessLevelInner[1] = tessLevel2 * tess_level;
     }
 }
 
@@ -75,7 +75,6 @@ in vec2 TextureCoord[];
 
 out float Height;
 out vec3 color;
-out vec3 n_Normal;
 out vec3 FragPos;
 void main()
 {
@@ -100,11 +99,10 @@ void main()
 
     vec4 uVec = p01 - p00;
     vec4 vVec = p10 - p00;
-    vec4 normal = normalize(vec4(cross(vVec.xyz, uVec.xyz), 0));
-    n_Normal = vec3(normal);
+
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
-    vec4 p = (p1 - p0) * v + p0 +normal * Height;
+    vec4 p = (p1 - p0) * v + p0 + vec4(0, 1, 0, 0) * Height;
     //p.y += Height;
     gl_Position = projection * view * model * p;
     FragPos = vec3(model * p);
@@ -117,14 +115,13 @@ layout(location = 1) out vec3 Normal;
 layout(location = 2) out vec4 FragColor;
 in float Height;
 in vec3 color;
-in vec3 n_Normal;
+
 in vec3 FragPos;
 void main()
 {
     Position = FragPos;
-    //Normal = n_Normal;
-    vec3 x = dFdx(FragPos); // "FragPos = vec3(model * p);" from the tess eval
-    vec3 y = dFdy(FragPos);
+    vec3 x = dFdx(FragPos) + dFdx(dFdx(FragPos)); // "FragPos = vec3(model * p);" from the tess eval
+    vec3 y = dFdy(FragPos) + dFdy(dFdy(FragPos));
     Normal = normalize(cross(x, y));
     float h = (Height + 16) / 64.0f;	// shift and scale the height into a grayscale value
     FragColor = vec4(h, h, h, 1.0) * vec4(color, 1.0);

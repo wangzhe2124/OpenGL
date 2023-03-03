@@ -201,6 +201,16 @@ public:
 		glm::mat4 translation = InterpolatePosition(animationTime);
 		glm::mat4 rotation = InterpolateRotation(animationTime);
 		glm::mat4 scale = InterpolateScaling(animationTime);
+		/*for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 4; j++)
+			{
+				std::cout << scale[i][j] << "  ";
+				if (j == 3)
+					std::cout << std::endl;
+			}
+		}
+		std::cout << std::endl;*/
 		m_LocalTransform = translation * rotation * scale;
 	}
 	glm::mat4 GetLocalTransform() { return m_LocalTransform; }

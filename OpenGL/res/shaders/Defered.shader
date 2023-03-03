@@ -81,10 +81,10 @@ mat3 TBN;
 
 struct Material//材质信息
 {
-    sampler2D texture_diffuse1;
-    sampler2D texture_specular1;
-    sampler2D texture_normal1;
-    sampler2D texture_height1;
+    sampler2D texture_diffuse;
+    sampler2D texture_specular;
+    sampler2D texture_normal;
+    sampler2D texture_height;
     float shininess;
 };
 uniform Material material;
@@ -106,20 +106,20 @@ vec2 ParallaxMapping(vec2 TexCoord, vec3 viewDir, vec3 normal)
 	vec2 deltaTexCoords = P / numLayers;
 	// get initial values
 	vec2  currentTexCoords = TexCoord;
-	float currentDepthMapValue = texture(material.texture_height1, currentTexCoords).r;
+	float currentDepthMapValue = texture(material.texture_height, currentTexCoords).r;
 	while (currentLayerDepth < currentDepthMapValue)
 	{
 		// shift texture coordinates along direction of P
 		currentTexCoords -= deltaTexCoords;
 		// get depthmap value at current texture coordinates
-		currentDepthMapValue = texture(material.texture_height1, currentTexCoords).r;
+		currentDepthMapValue = texture(material.texture_height, currentTexCoords).r;
 		// get depth of next layer
 		currentLayerDepth += layerDepth;
 	}
 	vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
 	// get depth after and before collision for linear interpolation
 	float afterDepth = currentLayerDepth - currentDepthMapValue;
-	float beforeDepth = texture(material.texture_height1, prevTexCoords).r - currentLayerDepth + layerDepth;
+	float beforeDepth = texture(material.texture_height, prevTexCoords).r - currentLayerDepth + layerDepth;
 
 	// interpolation of texture coordinates
 	float weight = afterDepth / (afterDepth + beforeDepth);
@@ -133,7 +133,7 @@ void main()
     vec2 TexCoord = ParallaxMapping(fs_in.TexCoord, viewDir, fs_in.Normal);
     TexCoord = use_HeightMap == true ? TexCoord : fs_in.TexCoord;
     //选择是否使用法线贴图
-    vec3 Normal = texture(material.texture_normal1, TexCoord).rgb;
+    vec3 Normal = texture(material.texture_normal, TexCoord).rgb;
     Normal = normalize(fs_in.TBN * normalize(Normal));
     vec3 normal = use_NormalMap == true ? Normal : normalize(fs_in.Normal);
 
@@ -142,7 +142,7 @@ void main()
     // also store the per-fragment normals into the gbuffer
     gNormal = normal;
     // and the diffuse per-fragment color
-    gAlbedoSpec.rgb = texture(material.texture_diffuse1, TexCoord).rgb;
+    gAlbedoSpec.rgb = texture(material.texture_diffuse, TexCoord).rgb;
     // store specular intensity in gAlbedoSpec's alpha component
-    gAlbedoSpec.a = texture(material.texture_specular1, TexCoord).r;
+    gAlbedoSpec.a = texture(material.texture_specular, TexCoord).r;
 }

@@ -169,7 +169,6 @@
     <None Include="res\shaders\basic_screen.shader" />
     <None Include="res\shaders\D3Particle.shader" />
     <None Include="res\shaders\DeferedPreShadow.shader" />
-    <None Include="res\shaders\Defered_Instance.shader" />
     <None Include="res\shaders\EnvCubeMap.shader" />
     <None Include="res\shaders\blending.shader" />
     <None Include="res\shaders\blooming_blur.shader" />

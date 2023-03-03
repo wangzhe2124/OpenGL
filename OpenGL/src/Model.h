@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <thread>
+
 using namespace std;
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma = false);
 enum {min_x, max_x, min_y, max_y, min_z, max_z};
@@ -26,6 +27,7 @@ public:
 
     vector<float> aabb = vector<float>(6);
     vector<glm::vec3> aabb_vertex;
+    bool inFrustum;
     string directory;
     bool gammaCorrection;
     ModelSpace position;
@@ -85,20 +87,11 @@ public:
     }
     void Initialize_aabb()
     {
-        aabb[min_x] = aabb[min_y] = aabb[min_z] = 10000.0f;
-        aabb[max_x] = aabb[max_y] = aabb[max_z] = -10000.0f;
+        aabb[min_x] = aabb[min_y] = aabb[min_z] = FLT_MAX;
+        aabb[max_x] = aabb[max_y] = aabb[max_z] = -FLT_MAX;
     }
     void AABB()
     {
-        /*sort(begin(position_x), end(position_x));
-        sort(begin(position_y), end(position_y));
-        sort(begin(position_z), end(position_z));
-        aabb = { (aabb[min_x]),
-        aabb[max_x],
-        aabb[min_y],
-        aabb[max_y],
-        aabb[min_z],
-        aabb[max_z]};*/
         aabb_vertex = {
         glm::vec3(aabb[min_x], aabb[min_y],aabb[min_z]),
         glm::vec3(aabb[max_x], aabb[min_y],aabb[min_z]),
@@ -113,23 +106,8 @@ public:
         glm::vec3(aabb[min_x], aabb[max_y],aabb[max_z]),
         };
     }
-    void Get_AABB()
+    void updateAABB() //update
     {
-        /*position_x.clear();
-        position_y.clear();
-        position_z.clear();
-        glm::vec4 temp_position;
-        for (int i = 0; i < aabb_vertex.size(); i++)
-        {
-            temp_position = position.GetModelSpace() * glm::vec4(aabb_vertex[i], 1.0f);
-            position_x.push_back(temp_position.x);
-            position_y.push_back(temp_position.y);
-            position_z.push_back(temp_position.z);
-        }
-
-        sort(begin(position_x), end(position_x));
-        sort(begin(position_y), end(position_y));
-        sort(begin(position_z), end(position_z));*/
         Initialize_aabb();
         for (int i = 0; i < aabb_vertex.size(); i++)
         {
@@ -148,14 +126,32 @@ public:
                 aabb[max_z] = temp.z;
             else if (temp.z < aabb[min_z])
                 aabb[min_z] = temp.z;
-            //aabb_vertex[i] = temp;
         }
-        /*aabb = { (aabb[min_x]),
-        aabb[max_x],
-        aabb[min_y],
-        aabb[max_y],
-        aabb[min_z],
-        aabb[max_z] };*/
+
+    }
+    void updateAABB(glm::mat4& rootTrans) // initialize
+    {
+        Initialize_aabb();
+        for (int i = 0; i < aabb_vertex.size(); i++)
+        {
+            aabb_vertex[i] = glm::vec3(rootTrans * glm::vec4(aabb_vertex[i], 1.0f));
+            glm::vec4 temp = glm::vec4(position.GetModelSpace() *  glm::vec4(aabb_vertex[i], 1.0f));  
+            if (temp.x > aabb[max_x])
+                aabb[max_x] = temp.x;
+            else if (temp.x < aabb[min_x])
+                aabb[min_x] = temp.x;
+
+            if (temp.y > aabb[max_y])
+                aabb[max_y] = temp.y;
+            else if (temp.y < aabb[min_y])
+                aabb[min_y] = temp.y;
+
+            if (temp.z > aabb[max_z])
+                aabb[max_z] = temp.z;
+            else if (temp.z < aabb[min_z])
+                aabb[min_z] = temp.z;
+        }
+
     }
     auto& GetBoneInfoMap() { return m_BoneInfoMap; }
     int& GetBoneCount() { return m_BoneCounter; }
@@ -242,10 +238,6 @@ private:
                 else if (vector.z < aabb[min_z])
                     aabb[min_z] = vector.z;
 
-                /*position_x.push_back(vector.x);
-                position_y.push_back(vector.y);
-                position_z.push_back(vector.z);*/
-                // normals
                 if (mesh->HasNormals())
                 {
                     vector.x = mesh->mNormals[i].x;
@@ -312,12 +304,6 @@ private:
             std::vector<MeshTexture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
             textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
         };
-        /*thread t1(f1);
-        thread t2(f2);
-        f3();
-        t1.join();
-        t2.join();*/
-
         f1();
         f2();
         f3();
@@ -623,8 +609,8 @@ static TerrainData Get_TerrainData_gpu(int width, int height)
             vertices.push_back((j + 1) / (float)rez); // v
         }
     }
-    std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
-    std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
+    //std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
+    //std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
     return terrain_data;
 }
 

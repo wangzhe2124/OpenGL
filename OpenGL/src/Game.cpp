@@ -1,7 +1,7 @@
 #include "Game.h"
 #include <thread>
 void Generate_Instance(Model& m, int amount);
-void Draw_Instance(Model& m, int amount);
+void Draw_Instance(Model& m, int amount, Shader& shader);
 
 template <typename T1, typename T2, typename T3>
 void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_blurshader, T1& PreShadowFBO, T2& shadow_blur_horizontalFBO,
@@ -14,6 +14,7 @@ void Game::Gaussian_Blured_Texture(int j, unsigned int times, Shader& blooming_b
     blooming_blurshader.SetUniform1f("halox", keyinput.bloom_halox);
     blooming_blurshader.SetUniform1f("haloy", keyinput.bloom_haloy);
     blooming_blurshader.SetUniform1f("haloz", keyinput.bloom_haloz);
+    blooming_blurshader.SetUniform1i("radius", keyinput.bloom_radius);
     for (unsigned int i = 0; i < times; i++)
     {
         blooming_blurshader.SetUniform1i("horizontal", horizontal);
@@ -86,21 +87,19 @@ void Game::Initialize_Models_Positions()
     models->Floor.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models->Sphere.position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
 
-    models->Main_character.position.Rotate(-180.0, glm::vec3(0.0, 1.0, 0.0));
-    models->Main_character.position.Translate(camera.Position);
-
-    std::map<std::string, Model*>::iterator iter;
+    std::unordered_map<std::string, Model*>::iterator iter;
     iter = models->models_map.begin();
     int i = 0;
     for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
         i++;
         iter->second->position.Translate(glm::vec3(0.0f, 0.0f, i * 5.0f));
-        iter->second->Get_AABB();
+        glm::mat4 rootTrans = models->animator_map[iter->first].RootTransform;
+        iter->second->updateAABB(rootTrans);
     }
     for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
-        iter->second->Get_AABB();
+        iter->second->updateAABB();
     }
 
 }
@@ -159,7 +158,7 @@ void Game::Update_Models_Positions()
     mod[3][1] = camera.Position.y - 1.6f;
     mod[3][2] = camera.Position.z;
     models->Main_character.position.SetModel(mod);
-    models->Main_character.Get_AABB();
+    models->Main_character.updateAABB();
 }
 
 void Game::Initialize_Vertex_Arrays()
@@ -246,24 +245,7 @@ void Game::Generate_Dir_CSM()
         framebuffers->csm_mapFBO[i].SetViewPort();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //绘制       
-        std::map<std::string, Model*>::iterator iter;
-        iter = models->models_map.begin();
-        for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
-        {
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->DrawShadow(shader);
-        }
-        for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-        {
-            auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-            auto roottrans = models->animator_map[iter->first].RootTransform;
-            for (int i = 0; i < transforms.size(); ++i)
-            {
-                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-            }
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->DrawShadow(shader);
-        }
+        drawModelsShadow(shader);
         shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
         renderer.DrawArray(*models->Floor.va, shader);
 
@@ -307,24 +289,7 @@ void Game::Generate_Point_SM()
         framebuffers->PointlightMapfbo[i].SetViewPort();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //绘制
-        std::map<std::string, Model*>::iterator iter;
-        iter = models->models_map.begin();
-        for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
-        {
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->DrawShadow(shader);
-        }
-        for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-        {
-            auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-            auto roottrans = models->animator_map[iter->first].RootTransform;
-            for (int i = 0; i < transforms.size(); ++i)
-            {
-                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-            }
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->DrawShadow(shader);
-        }
+        drawModelsShadow(shader);
         shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
         renderer.DrawArray(*models->Floor.va, shader);
 
@@ -344,25 +309,8 @@ void Game::Generate_Spot_SM()
     framebuffers->SpotlightMapfbo.SetViewPort();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //绘制
+    drawModelsShadow(shader);
 
-    std::map<std::string, Model*>::iterator iter;
-    iter = models->models_map.begin();
-    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
-    {
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        iter->second->DrawShadow(shader);
-    }
-    for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-        auto roottrans = models->animator_map[iter->first].RootTransform;
-        for (int i = 0; i < transforms.size(); ++i)
-        {
-            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-        }
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        iter->second->DrawShadow(shader);
-    }
     shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
     renderer.DrawArray(*models->Floor.va, shader);
 
@@ -382,43 +330,26 @@ void Game::Generate_Defered_basicDATA()
     if (camera.third_view)
         shader.SetUniform3f("viewPos", camera.Get_third_position());
     else
-        shader.SetUniform3f("viewPos", camera.Position);
+        shader.SetUniform3f("viewPos", camera.Get_first_position());
     framebuffers->gbuffer.Bind();
     framebuffers->gbuffer.SetViewPort();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
     shader.SetUniform1i("use_HeightMap", keyinput.useheight);
     shader.SetUniform1i("is_instance", 0);
-    std::map<std::string, Model*>::iterator iter;
-    iter = models->models_map.begin();
-    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
-    {
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        iter->second->DrawShadow(shader);
-    }
-    for (iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-        auto roottrans = models->animator_map[iter->first].RootTransform;
-        for (int i = 0; i < transforms.size(); ++i)
-        {
-            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-        }
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        iter->second->DrawShadow(shader);
-    }
+    drawModels(shader);
     shader.SetUniform1i("is_instance", 1);
-    Draw_Instance(*models->models_map["Rock"], 1000);
+    Draw_Instance(*models->models_map["Rock"], 1000, shader);
     shader.SetUniform1i("is_instance", 0);
     //地板  
     textures->floor_diffuse.Bind(0);
-    shader.SetUniform1i("material.texture_diffuse1", 0);
+    shader.SetUniform1i("material.texture_diffuse", 0);
     textures->floor_specular.Bind(1);
-    shader.SetUniform1i("material.texture_specular1", 1);
+    shader.SetUniform1i("material.texture_specular", 1);
     textures->floor_normal.Bind(2);
-    shader.SetUniform1i("material.texture_normal1", 2);
+    shader.SetUniform1i("material.texture_normal", 2);
     textures->floor_height.Bind(3);
-    shader.SetUniform1i("material.texture_height1", 3);
+    shader.SetUniform1i("material.texture_height", 3);
     shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
     renderer.DrawArray(*models->Floor.va, shader);
     //球体
@@ -510,7 +441,7 @@ void Game::Generate_PreShadow()
     for (int i = 0; i < CSM_SPLIT_NUM; i++)
     {
         shader.SetUniform1f("split_distance[" + std::to_string(i) + "]", csm_dirlight.Get_frustum_far(i));
-        shader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
+        //shader.SetUniform1f("z_distance[" + std::to_string(i) + "]", csm_dirlight.Get_z_distance(i));
         shader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
         framebuffers->csm_mapFBO[i].BindTexture(i + 8);
         shader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
@@ -542,7 +473,7 @@ void Game::Generate_Origin_Screen()
     if (camera.third_view)
         shader.SetUniform3f("camera.viewPos", camera.Get_third_position());
     else
-        shader.SetUniform3f("camera.viewPos", camera.Position);
+        shader.SetUniform3f("camera.viewPos", camera.Get_first_position());
     framebuffers->gbuffer.BindTexture(1, 0);
     shader.SetUniform1i("gPosition", 1);
     framebuffers->gbuffer.BindTexture(2, 1);
@@ -588,6 +519,7 @@ void Game::Generate_Origin_Screen()
     shader.SetUniform3f("spotlight.color", keyinput.torch_color * (keyinput.torch_intensity * keyinput.TorchOn));
     shader.SetUniform3f("spotlight.direction", spotlight.direction);
     shader.SetUniform3f("spotlight.position", spotlight.position);
+    shader.SetUniform1f("spotlight.far_plane", spotlight.far_plane);
     shader.SetUniform1f("spotlight.LightIntensity", keyinput.torch_intensity * keyinput.TorchOn);
     shader.SetUniform1f("spotlight.inner_CutOff", glm::cos(glm::radians(10.5f)));//spotlight范围
     shader.SetUniform1f("spotlight.outer_CutOff", glm::cos(glm::radians(12.5f)));//spotlight范围
@@ -886,22 +818,30 @@ std::string Game::Collision_detection()
     bool y_collision;
     bool z_collision;
 
-    std::map<std::string, Model*>::iterator iter;
-    iter = models->models_map.begin();
-    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
-        if (iter->first != "Main_character")
+        x_collision = ((max(models->Main_character.aabb[1], iter->second->aabb[1]) - min(models->Main_character.aabb[0], iter->second->aabb[0]))
+            < (iter->second->aabb[1] - iter->second->aabb[0] + models->Main_character.aabb[1] - models->Main_character.aabb[0]));
+        y_collision = ((max(models->Main_character.aabb[3], iter->second->aabb[3]) - min(models->Main_character.aabb[2], iter->second->aabb[2]))
+            < (iter->second->aabb[3] - iter->second->aabb[2] + models->Main_character.aabb[3] - models->Main_character.aabb[2]));
+        z_collision = ((max(models->Main_character.aabb[5], iter->second->aabb[5]) - min(models->Main_character.aabb[4], iter->second->aabb[4]))
+            < (iter->second->aabb[5] - iter->second->aabb[4] + models->Main_character.aabb[5] - models->Main_character.aabb[4]));
+        if (x_collision && y_collision && z_collision)
         {
-            x_collision = ((max(models->Main_character.aabb[1], iter->second->aabb[1]) - min(models->Main_character.aabb[0], iter->second->aabb[0]))
-                < (iter->second->aabb[1] - iter->second->aabb[0] + models->Main_character.aabb[1] - models->Main_character.aabb[0]));
-            y_collision = ((max(models->Main_character.aabb[3], iter->second->aabb[3]) - min(models->Main_character.aabb[2], iter->second->aabb[2]))
-                < (iter->second->aabb[3] - iter->second->aabb[2] + models->Main_character.aabb[3] - models->Main_character.aabb[2]));
-            z_collision = ((max(models->Main_character.aabb[5], iter->second->aabb[5]) - min(models->Main_character.aabb[4], iter->second->aabb[4]))
-                < (iter->second->aabb[5] - iter->second->aabb[4] + models->Main_character.aabb[5] - models->Main_character.aabb[4]));
-            if (x_collision && y_collision && z_collision)
-            {
-                text += std::string(iter->first);
-            }
+            text += std::string(iter->first);
+        }
+    }
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        x_collision = ((max(models->Main_character.aabb[1], iter->second->aabb[1]) - min(models->Main_character.aabb[0], iter->second->aabb[0]))
+            < (iter->second->aabb[1] - iter->second->aabb[0] + models->Main_character.aabb[1] - models->Main_character.aabb[0]));
+        y_collision = ((max(models->Main_character.aabb[3], iter->second->aabb[3]) - min(models->Main_character.aabb[2], iter->second->aabb[2]))
+            < (iter->second->aabb[3] - iter->second->aabb[2] + models->Main_character.aabb[3] - models->Main_character.aabb[2]));
+        z_collision = ((max(models->Main_character.aabb[5], iter->second->aabb[5]) - min(models->Main_character.aabb[4], iter->second->aabb[4]))
+            < (iter->second->aabb[5] - iter->second->aabb[4] + models->Main_character.aabb[5] - models->Main_character.aabb[4]));
+        if (x_collision && y_collision && z_collision)
+        {
+            text += std::string(iter->first);
         }
     }
     return text;
@@ -910,13 +850,11 @@ std::string Game::Collision_detection()
 void Game::Update_Spotlight()
 {
     glm::vec3 right = glm::cross(camera.Front, glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 up = glm::cross(camera.Front, right);
-    glm::vec3 bias = glm::mat3(right, up, camera.Front) * glm::vec3(keyinput.st_bias_x, keyinput.st_bias_y, keyinput.st_bias_z);
-    spotlight.bias_direction = bias * (right - camera.Front);
+    spotlight.bias_direction = glm::vec3(0.15f) * (right + camera.Front);
     spotlight.position = camera.Position + spotlight.bias_direction;
     spotlight.direction = camera.Front - spotlight.bias_direction;
-    spotlight.spotlight_far_plane = keyinput.spot_far_plane;
-    glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.spotlight_near_plane, spotlight.spotlight_far_plane);
+    spotlight.far_plane = keyinput.spot_far_plane;
+    glm::mat4 SpotlightProjection = glm::perspective(glm::radians(45.0f), 1.0f, spotlight.near_plane, spotlight.far_plane);
     glm::mat4 SpotlightView = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));//方向为负的光照方向
     spotlight.SpotlightSpaceMatrix = SpotlightProjection * SpotlightView;
 }
@@ -1070,8 +1008,7 @@ void Game::Generate_Health_bar_enemy()
     Shader& shader = shaders->Health_bar_enemy_shader;
     shader.Bind();
     std::map<float, std::string> sorted;
-    std::map<std::string, Model*>::iterator iter;
-    for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
         if (iter->first != "Main_character")
         {
@@ -1082,23 +1019,25 @@ void Game::Generate_Health_bar_enemy()
     csm_dirlight.Set_far_plane(sorted.rbegin()->first * 10);
     for (std::map<float, std::string>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
     {
-        float health_bar_xcenter = (models->models_map[it->second]->aabb[0] + models->models_map[it->second]->aabb[1]) * 0.5f;
-        float health_bar_y = models->models_map[it->second]->aabb[3] + (models->models_map[it->second]->aabb[3] - models->models_map[it->second]->aabb[2]) * 0.1f;
-
-        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_xcenter, health_bar_y, 0.0f, 1.0f);
+        Model& model = *models->anime_models_map[it->second];
+        float health_bar_xcenter = (model.aabb[min_x] + model.aabb[max_x]) * 0.5f;
+        float health_bar_y = model.aabb[max_y] + (model.aabb[max_y] - model.aabb[min_y]) * 0.1f;
+        float health_bar_z = (model.aabb[min_z] + model.aabb[max_z]) * 0.5f;
+        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_xcenter, health_bar_y, health_bar_z, 1.0f);
         float life_x = ((health_bar_position.x / health_bar_position.w * 0.5f) + 0.5f) * screenWidth;
         float life_y = ((health_bar_position.y / health_bar_position.w * 0.5f) + 0.5f) * screenHeight;
         shader.SetUniform1f("life_y", life_y);
         shader.SetUniform1f("life_x", life_x);
-        shader.SetUniform1f("max_life", models->models_map[it->second]->max_life);
-        shader.SetUniform1f("current_life", models->models_map[it->second]->current_life);
+
+        shader.SetUniform1f("max_life", model.max_life);
+        shader.SetUniform1f("current_life", model.current_life);
 
         glm::vec3 viewPos;
         if (keyinput.third_view)
-            viewPos = camera.character_pos;
+            viewPos = camera.Get_third_position();
         else
-            viewPos = camera.Position;
-        glm::vec3 FragPos = glm::vec3(health_bar_xcenter, health_bar_y, models->models_map[it->second]->aabb[5]);
+            viewPos = camera.Get_first_position();
+        glm::vec3 FragPos = glm::vec3(health_bar_xcenter, health_bar_y, model.aabb[5]);
         glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
         float length = glm::length(FragPos - viewPos);
         float theta = dot(viewDir, camera.Front);
@@ -1118,7 +1057,11 @@ void Game::ready_render()
     vertex_buffers = new VertexBuffers;
     animations = new Animations(&models->Robot_boxing);
     Debug();
-
+    for (std::unordered_map<std::string, Animator>::iterator iter = models->animator_map.begin(); iter != models->animator_map.end(); iter++)
+    {
+        iter->second.PlayAnimation(animations->Animation_walk);
+        iter->second.UpdateAnimation(deltaTime);
+    }
     /*thread t1(&Game::read_config, this);
     
     thread t2(&Game::Initialize_Models_Positions, this);
@@ -1132,17 +1075,17 @@ void Game::ready_render()
     Initialize_Vertex_Arrays();
     Initialize_Terrain_gpu();
     TextFBO::Init();
+    glCheckError();
     Generate_CubeTexture();
+    glCheckError();
 
     Generate_EnvLight_Diffuse();
     Generate_EnvLight_Specular();
     Generate_EnvLight_Specular_BRDF();
+    glCheckError();
 
-    for (std::unordered_map<std::string, Animator>::iterator iter = models->animator_map.begin(); iter != models->animator_map.end(); iter++)
-    {
-        iter->second.PlayAnimation(animations->Animation_walk);
-        iter->second.UpdateAnimation(deltaTime);
-    }
+
+    glCheckError();
     Generate_Instance(*models->models_map["Rock"], 1000);
 }
 
@@ -1178,6 +1121,7 @@ void Game::start_render()
     Update_Models_Positions();
     Update_Sun();
     csm_dirlight.Get_light_projection(camera, sun.Sun_Position);
+    cutoffFrustum();
     Generate_Dir_CSM();
     //点光阴影贴图
     if (pointlight.lightintensity > 0)
@@ -1213,8 +1157,8 @@ void Game::start_render()
     Generate_PostProcess();
 
     glEnable(GL_BLEND);
-    /*std::string text_render = Collision_detection();
-    RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);*/
+    std::string text_render = Collision_detection();
+    RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
     if (keyinput.show_particle)
     {
         particle_generator.update_Particle(glm::vec2(screenWidth / 2, 0), keyinput.particle_offset, keyinput.new_particle_num, keyinput.particle_vel, keyinput.particle_life_reduce / 10);
@@ -1299,11 +1243,123 @@ void Generate_Instance(Model& m, int amount)
     }
 }
 
-void Draw_Instance(Model& m, int amount)
+void Draw_Instance(Model& m, int amount, Shader& shader)
 {
     for (unsigned int i = 0; i < m.meshes.size(); i++)
     {
+        Mesh& mesh = m.meshes[i];
         glBindVertexArray(m.meshes[i].VAO);
-        glDrawElementsInstanced(GL_TRIANGLES, m.meshes[i].indices.size(), GL_UNSIGNED_INT, 0, amount);
+        for (unsigned int j = 0; j < mesh.textures.size(); j++)
+        {
+            glActiveTexture(GL_TEXTURE0 + j); // active proper texture unit before binding
+            // retrieve texture number (the N in diffuse_textureN)
+            std::string name = mesh.textures[j].type;
+
+            // now set the sampler to the correct texture unit
+            if(!name.empty())
+                shader.SetUniform1i(("material." + name).c_str(), j);
+            // and finally bind the texture
+            glBindTexture(GL_TEXTURE_2D, mesh.textures[j].id);
+        }
+        glDrawElementsInstanced(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0, amount);
+    }
+}
+bool Game::isOnFrustum(std::vector<float>& aabb)
+{
+    std::vector<glm::vec3> points = csm_dirlight.GetCameraFrustum(0);
+    glm::vec3 center = glm::vec3((aabb[min_x] + aabb[max_x]) * 0.5, (aabb[min_y] + aabb[max_y]) * 0.5, (aabb[min_z] + aabb[max_z]) * 0.5);
+    glm::vec3 extents = glm::vec3((aabb[max_x] - aabb[min_x]) * 0.5, (aabb[max_y] - aabb[min_y]) * 0.5, (aabb[max_z] - aabb[min_z]) * 0.5);
+    auto f = [&](glm::vec3 normal, glm::vec3 Po)->bool
+    {
+        float distance = glm::dot(normal, center - Po);
+        float m_distance = extents.x * abs(normal.x) + extents.y * abs(normal.y) + extents.z * abs(normal.z);
+        return -m_distance <= distance;
+    };
+    bool conditions[6]{};
+    //left
+    glm::vec3 normal = glm::normalize(-glm::cross(points[1] - points[0], points[4] - points[0]));
+    Entity::Plane pLeft = Entity::Plane(normal, points[0]);
+    conditions[0] = f(pLeft.normal, pLeft.Po);
+
+    //right
+    normal = glm::normalize(glm::cross(points[2] - points[3], points[7] - points[3]));
+    Entity::Plane pRight = Entity::Plane(normal, points[3]);
+    conditions[1] = f(pRight.normal, pRight.Po);
+
+    //up
+    normal = glm::normalize(-glm::cross(points[2] - points[1], points[5] - points[1]));
+    Entity::Plane pUp = Entity::Plane(normal, points[1]);
+    conditions[2] = f(pUp.normal, pUp.Po);
+
+    //down
+    normal = glm::normalize(glm::cross(points[3] - points[0], points[4] - points[0]));
+    Entity::Plane pDown = Entity::Plane(normal, points[0]);
+    conditions[3] = f(pDown.normal, pDown.Po);
+
+    //forward
+    Entity::Plane pForward = Entity::Plane(camera.Front, points[0]);
+    conditions[4] = f(pForward.normal, pForward.Po);
+
+    //back
+    Entity::Plane pBack = Entity::Plane(-camera.Front, points[0] + camera.Front * camera.far_plane);
+    conditions[5] = f(pBack.normal, pBack.Po);
+
+    return conditions[0] && conditions[1] && conditions[2] && conditions[3] && conditions[4] && conditions[5];
+}
+
+void Game::cutoffFrustum()
+{
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        iter->second->inFrustum = isOnFrustum(iter->second->aabb);
+    }
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        iter->second->inFrustum = isOnFrustum(iter->second->aabb);
+    }
+}
+void Game::drawModels(Shader& shader)
+{
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        if (iter->second->inFrustum)
+        {
+            iter->second->Draw(shader);
+        }
+    }
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
+        for (int i = 0; i < transforms.size(); ++i)
+        {
+            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        }
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        if (iter->second->inFrustum)
+        {
+            iter->second->Draw(shader);
+        }
+    }
+}
+
+void Game::drawModelsShadow(Shader& shader)
+{
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        if (isOnFrustum(iter->second->aabb))
+            iter->second->DrawShadow(shader);
+    }
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
+        for (int i = 0; i < transforms.size(); ++i)
+        {
+            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        }
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+        if (isOnFrustum(iter->second->aabb))
+            iter->second->DrawShadow(shader);
     }
 }

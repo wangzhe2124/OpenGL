@@ -62,7 +62,6 @@ public:
         {
             glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
             // retrieve texture number (the N in diffuse_textureN)
-            std::string number = "1";
             std::string name = textures[i].type;
             /*if (name == "texture_diffuse")
                 number = std::to_string(diffuseNr++);
@@ -74,7 +73,7 @@ public:
                 number = std::to_string(heightNr++); // transfer unsigned int to string
             */
             // now set the sampler to the correct texture unit
-            shader.SetUniform1i(("material." + name + number).c_str(), i);
+            shader.SetUniform1i(("material." + name).c_str(), i);
             // and finally bind the texture
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
         }

@@ -1,5 +1,15 @@
 #pragma once
 #include "Camera.h"
+namespace Entity
+{
+    struct Plane
+    {
+        glm::vec3 normal;
+        glm::vec3 Po;
+        Plane(glm::vec3 n, glm::vec3 p = glm::vec3(0)) : normal(n), Po(p)
+        {}
+    };
+}
 class Frustum {
 private:
     float fov;
@@ -61,4 +71,8 @@ public:
     float Get_xy_distance(int i) { return xy_distance[i]; }
     void Set_far_plane(float fp) { far_plane_distance = fp; }
     float Get_far_plane() { return far_plane_distance; }
+    std::vector<glm::vec3> GetCameraFrustum(int i)
+    {
+        return camera_frustums[i].m_points;
+    }
 };

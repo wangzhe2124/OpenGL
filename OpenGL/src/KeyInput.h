@@ -45,7 +45,7 @@ public:
     //animation
     bool animation_window; bool chage_animation; int animation_type;
     //bloom
-    bool bloom_window; int bloom_times; float bloom_halox; float bloom_haloy; float bloom_haloz; float bloom_edge;
+    bool bloom_window; int bloom_times; float bloom_halox; float bloom_haloy; float bloom_haloz; float bloom_edge; int bloom_radius;
     //sun
     bool sun_window; float SunIntensity; glm::vec3 SunColor; float sun_sm_bias; float sun_speed; bool sun_pcf; float sun_pcf_radius;
     bool spotlight_window; float st_bias_x; float st_bias_y; float st_bias_z; float spot_far_plane; bool TorchOn; glm::vec3 torch_color; float torch_intensity;

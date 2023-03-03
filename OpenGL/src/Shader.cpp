@@ -73,14 +73,18 @@ unsigned int Shader::CompileShader(unsigned int type,
         char* message = (char*)_malloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
         std::cout << "failed to compile shader!" << std::endl;
-        std::string erro_message = "";
+        std::string erro_message;
         switch (type)
         {
-        case GL_VERTEX_SHADER: erro_message += "vertex ";
-        case GL_FRAGMENT_SHADER:erro_message += "fragment ";
-        case GL_GEOMETRY_SHADER:erro_message += "geometry ";
-        case GL_TESS_CONTROL_SHADER:erro_message += "tess_cont ";
-        case GL_TESS_EVALUATION_SHADER:erro_message += "tess_eval ";
+        case GL_VERTEX_SHADER: erro_message = "vertex ";
+            break;
+        case GL_FRAGMENT_SHADER:erro_message = "fragment ";
+            break;
+        case GL_GEOMETRY_SHADER:erro_message = "geometry ";
+            break;
+        case GL_TESS_CONTROL_SHADER:erro_message = "tess_cont ";
+            break;
+        case GL_TESS_EVALUATION_SHADER:erro_message = "tess_eval ";
             break;
         }
         std::cout << erro_message << std::endl;

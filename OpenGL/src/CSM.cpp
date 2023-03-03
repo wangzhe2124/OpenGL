@@ -1,5 +1,6 @@
 #pragma once
 #include "CSM.h"
+
 Frustum::Frustum() : fov(45.0f), ratio(1.0f), near(0.1f), far(100.0f)
 {
 }
@@ -80,14 +81,14 @@ void CSM_Dirlight::camera_frustum_points(Camera& camera) {
         float far_width = far_height * t_frustum.Getratio();
 
         //记录眼视锥8个顶点
-        t_frustum.m_points[0] = nc - up * near_height - right * near_width;//左下后
-        t_frustum.m_points[1] = nc + up * near_height - right * near_width;//左上后
-        t_frustum.m_points[2] = nc + up * near_height + right * near_width;//左上前
-        t_frustum.m_points[3] = nc - up * near_height + right * near_width;//左下前
-        t_frustum.m_points[4] = fc - up * far_height - right * far_width;
-        t_frustum.m_points[5] = fc + up * far_height - right * far_width;
-        t_frustum.m_points[6] = fc + up * far_height + right * far_width;
-        t_frustum.m_points[7] = fc - up * far_height + right * far_width;
+        t_frustum.m_points[0] = nc - up * near_height - right * near_width;//左下前
+        t_frustum.m_points[1] = nc + up * near_height - right * near_width;//左上前
+        t_frustum.m_points[2] = nc + up * near_height + right * near_width;//右上前
+        t_frustum.m_points[3] = nc - up * near_height + right * near_width;//右下前
+        t_frustum.m_points[4] = fc - up * far_height - right * far_width;//左下后
+        t_frustum.m_points[5] = fc + up * far_height - right * far_width;//左上后
+        t_frustum.m_points[6] = fc + up * far_height + right * far_width;//右上后
+        t_frustum.m_points[7] = fc - up * far_height + right * far_width;//右下后
     }
 }
 

@@ -31,6 +31,8 @@
 #include FT_FREETYPE_H 
 #include "Particle.h"
 #include "Animator.h"
+#include "ScenGraph.h"
+#include "Tools.h"
 constexpr auto CSM_SPLIT_NUM = 4;
 constexpr auto POINT_LIGHTS_NUM = 4;
 constexpr auto PI = 3.14159265359;
@@ -88,6 +90,10 @@ private:
     float deltaTime;
     Animations* animations;
     bool response_action;
+    Entity::Octree octree = Entity::Octree(10);
+    std::vector<Model*> cutList;
+    int frameIndex;
+    glm::mat4 preView;
 public:
     Character_state my_state;
     KeyInput keyinput;
@@ -143,10 +149,13 @@ public:
     void ready_render();
 
     void start_render();
+    void Generate_TextParticle();
     void attack();
-    bool isOnFrustum(std::vector<float>& aabb);
-    void cutoffFrustum();
+    bool isInFrustum(std::vector<float>& aabb);
+    bool isInFrustum(glm::vec3& pointMin, glm::vec3& pointMax);
+    void cutOffFrustum();
     void drawModels(Shader& shader);
+    void cutOffTree(Entity::Octree& o);
     void drawModelsShadow(Shader& shader);
     void ProcessAction();
     inline unsigned int GetSwidth() { return screenWidth; }
@@ -161,7 +170,6 @@ public:
     void Initialize_Pointlight();
     void Initialize_Vertex_Arrays();
     void Initialize_Models_Positions();
-    void Initialize_Terrain_cpu();
     void Initialize_Terrain_gpu();
     void Update_Pointlight();
 
@@ -199,8 +207,7 @@ public:
     void Update_Models_Positions();
 
 
-    void RenderText(Shader& text_shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color, VertexArrays* vertex_arrays,
-        VertexBuffers* vertex_buffers);
+    void RenderText(Shader& text_shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
 
     void Debug();
 

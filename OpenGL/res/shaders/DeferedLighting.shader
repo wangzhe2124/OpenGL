@@ -19,11 +19,7 @@ layout(location = 0) out vec4 color;
 #define SPLITNUM 4
 #define POINT_LIGHTS_NUM 4
 const float PI = 3.14159265359;
-struct Material//材质信息
-{
-	float metallic;
-	float roughness;
-};
+
 struct DirLight//平行光
 {
 	vec3 position;
@@ -61,7 +57,6 @@ struct Camera
 	sampler2D Depth;
 };
 uniform Camera camera;
-uniform Material material;
 uniform DirLight dirlight;
 
 uniform PointLight pointlight[POINT_LIGHTS_NUM];
@@ -99,12 +94,17 @@ uniform mat4 globallightSpaceMatrix;
 uniform sampler2D ssao;
 uniform bool useSSAO;
 uniform bool use_EnvLight_spec;
+float metallic;
+float roughness;
 void main()
 {
 	vec2 Texcoord = fs_in.TexCoord;
-	vec3 FragPos = texture(gPosition, Texcoord).rgb;
-	vec3 normal = texture(gNormal, Texcoord).rgb;
-
+	vec4 gPos = texture(gPosition, Texcoord);
+	vec3 FragPos = gPos.rgb;
+	metallic = gPos.a;
+	vec4 gNorm = texture(gNormal, Texcoord);
+	vec3 normal = gNorm.rgb;
+	roughness = gNorm.a;
 	float occlusion = useSSAO == true ? texture(ssao, Texcoord).r : 1.0;
 	vec3 result = CalcDirLight(normal, Texcoord, FragPos, occlusion);
 	for (int i = 0; i < POINT_LIGHTS_NUM; i++)
@@ -126,17 +126,17 @@ vec3 CalcDirLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	//DFG	
 	vec3 Lo = vec3(0.0);
 	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, Albedo, material.metallic);
+	F0 = mix(F0, Albedo, metallic);
 	vec3 halfwayDir = normalize(-lightDir + viewDir);
 	//float distance = length(dirlight.position - FragPos);
 	float attenuation = 1.0;// / (distance * distance);
 	vec3 radiance = dirlight.color * attenuation * max(dot(normal, -lightDir), 0.0);
-	float NDF = DistributionGGX(normal, halfwayDir, material.roughness);
-	float G = GeometrySmith(normal, viewDir, -lightDir, material.roughness);
-	vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, material.roughness);
+	float NDF = DistributionGGX(normal, halfwayDir, roughness);
+	float G = GeometrySmith(normal, viewDir, -lightDir, roughness);
+	vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, roughness);
 	vec3 kS = F;
 	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - material.metallic;
+	kD *= 1.0 - metallic;
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
 	vec3 ambient = vec3(0.03) * Albedo * occlusion;
@@ -162,22 +162,22 @@ vec3 CalcPointLight(int i, vec3 normal, vec2 Texcoord, vec3 FragPos, float occlu
 		shadow = tex_shadow.a;
 	vec3 color;
 	//DFG	
-	float distance = length(pt.position - FragPos);
+	float distance = length(pt.position - FragPos) + 0.001f;
 	if (distance < pt.far_plane)
 	{
 		vec3 Lo = vec3(0.0);
 		vec3 F0 = vec3(0.04);
-		F0 = mix(F0, Albedo, material.metallic);
+		F0 = mix(F0, Albedo, metallic);
 		vec3 halfwayDir = normalize(-lightDir + viewDir);
 		
-		float attenuation = 1.0f / (distance * distance);
+		float attenuation = pow(max(1.0f - pow(distance / pt.far_plane, 2), 0), 2);
 		vec3 radiance = pt.color * max(dot(normal, -lightDir), 0.0);
-		float NDF = DistributionGGX(normal, halfwayDir, material.roughness);
-		float G = GeometrySmith(normal, viewDir, -lightDir, material.roughness);
-		vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, material.roughness);
+		float NDF = DistributionGGX(normal, halfwayDir, roughness);
+		float G = GeometrySmith(normal, viewDir, -lightDir, roughness);
+		vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, roughness);
 		vec3 kS = F;
 		vec3 kD = vec3(1.0) - kS;
-		kD *= 1.0 - material.metallic;
+		kD *= 1.0 - metallic;
 		vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 		Lo = (kD * Albedo / PI + specular) * radiance;
 		vec3 ambient = vec3(0.03) * Albedo * occlusion;
@@ -197,26 +197,26 @@ vec3 CalcSpotLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	//DFG	
 	vec3 Lo = vec3(0.0);
 	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, Albedo, material.metallic);
+	F0 = mix(F0, Albedo, metallic);
 	vec3 halfwayDir = normalize(-lightDir + viewDir);
-	float distance = length(spotlight.position - FragPos);
-	float attenuation = 1.0 / (distance * distance);
-	vec3 radiance = spotlight.color * attenuation * max(dot(normal, -lightDir), 0.0);
-	float NDF = DistributionGGX(normal, halfwayDir, material.roughness);
-	float G = GeometrySmith(normal, viewDir, -lightDir, material.roughness);
-	vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, material.roughness);
+	float distance = length(spotlight.position - FragPos) + 0.001f;
+	float attenuation = pow(max(1.0f - pow(distance / spotlight.far_plane, 2), 0), 2);
+	vec3 radiance = spotlight.color * max(dot(normal, -lightDir), 0.0);
+	float NDF = DistributionGGX(normal, halfwayDir, roughness);
+	float G = GeometrySmith(normal, viewDir, -lightDir, roughness);
+	vec3 F = fresnelSchlick(max(dot(halfwayDir, viewDir), 0.0), F0, roughness);
 	vec3 kS = F;
 	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - material.metallic;
+	kD *= 1.0 - metallic;
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
 	vec3 ambient = vec3(0.03) * Albedo * occlusion;
 	float theta = dot(lightDir, normalize(spotlight.direction));
 	float epsilon = spotlight.inner_CutOff - spotlight.outer_CutOff;
-	float intensity = clamp((theta - spotlight.outer_CutOff) / epsilon, 0.0, 1.0);
+	float intensity = pow(clamp((theta - spotlight.outer_CutOff) / epsilon, 0.0, 1.0),2);
 	vec3 color;
 	if (distance < spotlight.far_plane)
-		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0f) + Lo) * (1 - shadow)) * intensity;
+		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0f) + Lo) * (1 - shadow)) * intensity * attenuation;
 	else
 		color = vec3(0);
 	return color * spotlight.LightIntensity;
@@ -263,8 +263,8 @@ vec3 CalcEnvLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	//vec3 lightDir = normalize(FragPos - spotlight.position);
 	//vec3 halfwayDir = normalize(-lightDir + viewDir);
 	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, Albedo, material.metallic);
-	vec3 F = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, material.roughness);
+	F0 = mix(F0, Albedo, metallic);
+	vec3 F = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, roughness);
 	vec3 kS = F;
 	vec3 kD = vec3(1.0) - kS;
 	vec3 irradiance = texture(EnvLight, normal).rgb;
@@ -272,9 +272,9 @@ vec3 CalcEnvLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	//spec
 	vec3 R = reflect(-viewDir, normal);
 	const float MAX_REFLECTION_LOD = 4.0;
-	vec3 prefilteredColor = textureLod(EnvLight_spec, R, material.roughness * MAX_REFLECTION_LOD).rgb;
+	vec3 prefilteredColor = textureLod(EnvLight_spec, R, roughness * MAX_REFLECTION_LOD).rgb;
 
-	vec2 envBRDF = texture(EnvLight_spec_BRDF, vec2(max(dot(normal, viewDir), 0.0), material.roughness)).rg;
+	vec2 envBRDF = texture(EnvLight_spec_BRDF, vec2(max(dot(normal, viewDir), 0.0), roughness)).rg;
 	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
 	vec3 ambient = use_EnvLight_spec == true ? (kD * diffuse + specular) * occlusion : (kD * diffuse) * occlusion;

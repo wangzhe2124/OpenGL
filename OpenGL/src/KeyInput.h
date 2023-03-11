@@ -32,7 +32,8 @@ public:
     bool NormalMap;
     bool useSSAO;
     bool ui;
-    bool full_screen;
+    //resolution
+    bool full_screen; bool reset_resolution;
     bool blur_shadow;
     bool EnvLight_spec;
     float SSAO_bias;
@@ -48,11 +49,18 @@ public:
     bool bloom_window; int bloom_times; float bloom_halox; float bloom_haloy; float bloom_haloz; float bloom_edge; int bloom_radius;
     //sun
     bool sun_window; float SunIntensity; glm::vec3 SunColor; float sun_sm_bias; float sun_speed; bool sun_pcf; float sun_pcf_radius;
+    //spotlight
     bool spotlight_window; float st_bias_x; float st_bias_y; float st_bias_z; float spot_far_plane; bool TorchOn; glm::vec3 torch_color; float torch_intensity;
+    //pointlight
     bool pointlight_window; float point_sm_radius; bool point_sm_pcf; float pointlight_Intensity; float point_far_plane; glm::vec3 point_color;
     //particle
     bool particle_window; bool show_particle; float particle_scale; float particle_offset; int new_particle_num; float particle_vel; float particle_life_reduce; bool show_d3particle;
-    bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_mulReduce; float fxaa_minReduce; float fxaa_maxSpan;
+    //fxaa
+    bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_maxReduce; float fxaa_minReduce; float fxaa_maxSpan;
+    //TAA
+    bool taa_window; bool taa_on; float taa_mixWeight;
+    //MLAA
+    bool mlaa_window; bool mlaa_on; float mlaa_threShold; int mlaa_searchNum;
     KeyInput();
     void RecordKey(int key, int action);
     void ProcessKey(GLFWwindow* window, int key, int action);

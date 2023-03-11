@@ -14,7 +14,8 @@ KeyInput::KeyInput()
     metallic(0.5f),
     roughness(0.8f),
     use_terrain(false),
-    full_screen(false),
+    //resolution
+    full_screen(false), reset_resolution(false),
     blur_shadow(false),
     EnvLight_spec(true),
     //ssao
@@ -28,15 +29,19 @@ KeyInput::KeyInput()
     //bloom
     bloom_window(false), bloom_times(8), bloom_halox(0.8f), bloom_haloy(0.8f), bloom_haloz(0.8f), bloom_edge(2.0f), bloom_radius(1),
     //sun
-    sun_window(false), SunIntensity(3.0f), SunColor(1.0f), sun_sm_bias(0.1f), sun_speed(0.0f), sun_pcf(true), sun_pcf_radius(1.0f),
+    sun_window(false), SunIntensity(3.0f), SunColor(1.0f), sun_sm_bias(0.4f), sun_speed(0.0f), sun_pcf(true), sun_pcf_radius(1.0f),
     //spotlight
     spotlight_window(false), st_bias_x(0.15f), st_bias_y(0.15f), st_bias_z(0.15f), spot_far_plane(20.0f), TorchOn(false), torch_color(1.0f), torch_intensity(5.0f),
     //pointlight
     pointlight_window(false), point_sm_radius(2.0f), point_sm_pcf(false), pointlight_Intensity(0.0f), point_far_plane(5.0f), point_color(1.0f),
     //particles
-    particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f),particle_life_reduce(0.002f), show_d3particle(false),
+    particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f), particle_life_reduce(0.018f), show_d3particle(false),
     //fxaa
-    fxaa_window(false), fxaa_on(true), fxaa_lumaThreshold(0.2f), fxaa_mulReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f)
+    fxaa_window(false), fxaa_on(true), fxaa_lumaThreshold(0.2f), fxaa_maxReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f),
+    //taa
+    taa_window(false), taa_on(true), taa_mixWeight(0.1f),
+    //mlaa
+    mlaa_window(false), mlaa_on(true), mlaa_threShold(0.16f), mlaa_searchNum(86)
 {
 
 }

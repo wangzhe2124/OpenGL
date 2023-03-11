@@ -1,15 +1,6 @@
 #pragma once
 #include "Camera.h"
-namespace Entity
-{
-    struct Plane
-    {
-        glm::vec3 normal;
-        glm::vec3 Po;
-        Plane(glm::vec3 n, glm::vec3 p = glm::vec3(0)) : normal(n), Po(p)
-        {}
-    };
-}
+
 class Frustum {
 private:
     float fov;
@@ -41,7 +32,7 @@ private:
     std::vector<float> xy_distance = std::vector<float>(splitNum);
     float far_plane_distance;
 public:
-    CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.94f) :splitNum(splitnum), lambda(weight)
+    CSM_Dirlight(Camera& camera, int splitnum = 4, float weight = 0.99f) :splitNum(splitnum), lambda(weight)
     {
         float camera_fov = camera.Zoom;
         float ratio = 1.0;

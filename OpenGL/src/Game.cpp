@@ -159,6 +159,7 @@ void Game::Update_Models_Positions()
     mod[3][2] = camera.Position.z;
     models->Main_character.position.SetModel(mod);
     models->Main_character.updateAABB();
+    models->Main_character.isMoved = true;
 }
 
 void Game::Initialize_Vertex_Arrays()
@@ -207,6 +208,15 @@ void Game::Initialize_Vertex_Arrays()
     cubeLayout.Push<float>(3);
     cubeLayout.Push<float>(2);
     vertex_arrays->cubeVa.AddBuffer(cubeVb, cubeLayout);
+    //cubeQuad
+    std::string cube_quad_vertex_attr = "cube_quad_vertex_attr";
+    std::vector<float> cube_quad_vertex = config.ReadVector(cube_quad_vertex_attr);
+    VertexBuffer cube_quadVb(&cube_quad_vertex[0], static_cast<unsigned int>(cube_quad_vertex.size()) * sizeof(float));
+    VertexBufferLayout cube_quadLayout;
+    cube_quadLayout.Push<float>(3);
+    cube_quadLayout.Push<float>(3);
+    cube_quadLayout.Push<float>(2);
+    vertex_arrays->cubeQuadVa.AddBuffer(cube_quadVb, cube_quadLayout);
     //textVa
     VertexBufferLayout textLayout;
     textLayout.Push<float>(2);
@@ -228,15 +238,15 @@ void RootAnimation(glm::mat4& m1, glm::mat4& m2)
 }
 void Game::Generate_Dir_CSM()
 {
-    int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM - 1;//每两帧更新一次3级csm
-    if (Last_CSM_update)
-    {
-        update_CSM_SPLIT_NUM = CSM_SPLIT_NUM;
-        Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
-    }
-    Last_CSM_update = !Last_CSM_update;
+    //int update_CSM_SPLIT_NUM = CSM_SPLIT_NUM - 1;//每两帧更新一次3级csm
+    //if (Last_CSM_update)
+    //{
+    //    update_CSM_SPLIT_NUM = CSM_SPLIT_NUM;
+    //    Last_CSM_update_matrix = csm_dirlight.light_projection_matrix[3];
+    //}
+    //Last_CSM_update = !Last_CSM_update;
     Shader& shader = shaders->DirLightShadowshader;
-    for (int i = 0; i < update_CSM_SPLIT_NUM; i++)
+    for (int i = 0; i < CSM_SPLIT_NUM; i++)
     {
         shader.Bind();
         shader.SetUniformmatri4fv("LightSpace", csm_dirlight.light_projection_matrix[i]);
@@ -319,6 +329,7 @@ void Game::Generate_Spot_SM()
     framebuffers->SpotlightMapfbo.UnBind();
     glViewport(0, 0, screenWidth, screenHeight);
 }
+
 void Game::Generate_Defered_basicDATA()
 {
     if (keyinput.show_mesh)
@@ -331,17 +342,23 @@ void Game::Generate_Defered_basicDATA()
         shader.SetUniform3f("viewPos", camera.Get_third_position());
     else
         shader.SetUniform3f("viewPos", camera.Get_first_position());
+    shader.SetUniform2f("jitter", HaltonSequence[frameIndex]);
+    shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
     framebuffers->gbuffer.Bind();
     framebuffers->gbuffer.SetViewPort();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.SetUniform1i("use_NormalMap", keyinput.NormalMap);
     shader.SetUniform1i("use_HeightMap", keyinput.useheight);
+    shader.SetUniform1f("metallic", keyinput.metallic);
+    shader.SetUniform1f("roughness", keyinput.roughness);
     shader.SetUniform1i("is_instance", 0);
     drawModels(shader);
     shader.SetUniform1i("is_instance", 1);
     Draw_Instance(*models->models_map["Rock"], 1000, shader);
     shader.SetUniform1i("is_instance", 0);
     //地板  
+    shader.SetUniform1f("metallic", 0.7);
+    shader.SetUniform1f("roughness", 0);
     textures->floor_diffuse.Bind(0);
     shader.SetUniform1i("material.texture_diffuse", 0);
     textures->floor_specular.Bind(1);
@@ -353,10 +370,25 @@ void Game::Generate_Defered_basicDATA()
     shader.SetUniformmatri4fv("model", models->Floor.position.GetModelSpace());
     renderer.DrawArray(*models->Floor.va, shader);
     //球体
-    shader.SetUniform1i("use_NormalMap", 0);
-    shader.SetUniform1i("use_HeightMap", 0);
     shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
     renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+    //cube
+    /*glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    auto f = [&](Entity::Octree& o) {
+        ModelSpace md;
+        md.Scale(o.pointMax);
+        shader.SetUniformmatri4fv("model", md.GetModelSpace());
+        renderer.DrawQuads(vertex_arrays->cubeQuadVa, shader); 
+    };
+    std::function<void(Entity::Octree& octre)> f2 = [&f2, &f](Entity::Octree& octre) {
+        for (Entity::Octree o : octre.children)
+        {
+            f(o);
+            if (!o.children.empty())
+                f2(o);
+        }
+    };
+    f2(octree);*/
     if (keyinput.use_terrain)
     {
         Generate_Terrain_gpu();
@@ -371,28 +403,31 @@ void Game::Generate_SSAO()
     framebuffers->ssaoFBO.Bind();
     framebuffers->ssaoFBO.SetViewPort();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shaders->SSAOShader.Bind();
-    shaders->SSAOShader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
-    shaders->SSAOShader.SetUniformmatri4fv("view", camera.GetViewMatrix());
-    shaders->SSAOShader.SetUniform1f("camera.far_plane", camera.far_plane);
-    shaders->SSAOShader.SetUniform1f("bias", keyinput.SSAO_bias);
-    shaders->SSAOShader.SetUniform1f("radius", keyinput.SSAO_radius);
-    shaders->SSAOShader.SetUniform1f("rangecheck", keyinput.SSAO_rangecheck);
+    Shader& shader = shaders->SSAOShader;
+    shader.Bind();
+    shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    shader.SetUniform1f("camera.far_plane", camera.far_plane);
+    shader.SetUniform1f("bias", keyinput.SSAO_bias);
+    shader.SetUniform1f("radius", keyinput.SSAO_radius);
+    shader.SetUniform1f("rangecheck", keyinput.SSAO_rangecheck);
+    shader.SetUniform2f("resolution", screenWidth, screenHeight);
 
     framebuffers->cameradepthFBO.BindTexture(0);
-    shaders->SSAOShader.SetUniform1i("camera.Depth", 0);
+    shader.SetUniform1i("camera.Depth", 0);
     framebuffers->gbuffer.BindTexture(1, 0);
-    shaders->SSAOShader.SetUniform1i("gPosition", 1);
+    shader.SetUniform1i("gPosition", 1);
     framebuffers->gbuffer.BindTexture(2, 1);
-    shaders->SSAOShader.SetUniform1i("gNormal", 2);
+    shader.SetUniform1i("gNormal", 2);
     framebuffers->ssaoFBO.BindNoiseTexture(3);
-    shaders->SSAOShader.SetUniform1i("Noise", 3);
+    shader.SetUniform1i("Noise", 3);
     for (int i = 0; i < 64; i++)
     {
-        shaders->SSAOShader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers->ssaoFBO.ssao_data.ssaokernel[i]);
+        shader.SetUniform3f("samples[" + std::to_string(i) + "]", framebuffers->ssaoFBO.ssao_data.ssaokernel[i]);
     }
-    renderer.DrawArray(vertex_arrays->quadVa, shaders->SSAOShader);
+    renderer.DrawArray(vertex_arrays->quadVa, shader);
     framebuffers->ssaoFBO.UnBind();
+    glViewport(0, 0, screenWidth, screenHeight);
 }
 void Game::Generate_SSAO_blur()
 {
@@ -445,9 +480,9 @@ void Game::Generate_PreShadow()
         shader.SetUniform1f("xy_distance[" + std::to_string(i) + "]", csm_dirlight.Get_xy_distance(i));
         framebuffers->csm_mapFBO[i].BindTexture(i + 8);
         shader.SetUniform1i("shadowMap.csm_map[" + std::to_string(i) + "]", i + 8);
-        if (i == CSM_SPLIT_NUM - 1)
+        /*if (i == CSM_SPLIT_NUM - 1)
             shader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", Last_CSM_update_matrix);
-        else
+        else*/
             shader.SetUniformmatri4fv("DirlightCSMMatrix[" + std::to_string(i) + "]", csm_dirlight.light_projection_matrix[i]);
 
     }
@@ -468,8 +503,6 @@ void Game::Generate_Origin_Screen()
 {
     Shader& shader = shaders->DeferedLighting_shader;
     shader.Bind();
-    shader.SetUniform1f("material.metallic", keyinput.metallic);
-    shader.SetUniform1f("material.roughness", keyinput.roughness);
     if (camera.third_view)
         shader.SetUniform3f("camera.viewPos", camera.Get_third_position());
     else
@@ -579,23 +612,25 @@ void Game::Generate_SkyBox()
 void Game::Generate_PostProcess()
 {
 
+    //
     framebuffers->blooming_hightlightFBO.Bind();
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //将原画分出两份，将原画(ambient + color * shadow * blocker_distance),另一份是高亮highlight
     shaders->blooming_highlightshader.Bind();
-    framebuffers->hdrfbo.BindTexture(0);;//原画
+    framebuffers->hdrfbo.BindTexture();
     shaders->blooming_highlightshader.SetUniform1i("screenTexture", 0);
     shaders->blooming_highlightshader.SetUniform1f("edge", keyinput.bloom_edge);
     renderer.DrawArray(vertex_arrays->quadVa, shaders->blooming_highlightshader);
     framebuffers->blooming_hightlightFBO.UnBind();
     //将高亮贴图进行高斯模糊
     Gaussian_Blured_Texture(1, keyinput.bloom_times, shaders->blooming_blurshader, framebuffers->blooming_hightlightFBO, framebuffers->blooming_blur_horizontalFBO, framebuffers->blooming_blur_verticalFBO, renderer, vertex_arrays->quadVa);
+    //
+    
     //结合原画和模糊后的图片形成泛光
     shaders->screenShader.Bind();
     shaders->screenShader.SetUniform1i("gamma", keyinput.gamma);
     shaders->screenShader.SetUniform1f("exposure", keyinput.exposure);
-
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     framebuffers->blooming_hightlightFBO.BindTexture(0);
@@ -609,35 +644,84 @@ void Game::Generate_PostProcess()
     {
         glViewport(0, 0, int(screenWidth * 0.4), int(screenHeight * 0.4));
         shaders->basicscreen_shader.Bind();
-        framebuffers->ssaoFBO.BindTexture(0);
+        framebuffers->MLAA_FBO.BindTexture(0);
         renderer.DrawArray(vertex_arrays->quadVa, shaders->basicscreen_shader);
         glViewport(0, 0, screenWidth, screenHeight);
     }
-
+    //fxaa
     if (keyinput.fxaa_on)
     {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         framebuffers->FXAA_FBO.Write();
         glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        framebuffers->FXAA_FBO.Bind();
-        framebuffers->FXAA_FBO.BindTexture();
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         shaders->FXAA_shader.Bind();
         shaders->FXAA_shader.SetUniform1i("fxaaOn", keyinput.fxaa_on);
-        shaders->FXAA_shader.SetUniform1f("screen_width", float(screenWidth));
-        shaders->FXAA_shader.SetUniform1f("screen_height", float(screenHeight));
+        shaders->FXAA_shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
 
         shaders->FXAA_shader.SetUniform1f("lumaThreshold", keyinput.fxaa_lumaThreshold);
-        shaders->FXAA_shader.SetUniform1f("mulReduce", keyinput.fxaa_mulReduce);
+        shaders->FXAA_shader.SetUniform1f("maxReduce", keyinput.fxaa_maxReduce);
         shaders->FXAA_shader.SetUniform1f("minReduce", keyinput.fxaa_minReduce);
         shaders->FXAA_shader.SetUniform1f("maxSpan", keyinput.fxaa_maxSpan);
+        framebuffers->FXAA_FBO.BindTexture();
         renderer.DrawArray(vertex_arrays->quadVa, shaders->FXAA_shader);
-        framebuffers->FXAA_FBO.UnBind();
-        framebuffers->FXAA_FBO.Read();
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
+    //TAA
+    if (keyinput.taa_on)
+    {
+        ////currentcolor
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        framebuffers->TAA_currentFrame_FBO.Write();
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        framebuffers->TAA_currentFrame_FBO.UnBind();
 
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        Shader& shader = shaders->TAA_shader;
+        shader.Bind();
 
+        shader.SetUniform1f("mixWeight", keyinput.taa_mixWeight);
+        framebuffers->TAA_preFrame_FBO.BindTexture(0);
+        shader.SetUniform1i("preFrameColor", 0);
+
+        framebuffers->TAA_currentFrame_FBO.BindTexture(1);
+        shader.SetUniform1i("currentFrameColor", 1);
+
+        renderer.DrawArray(vertex_arrays->quadVa, shader);
+        //precolor
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        framebuffers->TAA_preFrame_FBO.Write();
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        framebuffers->TAA_preFrame_FBO.UnBind();
+
+        frameIndex++;
+        if (frameIndex >= Halton_Num)
+            frameIndex = 0;
+    }
+    if (keyinput.mlaa_on)
+    {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        framebuffers->exchange_FBO.Write();
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        framebuffers->exchange_FBO.UnBind();
+        //generate signal
+        framebuffers->MLAA_FBO.Bind();
+        shaders->MLAA_first_shader.Bind();
+        shaders->MLAA_first_shader.SetUniform1f("threShold", keyinput.mlaa_threShold);
+        framebuffers->exchange_FBO.BindTexture();
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_first_shader);
+        framebuffers->MLAA_FBO.UnBind();
+
+        shaders->MLAA_second_shader.Bind();
+        shaders->MLAA_second_shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
+        shaders->MLAA_second_shader.SetUniform1i("searchNum", keyinput.mlaa_searchNum);
+        framebuffers->MLAA_FBO.BindTexture(0);
+        shaders->MLAA_second_shader.SetUniform1i("firstTexture", 0);
+        framebuffers->exchange_FBO.BindTexture(1);
+        shaders->MLAA_second_shader.SetUniform1i("colorTexture", 1);
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_second_shader);
+    }
 }
 
 void Game::Generate_CubeTexture()
@@ -748,8 +832,7 @@ void Game::Generate_EnvLight_Specular_BRDF()
 
 
 
-void Game::RenderText(Shader& text_shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color, VertexArrays* vertex_arrays,
-    VertexBuffers* vertex_buffers)
+void Game::RenderText(Shader& text_shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color)
 {
     // 激活对应的渲染状态
     text_shader.Bind();
@@ -901,16 +984,6 @@ void Game::Generate_D3Particle()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC1_ALPHA);
 }
 
-void Game::Initialize_Terrain_cpu()
-{
-
-    terrain = Get_TerrainData_cpu();
-    models->Terrain.Get_index(&terrain.index[0], static_cast<unsigned int>(terrain.index.size()));
-    VertexBuffer terrainVb(&terrain.vertex[0], sizeof(float) * static_cast<unsigned int>(terrain.vertex.size()));
-    VertexBufferLayout terrainLayout;
-    terrainLayout.Push<float>(3);//position
-    models->Terrain.va->AddBuffer(terrainVb, terrainLayout);
-}
 void Game::Initialize_Terrain_gpu()
 {
     terrain = Get_TerrainData_gpu(textures->Terrain_texture.Get_width(), textures->Terrain_texture.Get_height());
@@ -922,39 +995,7 @@ void Game::Initialize_Terrain_gpu()
     models->Terrain.va->AddBuffer(terrainVb, terrainLayout);
 
 }
-void Game::Generate_Terrain_cpu()
-{
 
-    Shader& shader = shaders->Terrain_cpu_shader;
-    shader.Bind();
-    // view/projection transformations
-    glm::mat4 projection = camera.GetProjectionMatrix();
-    glm::mat4 view = camera.GetViewMatrix();
-    shader.SetUniformmatri4fv("projection", projection);
-    shader.SetUniformmatri4fv("view", view);
-
-
-    // world transformation
-    glm::mat4 model = glm::mat4(1.0f);
-    model[3][1] = -10.0f;
-    shader.SetUniformmatri4fv("model", model);
-
-
-    // render the cube
-    models->Terrain.va->Bind();
-    models->Terrain.ib->Bind();
-    //        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (int strip = 0; strip < terrain.numStrips; strip++)
-    {
-        glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
-            terrain.numTrisPerStrip,   // number of indices to render
-            GL_UNSIGNED_INT,     // index data type
-            (void*)(sizeof(unsigned int) * terrain.numTrisPerStrip * strip)); // offset to starting index
-    }
-    models->Terrain.va->Unbind();
-    models->Terrain.ib->Unbind();
-    shader.UnBind();
-}
 void Game::Generate_Terrain_gpu()
 {
 
@@ -1020,10 +1061,10 @@ void Game::Generate_Health_bar_enemy()
     for (std::map<float, std::string>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
     {
         Model& model = *models->anime_models_map[it->second];
-        float health_bar_xcenter = (model.aabb[min_x] + model.aabb[max_x]) * 0.5f;
+        float health_bar_x = (model.aabb[min_x] + model.aabb[max_x]) * 0.5f;
         float health_bar_y = model.aabb[max_y] + (model.aabb[max_y] - model.aabb[min_y]) * 0.1f;
         float health_bar_z = (model.aabb[min_z] + model.aabb[max_z]) * 0.5f;
-        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_xcenter, health_bar_y, health_bar_z, 1.0f);
+        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_x, health_bar_y, health_bar_z, 1.0f);
         float life_x = ((health_bar_position.x / health_bar_position.w * 0.5f) + 0.5f) * screenWidth;
         float life_y = ((health_bar_position.y / health_bar_position.w * 0.5f) + 0.5f) * screenHeight;
         shader.SetUniform1f("life_y", life_y);
@@ -1037,7 +1078,7 @@ void Game::Generate_Health_bar_enemy()
             viewPos = camera.Get_third_position();
         else
             viewPos = camera.Get_first_position();
-        glm::vec3 FragPos = glm::vec3(health_bar_xcenter, health_bar_y, model.aabb[5]);
+        glm::vec3 FragPos = glm::vec3(health_bar_x, health_bar_y, health_bar_z);
         glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
         float length = glm::length(FragPos - viewPos);
         float theta = dot(viewDir, camera.Front);
@@ -1087,9 +1128,13 @@ void Game::ready_render()
 
     glCheckError();
     Generate_Instance(*models->models_map["Rock"], 1000);
+    
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {
+        octree.update(iter->second);
+    }
 }
-
-void Game::start_render()
+void Game::ProcessAction()
 {
     if (camera.is_move && !response_action)
     {
@@ -1114,6 +1159,11 @@ void Game::start_render()
             response_action = false;
         }
     }
+}
+void Game::start_render()
+{
+    //
+    ProcessAction();
     camera.Set_third_view(keyinput.third_view);
     camera.Set_free_view(keyinput.free_view);
     glEnable(GL_DEPTH_TEST);
@@ -1121,7 +1171,7 @@ void Game::start_render()
     Update_Models_Positions();
     Update_Sun();
     csm_dirlight.Get_light_projection(camera, sun.Sun_Position);
-    cutoffFrustum();
+
     Generate_Dir_CSM();
     //点光阴影贴图
     if (pointlight.lightintensity > 0)
@@ -1131,7 +1181,7 @@ void Game::start_render()
     Update_Spotlight();
     Generate_Spot_SM();
 
-    //defered shading 绘制基本信息    
+    //defered shading 绘制Gbuffer   
     Generate_Defered_basicDATA();
 
     framebuffers->gbuffer.Read();
@@ -1156,23 +1206,32 @@ void Game::start_render()
     //后期处理
     Generate_PostProcess();
 
+    Generate_TextParticle();
+    Generate_Health_bar();
+}
+
+void Game::Generate_TextParticle()
+{
     glEnable(GL_BLEND);
     std::string text_render = Collision_detection();
-    RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
+    RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
     if (keyinput.show_particle)
     {
         particle_generator.update_Particle(glm::vec2(screenWidth / 2, 0), keyinput.particle_offset, keyinput.new_particle_num, keyinput.particle_vel, keyinput.particle_life_reduce / 10);
         Generate_Particle();
-        
-    }
-    if (true)
-    {
-        RenderText(shaders->text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f), vertex_arrays, vertex_buffers);
-    }
-    glDisable(GL_BLEND);
-    Generate_Health_bar();
-}
 
+    }
+    if (glfwGetTime() < 10)
+    {
+        RenderText(shaders->text_shader, "welcome to the demo", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
+    }
+    RenderText(shaders->text_shader, "x: " + std::to_string(camera.Position.x), screenWidth * 0.95f, screenHeight * 0.95f, 0.5f, glm::vec3(1.0f));
+    RenderText(shaders->text_shader, "y: " + std::to_string(camera.Position.y), screenWidth * 0.95f, screenHeight * 0.93f, 0.5f, glm::vec3(1.0f));
+    RenderText(shaders->text_shader, "z: " + std::to_string(camera.Position.z), screenWidth * 0.95f, screenHeight * 0.91f, 0.5f, glm::vec3(1.0f));
+    RenderText(shaders->text_shader, "FPS: " + std::to_string(int(1.0f / deltaTime)), screenWidth * 0.93f, 0, 0.5f, glm::vec3(1.0f));
+
+    glDisable(GL_BLEND);
+}
 void Game::attack()
 {
     if (!response_action)
@@ -1264,7 +1323,7 @@ void Draw_Instance(Model& m, int amount, Shader& shader)
         glDrawElementsInstanced(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0, amount);
     }
 }
-bool Game::isOnFrustum(std::vector<float>& aabb)
+bool Game::isInFrustum(std::vector<float>& aabb)
 {
     std::vector<glm::vec3> points = csm_dirlight.GetCameraFrustum(0);
     glm::vec3 center = glm::vec3((aabb[min_x] + aabb[max_x]) * 0.5, (aabb[min_y] + aabb[max_y]) * 0.5, (aabb[min_z] + aabb[max_z]) * 0.5);
@@ -1306,49 +1365,121 @@ bool Game::isOnFrustum(std::vector<float>& aabb)
 
     return conditions[0] && conditions[1] && conditions[2] && conditions[3] && conditions[4] && conditions[5];
 }
+bool Game::isInFrustum(glm::vec3& pointMin, glm::vec3& pointMax)
+{
+    std::vector<float> a =
+    {
+        pointMin.x,
+        pointMax.x,
+        pointMin.y,
+        pointMax.y,
+        pointMin.z,
+        pointMax.z
+    };
+    return isInFrustum(a);
+}
 
-void Game::cutoffFrustum()
+void Game::cutOffFrustum()
 {
     for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
-        iter->second->inFrustum = isOnFrustum(iter->second->aabb);
+        iter->second->inFrustum = isInFrustum(iter->second->aabb);
     }
     for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
-        iter->second->inFrustum = isOnFrustum(iter->second->aabb);
+        iter->second->inFrustum = isInFrustum(iter->second->aabb);
     }
 }
 void Game::drawModels(Shader& shader)
 {
+    cutOffFrustum();
     for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
         if (iter->second->inFrustum)
         {
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
             iter->second->Draw(shader);
         }
     }
+    ////遍历map对每个model视锥体相交测试
+    ////视锥体剔除
+    //
     for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-        for (int i = 0; i < transforms.size(); ++i)
-        {
-            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-        }
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+    {      
         if (iter->second->inFrustum)
         {
+            auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
+            for (int i = 0; i < transforms.size(); ++i)
+            {
+                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            }
+            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
             iter->second->Draw(shader);
         }
     }
+    //八叉树相交测试
+    //cutList.clear();//八叉树剔除
+    //cutOffTree(octree);
+    //for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    //{       
+    //    if (iter->second->isMoved)
+    //    {
+    //        octree.update(iter->second);
+    //        iter->second->isMoved = false;
+    //    }
+    //    if (std::find(cutList.begin(), cutList.end(), iter->second) == cutList.end())
+    //    {
+    //        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
+    //        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
+    //        for (int i = 0; i < transforms.size(); ++i)
+    //        {
+    //            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+    //        }
+    //        iter->second->Draw(shader);
+    //    }
+    //}
 }
 
+void Game::cutOffTree(Entity::Octree& o)
+{
+    if (!isInFrustum(o.pointMin, o.pointMax))
+    {
+        for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
+        {
+            cutList.push_back(it->first);
+        }
+    }
+    else
+    {
+        if (o.children.empty())
+        {
+            for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
+            {
+                if(!isInFrustum(it->first->aabb))
+                    cutList.push_back(it->first);
+            }
+        }
+        else
+        {
+            for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
+            {
+                if (it->second == 8 && !isInFrustum(it->first->aabb))
+                    cutList.push_back(it->first);
+            }
+            for (Entity::Octree& tree : o.children)
+            {
+                cutOffTree(tree);
+            }
+        }
+    }
+
+}
 void Game::drawModelsShadow(Shader& shader)
 {
     for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
         shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        if (isOnFrustum(iter->second->aabb))
+        if (iter->second->inFrustum)
             iter->second->DrawShadow(shader);
     }
     for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
@@ -1359,7 +1490,9 @@ void Game::drawModelsShadow(Shader& shader)
             shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
         }
         shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        if (isOnFrustum(iter->second->aabb))
+        if (iter->second->inFrustum)
             iter->second->DrawShadow(shader);
     }
 }
+
+

@@ -13,6 +13,7 @@ public:
 	//void DrawMeshElement(Mesh& mesh, const Shader& shader) const;
 
     void DrawArray(const VertexArray& va, const Shader& shader) const;
+	void DrawQuads(const VertexArray& va, const Shader& shader) const;
     void DrawArray_strip(const VertexArray& va, const Shader& shader) const;
 
     void DrawArrayInstance(const VertexArray& va, const Shader& shader, unsigned int num) const;

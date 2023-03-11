@@ -28,6 +28,7 @@ class VertexArrays
 public:
 	VertexArray quadVa;
 	VertexArray cubeVa;
+	VertexArray cubeQuadVa;
 	VertexArray skyboxVa;
 	VertexArray textVa;
 	VertexArray particleVa;

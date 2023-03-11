@@ -69,6 +69,9 @@
     <ClCompile Include="src\Config.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\Tools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="res\shaders\basic.shader" />
@@ -107,6 +110,10 @@
     <None Include="res\shaders\Terrain_gpu.shader" />
     <None Include="res\shaders\Health_bar.shader" />
     <None Include="res\shaders\Health_bar_enemy.shader" />
+    <None Include="res\shaders\TAA.shader" />
+    <None Include="res\shaders\Defered_unjitterDepth.shader" />
+    <None Include="res\shaders\MLAA_first.shader" />
+    <None Include="res\shaders\MLAA_second.shader" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Shader.h">
@@ -203,6 +210,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\Animator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ScenGraph.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Tools.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

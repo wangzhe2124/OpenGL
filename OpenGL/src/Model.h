@@ -28,6 +28,7 @@ public:
     vector<float> aabb = vector<float>(6);
     vector<glm::vec3> aabb_vertex;
     bool inFrustum;
+    bool isMoved;
     string directory;
     bool gammaCorrection;
     ModelSpace position;
@@ -36,7 +37,7 @@ public:
     VertexArray* va;
     IndexBuffer* ib;
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool gamma = false, float Life = 100.0f) : gammaCorrection(gamma), va(nullptr), ib(nullptr), max_life(Life), current_life(Life)
+    Model(string const& path, bool gamma = false, float Life = 100.0f) : gammaCorrection(gamma), va(nullptr), ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
     {
         Initialize_aabb();
         loadModel(path);
@@ -46,7 +47,7 @@ public:
     {
         ib = new IndexBuffer(data, count);
     }
-    Model(float Life = 100.0f) : ib(nullptr), gammaCorrection(false), max_life(Life), current_life(Life)
+    Model(float Life = 100.0f) : ib(nullptr), gammaCorrection(false), max_life(Life), current_life(Life), isMoved(false)
     {
         Initialize_aabb();
         AABB();
@@ -58,6 +59,7 @@ public:
         meshes = m.meshes;
         aabb = m.aabb;
         aabb_vertex = m.aabb_vertex;
+        isMoved = m.isMoved;
         directory = m.directory;
         gammaCorrection = m.gammaCorrection;
         position = m.position;
@@ -65,6 +67,7 @@ public:
         current_life = m.current_life;
         va = m.va;
         ib = m.ib;
+        return *this;
     }
     // draws the model, and thus all its meshes
     ~Model()
@@ -519,61 +522,61 @@ struct TerrainData
     int numTrisPerStrip;
     unsigned int rez;
 };
-static TerrainData Get_TerrainData_cpu() //without uv
-{
-    TerrainData terrain_data;
-    //stbi_set_flip_vertically_on_load(true);
-    int width, height, nrChannels;
-    unsigned char* data = stbi_load("res/textures/iceland_heightmap.png", &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-
-
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    float yScale = 64.0f / 256.0f, yShift = 16.0f;
-    int rez = 1;
-    unsigned int bytePerPixel = nrChannels;
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
-            unsigned char y = pixelOffset[0];
-
-            // vertex
-            terrain_data.vertex.push_back(-height / 2.0f + height * i / (float)height);   // vx
-            terrain_data.vertex.push_back((int)y * yScale - yShift);   // vy
-            terrain_data.vertex.push_back(-width / 2.0f + width * j / (float)width);   // vz
-        }
-    }
-    std::cout << "Loaded " << terrain_data.vertex.size() / 3 << " vertices" << std::endl;
-    stbi_image_free(data);
-
-    for (int i = 0; i < height - 1; i += rez)
-    {
-        for (int j = 0; j < width; j += rez)
-        {
-            for (int k = 0; k < 2; k++)
-            {
-                terrain_data.index.push_back(j + width * (i + k * rez));
-            }
-        }
-    }
-    std::cout << "Loaded " << terrain_data.index.size() << " indices" << std::endl;
-
-    terrain_data.numStrips = (height - 1) / rez;
-    terrain_data.numTrisPerStrip = (width / rez) * 2;
-    std::cout << "Created lattice of " << terrain_data.numStrips << " strips with " << terrain_data.numTrisPerStrip << " triangles each" << std::endl;
-    std::cout << "Created " << terrain_data.numStrips * terrain_data.numTrisPerStrip << " triangles total" << std::endl;
-    return terrain_data;
-}
+//static TerrainData Get_TerrainData_cpu() //without uv
+//{
+//    TerrainData terrain_data;
+//    //stbi_set_flip_vertically_on_load(true);
+//    int width, height, nrChannels;
+//    unsigned char* data = stbi_load("res/textures/iceland_heightmap.png", &width, &height, &nrChannels, 0);
+//    if (data)
+//    {
+//        std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
+//    }
+//    else
+//    {
+//        std::cout << "Failed to load texture" << std::endl;
+//    }
+//
+//
+//    // set up vertex data (and buffer(s)) and configure vertex attributes
+//    // ------------------------------------------------------------------
+//    float yScale = 64.0f / 256.0f, yShift = 16.0f;
+//    int rez = 1;
+//    unsigned int bytePerPixel = nrChannels;
+//    for (int i = 0; i < height; i++)
+//    {
+//        for (int j = 0; j < width; j++)
+//        {
+//            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
+//            unsigned char y = pixelOffset[0];
+//
+//            // vertex
+//            terrain_data.vertex.push_back(-height / 2.0f + height * i / (float)height);   // vx
+//            terrain_data.vertex.push_back((int)y * yScale - yShift);   // vy
+//            terrain_data.vertex.push_back(-width / 2.0f + width * j / (float)width);   // vz
+//        }
+//    }
+//    std::cout << "Loaded " << terrain_data.vertex.size() / 3 << " vertices" << std::endl;
+//    stbi_image_free(data);
+//
+//    for (int i = 0; i < height - 1; i += rez)
+//    {
+//        for (int j = 0; j < width; j += rez)
+//        {
+//            for (int k = 0; k < 2; k++)
+//            {
+//                terrain_data.index.push_back(j + width * (i + k * rez));
+//            }
+//        }
+//    }
+//    std::cout << "Loaded " << terrain_data.index.size() << " indices" << std::endl;
+//
+//    terrain_data.numStrips = (height - 1) / rez;
+//    terrain_data.numTrisPerStrip = (width / rez) * 2;
+//    std::cout << "Created lattice of " << terrain_data.numStrips << " strips with " << terrain_data.numTrisPerStrip << " triangles each" << std::endl;
+//    std::cout << "Created " << terrain_data.numStrips * terrain_data.numTrisPerStrip << " triangles total" << std::endl;
+//    return terrain_data;
+//}
 static TerrainData Get_TerrainData_gpu(int width, int height)
 {
     TerrainData terrain_data;

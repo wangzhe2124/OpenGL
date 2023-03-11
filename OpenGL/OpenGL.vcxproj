@@ -153,6 +153,7 @@
     <ClCompile Include="src\Keyinput.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\Tools.cpp" />
     <ClCompile Include="src\vender\imgui\imgui.cpp" />
     <ClCompile Include="src\vender\imgui\imgui_demo.cpp" />
     <ClCompile Include="src\vender\imgui\imgui_draw.cpp" />
@@ -169,6 +170,7 @@
     <None Include="res\shaders\basic_screen.shader" />
     <None Include="res\shaders\D3Particle.shader" />
     <None Include="res\shaders\DeferedPreShadow.shader" />
+    <None Include="res\shaders\Defered_unjitterDepth.shader" />
     <None Include="res\shaders\EnvCubeMap.shader" />
     <None Include="res\shaders\blending.shader" />
     <None Include="res\shaders\blooming_blur.shader" />
@@ -178,9 +180,11 @@
     <None Include="res\shaders\EnvCubeMap_spec_BRDF.shader" />
     <None Include="res\shaders\EnvCubeMap_spec_Convolution.shader" />
     <None Include="res\shaders\FXAA.shader" />
+    <None Include="res\shaders\MLAA_first.shader" />
     <None Include="res\shaders\geometry.shader" />
     <None Include="res\shaders\Health_bar.shader" />
     <None Include="res\shaders\Health_bar_enemy.shader" />
+    <None Include="res\shaders\MLAA_second.shader" />
     <None Include="res\shaders\model.shader" />
     <None Include="res\shaders\DeferedLighting.shader" />
     <None Include="res\shaders\model_geometry.shader" />
@@ -197,6 +201,7 @@
     <None Include="res\shaders\SpotLightShadow.shader" />
     <None Include="res\shaders\SSAO.shader" />
     <None Include="res\shaders\SSAOblur.shader" />
+    <None Include="res\shaders\TAA.shader" />
     <None Include="res\shaders\Terrain_cpu.shader" />
     <None Include="res\shaders\Terrain_gpu.shader" />
     <None Include="res\shaders\Text.shader" />
@@ -218,9 +223,11 @@
     <ClInclude Include="src\FrameBuffer.h" />
     <ClInclude Include="src\Particle.h" />
     <ClInclude Include="src\Renderer.h" />
+    <ClInclude Include="src\ScenGraph.h" />
     <ClInclude Include="src\Shader.h" />
     <ClInclude Include="src\Text.h" />
     <ClInclude Include="src\Texture.h" />
+    <ClInclude Include="src\Tools.h" />
     <ClInclude Include="src\vender\imgui\imconfig.h" />
     <ClInclude Include="src\vender\imgui\imgui.h" />
     <ClInclude Include="src\vender\imgui\imgui_impl_glfw.h" />

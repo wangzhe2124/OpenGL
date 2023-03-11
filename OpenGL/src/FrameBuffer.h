@@ -29,8 +29,8 @@ public:
 		glGenTextures(1, &DepthTextureId);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, c_screenWidth, c_screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);//只需要深度
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthTextureId, 0);
@@ -53,6 +53,10 @@ public:
 		glActiveTexture(GL_TEXTURE0 + slot);
 		glBindTexture(GL_TEXTURE_2D, DepthTextureId);
 	};
+	void Read()
+	{
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBufferId);
+	}
 	void Write()
 	{
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
@@ -322,9 +326,21 @@ private:
 	unsigned int RenderBufferId;
 	unsigned int c_screenWidth;
 	unsigned int c_screenHeight;
+	GLenum precision;
+	GLenum type;
 public:
-	basic_FBO(unsigned int scr_width, unsigned int scr_height) :c_screenWidth(scr_width), c_screenHeight(scr_height)
+	basic_FBO(unsigned int scr_width, unsigned int scr_height, int p = 0, int t = 0) :c_screenWidth(scr_width), c_screenHeight(scr_height)
 	{
+		if (p == 0)
+		{
+			precision = GL_RGBA16F;
+		}
+		else
+			precision = GL_RG;
+		if (t == 0)
+			type = GL_FLOAT;
+		else
+			type = GL_BYTE;
 		glGenFramebuffers(1, &frameBufferId);
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 		BindTextureBuffer();
@@ -337,7 +353,7 @@ public:
 	{
 		glGenTextures(1, &textureColorId);
 		glBindTexture(GL_TEXTURE_2D, textureColorId);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//使用高精度32F颜色缓冲HDR
+		glTexImage2D(GL_TEXTURE_2D, 0, precision, c_screenWidth, c_screenHeight, 0, GL_RGBA, type, NULL);//使用高精度32F颜色缓冲HDR
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -375,14 +391,16 @@ public:
 	{
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBufferId);
 	};
+	void WriteTexture()
+	{
+		glBindTexture(GL_TEXTURE_2D, textureColorId);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, c_screenWidth, c_screenHeight);
+	};
 	void Read()
 	{
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBufferId);
 	};
-	void ReadTexture()
-	{
-		glFramebufferTexture2D(GL_READ_FRAMEBUFFER,GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorId, 0);
-	};
+
 	void SetViewPort()
 	{
 		glViewport(0, 0, c_screenWidth, c_screenHeight);
@@ -429,7 +447,7 @@ public:
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, c_screenWidth, c_screenHeight, 0, GL_RGBA, GL_FLOAT, NULL);//必须32
 			glGenerateMipmap(GL_TEXTURE_2D);
 
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -1204,6 +1222,12 @@ public:
 	basic_FBO shadow_blur_horizontalFBO = basic_FBO(screenWidth, screenHeight);
 	basic_FBO shadow_blur_verticalFBO = basic_FBO(screenWidth, screenHeight);
 	basic_FBO FXAA_FBO = basic_FBO(screenWidth, screenHeight);
+	basic_FBO MLAA_FBO = basic_FBO(screenWidth, screenHeight, 1, 1);
+	basic_FBO exchange_FBO = basic_FBO(screenWidth, screenHeight);
+
+	basic_FBO TAA_preFrame_FBO = basic_FBO(screenWidth, screenHeight);
+	basic_FBO TAA_currentFrame_FBO = basic_FBO(screenWidth, screenHeight);
+
 	GBuffer gbuffer = GBuffer(screenWidth, screenHeight);
 	GBuffer PreShadowFBO = GBuffer(screenWidth, screenHeight, false);
 	//SSAO采样样本

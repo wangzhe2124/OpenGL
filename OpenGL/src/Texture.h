@@ -51,7 +51,7 @@ public:
 			glBindTexture(GL_TEXTURE_2D, RenderId);
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			glTexImage2D(GL_TEXTURE_2D, 0, outformat, width, height, 0, informat, GL_UNSIGNED_BYTE, Data);
-
+			glGenerateMipmap(GL_TEXTURE_2D);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); //GL_MIRRORED_REPEAT, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_BORDER
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);//GL_LINEAR,GL_NEAREST_MIPMAP_NEAREST,GL_LINEAR_MIPMAP_NEAREST,GL_NEAREST_MIPMAP_LINEAR,GL_LINEAR_MIPMAP_LINEAR
@@ -59,7 +59,6 @@ public:
 			GLfloat max_TexAni;    //查询允许的各向异性数量
 			glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_TexAni);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_TexAni);
-			glGenerateMipmap(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, 0);
 			stbi_image_free(Data);
 		}
@@ -240,12 +239,12 @@ public:
 	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 4);
 	std::vector<std::string> faces
 	{
-		"res/textures/skybox/right.jpg",
-		"res/textures/skybox/left.jpg",
-		"res/textures/skybox/top.jpg",
-		"res/textures/skybox/bottom.jpg",
-		"res/textures/skybox/front.jpg",
-		"res/textures/skybox/back.jpg"
+		"res/textures/storm/stormydays_ft.tga",
+		"res/textures/storm/stormydays_bk.tga",
+		"res/textures/storm/stormydays_up.tga",
+		"res/textures/storm/stormydays_dn.tga",
+		"res/textures/storm/stormydays_rt.tga",
+		"res/textures/storm/stormydays_lf.tga"
 	};
 	CubeMapTexture skybox = CubeMapTexture(faces);
 	Texture Particle_texture = Texture("res/textures/particle_2.png", 3);

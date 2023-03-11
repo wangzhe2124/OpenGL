@@ -76,6 +76,12 @@ in vec2 TextureCoord[];
 out float Height;
 out vec3 color;
 out vec3 FragPos;
+vec4 interpolate(in vec4 v0, in vec4 v1, in vec4 v2, in vec4 v3)
+{
+    vec4 a = mix(v0, v1, gl_TessCoord.x);
+    vec4 b = mix(v2, v3, gl_TessCoord.x);
+    return mix(a, b, gl_TessCoord.y);
+}
 void main()
 {
     float u = gl_TessCoord.x;
@@ -92,17 +98,9 @@ void main()
 
     Height = texture(heightMap, texCoord).x * 64.0 - 16.0;
     color = texture(textureMap, texCoord).xyz;
-    vec4 p00 = gl_in[0].gl_Position;
-    vec4 p01 = gl_in[1].gl_Position;
-    vec4 p10 = gl_in[2].gl_Position;
-    vec4 p11 = gl_in[3].gl_Position;
 
-    vec4 uVec = p01 - p00;
-    vec4 vVec = p10 - p00;
-
-    vec4 p0 = (p01 - p00) * u + p00;
-    vec4 p1 = (p11 - p10) * u + p10;
-    vec4 p = (p1 - p0) * v + p0 + vec4(0, 1, 0, 0) * Height;
+    vec4 p = interpolate(gl_in[0].gl_Position, gl_in[1].gl_Position, gl_in[2].gl_Position, gl_in[3].gl_Position)
+        + vec4(0, 1, 0, 0) * Height;
     //p.y += Height;
     gl_Position = projection * view * model * p;
     FragPos = vec3(model * p);
@@ -120,8 +118,8 @@ in vec3 FragPos;
 void main()
 {
     Position = FragPos;
-    vec3 x = dFdx(FragPos) + dFdx(dFdx(FragPos)); // "FragPos = vec3(model * p);" from the tess eval
-    vec3 y = dFdy(FragPos) + dFdy(dFdy(FragPos));
+    vec3 x = dFdx(FragPos); // "FragPos = vec3(model * p);" from the tess eval
+    vec3 y = dFdy(FragPos);
     Normal = normalize(cross(x, y));
     float h = (Height + 16) / 64.0f;	// shift and scale the height into a grayscale value
     FragColor = vec4(h, h, h, 1.0) * vec4(color, 1.0);

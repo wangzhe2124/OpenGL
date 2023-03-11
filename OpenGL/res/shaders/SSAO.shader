@@ -32,7 +32,7 @@ uniform sampler2D Noise;
 uniform vec3 samples[64];
 uniform mat4 projection;
 uniform mat4 view;
-const vec2 noiseScale = vec2(960.0 / 4.0, 640.0 / 4.0);
+
 float LinearizeDepth(float depth)
 {
 	float NEAR = 0.1f;
@@ -43,6 +43,9 @@ float LinearizeDepth(float depth)
 uniform float radius;
 uniform float bias;
 uniform float rangecheck;
+
+uniform vec2 resolution;
+const vec2 noiseScale = vec2(resolution.x / 4.0, resolution.y / 4.0);
 void main()
 {
 	vec3 FragPos = texture(gPosition, fs_in.TexCoord).xyz;

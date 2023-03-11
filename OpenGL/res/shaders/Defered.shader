@@ -18,6 +18,8 @@ uniform mat4 view;
 uniform mat4 model;
 
 uniform bool is_instance;
+uniform vec2 jitter;
+uniform vec2 resolution;
 out VS_OUT{
  vec3 Normal;
  vec3 FragPos;
@@ -52,7 +54,14 @@ void main()
     if (no_bone)
         transMatrix = mat4(1.0f);
     vec4 totalPosition = transMatrix * vec4(Position, 1.0f);
-    gl_Position = projection * view * model_matrix * totalPosition;
+    //jitter
+    vec4 gpos = projection * view * model_matrix * totalPosition;
+    mat4 jitterMat = mat4(1.0f);
+    float jitterScale = 0.1 + (gpos.z / gpos.w * 0.5f + 0.5f) / 2.0f;
+    jitterMat[3][0] += (jitter.x * 2 - 1.0f) * (resolution.x) * jitterScale;
+    jitterMat[3][1] += (jitter.y * 2 - 1.0f) * (resolution.y) * jitterScale;
+
+    gl_Position = jitterMat * gpos;
     vs_out.FragPos = vec3(model_matrix * totalPosition);
     vs_out.Normal = mat3(transpose(inverse(model_matrix))) * mat3(transpose(inverse(transMatrix))) * Normal;
  
@@ -69,8 +78,8 @@ void main()
 
 #shader fragment
 #version 420 core
-layout(location = 0) out vec3 gPosition;
-layout(location = 1) out vec3 gNormal;
+layout(location = 0) out vec4 gPosition;
+layout(location = 1) out vec4 gNormal;
 layout(location = 2) out vec4 gAlbedoSpec;
 in VS_OUT{
 vec3 Normal;//注意顺序要与顶点着色器输出一致
@@ -91,6 +100,8 @@ uniform Material material;
 uniform bool use_NormalMap;
 uniform bool use_HeightMap;
 uniform vec3 viewPos;
+uniform float metallic;
+uniform float roughness;
 //高度（视差）贴图计算位移的纹理坐标
 vec2 ParallaxMapping(vec2 TexCoord, vec3 viewDir, vec3 normal)
 {
@@ -138,9 +149,11 @@ void main()
     vec3 normal = use_NormalMap == true ? Normal : normalize(fs_in.Normal);
 
     // store the fragment position vector in the first gbuffer texture
-    gPosition = fs_in.FragPos;
+    gPosition.xyz = fs_in.FragPos;
+    gPosition.w = metallic;
     // also store the per-fragment normals into the gbuffer
-    gNormal = normal;
+    gNormal.xyz = normal;
+    gNormal.w = roughness;
     // and the diffuse per-fragment color
     gAlbedoSpec.rgb = texture(material.texture_diffuse, TexCoord).rgb;
     // store specular intensity in gAlbedoSpec's alpha component

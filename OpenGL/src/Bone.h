@@ -88,7 +88,7 @@ private:
 			if (animationTime < m_Positions[index + 1].timeStamp)
 				return index;
 		}
-		assert(0);
+		//assert(0);
 	}
 
 	int GetRotationIndex(float animationTime)
@@ -98,7 +98,7 @@ private:
 			if (animationTime < m_Rotations[index + 1].timeStamp)
 				return index;
 		}
-		assert(0);
+		//assert(0);
 	}
 
 	int GetScaleIndex(float animationTime)
@@ -108,7 +108,7 @@ private:
 			if (animationTime < m_Scales[index + 1].timeStamp)
 				return index;
 		}
-		assert(0);
+		//assert(0);
 	}
 
 	glm::mat4 InterpolatePosition(float animationTime)

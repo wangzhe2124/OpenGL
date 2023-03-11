@@ -83,6 +83,9 @@ public:
     Shader Particle_shader = Shader("res/shaders/Particle.shader");
     Shader D3Particle_shader = Shader("res/shaders/D3Particle.shader");
     Shader FXAA_shader = Shader("res/shaders/FXAA.shader");
+    Shader MLAA_first_shader = Shader("res/shaders/MLAA_first.shader");
+    Shader MLAA_second_shader = Shader("res/shaders/MLAA_second.shader");
+    Shader TAA_shader = Shader("res/shaders/TAA.shader");
     Shader Terrain_cpu_shader = Shader("res/shaders/Terrain_cpu.shader");
     Shader Terrain_gpu_shader = Shader("res/shaders/Terrain_gpu.shader");
     Shader Health_bar_shader = Shader("res/shaders/Health_bar.shader");

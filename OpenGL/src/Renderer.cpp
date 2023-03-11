@@ -37,6 +37,14 @@ void Renderer::DrawArray(const VertexArray& va, const Shader& shader) const
 
 }
 
+void Renderer::DrawQuads(const VertexArray& va, const Shader& shader) const
+{
+    va.Bind();
+    shader.Bind();
+    glDrawArrays(GL_QUADS, 0, va.GetNumber());
+    va.Unbind();
+
+}
 void Renderer::DrawArray_strip(const VertexArray& va, const Shader& shader) const
 {
     va.Bind();

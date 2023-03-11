@@ -79,8 +79,8 @@ int main(void)
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
-    
-    glfwSwapInterval(1);
+    //垂直同步
+    glfwSwapInterval(0);
     if (glewInit() != GLEW_OK)
         std::cout << "error" << std::endl;
     glCheckError();
@@ -127,23 +127,23 @@ int main(void)
         if(!game.Get_Response_action())
             game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//键盘输入移动
         game.start_render();
-        if (game.keyinput.full_screen)
+        if (game.keyinput.reset_resolution)
         {
-            GLFWmonitor* _monitor = glfwGetPrimaryMonitor();
-            const GLFWvidmode* mode = glfwGetVideoMode(_monitor);
-            glfwSetWindowMonitor(window, _monitor, 0, 0, mode->width, mode->height, 0);
-            game.SetSwidth(mode->width);
-            game.SetSheight(mode->height);
-        }
-        else
-        {
-            glm::ivec2 window_pos;
-            glfwGetWindowPos(window, &window_pos.x, &window_pos.y);
-            glm::ivec2 window_size;
-            glfwGetWindowSize(window, &window_size.x, &window_size.y);
-            glfwSetWindowMonitor(window, nullptr, 0, 0, 960, 640, 0);
-            game.SetSwidth(960);
-            game.SetSheight(640);
+            if (game.keyinput.full_screen)
+            {
+                GLFWmonitor* _monitor = glfwGetPrimaryMonitor();
+                const GLFWvidmode* mode = glfwGetVideoMode(_monitor);
+                glfwSetWindowMonitor(window, _monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+                game.SetSwidth(mode->width);
+                game.SetSheight(mode->height);
+            }
+            else
+            {
+                glfwSetWindowMonitor(window, nullptr, 0, 0, 960, 640, 0);
+                game.SetSwidth(960);
+                game.SetSheight(640);
+            }
+            game.keyinput.reset_resolution = false;
         }
         //glDisable(GL_DEPTH_TEST);
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -252,7 +252,8 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::Checkbox("blur shadow", &keyinput.blur_shadow);
     ImGui::Checkbox("show mesh", &keyinput.show_mesh);
     ImGui::Checkbox("fullscreen", &keyinput.full_screen);
-
+    ImGui::SameLine();
+    ImGui::Checkbox("reset resolution", &keyinput.reset_resolution);
     ImGui::SliderFloat("camera speed", &game.camera.MovementSpeed, 0.0f, 1000.0f);
 
     ImGui::SliderFloat("Metallic", &keyinput.metallic, 0.0f, 1.0f);
@@ -268,8 +269,9 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::Begin("sun Window", &keyinput.sun_window);
         if (ImGui::Button("Close Me"))
             keyinput.sun_window = false;
-        ImGui::SliderFloat("SunIntensity", &keyinput.SunIntensity, 0.0f, 10.0f);
-        ImGui::SliderFloat("sm_bias", &keyinput.sun_sm_bias, 0.0f, 5.0f);
+        ImGui::SliderFloat("SunIntensity", &keyinput.SunIntensity, 0.0f, 10.0f, "%5.f", 1.0f);
+        ImGui::Separator();
+        ImGui::SliderFloat("sm_bias", &keyinput.sun_sm_bias, 0.0f, 1.0f);
         ImGui::SliderFloat("sun speed", &keyinput.sun_speed, 0.0f, 50.0f);
         ImGui::SliderFloat("sun pcf radius", &keyinput.sun_pcf_radius, 0.0f, 10.0f);
         ImGui::Checkbox("sun pcf", &keyinput.sun_pcf);
@@ -357,20 +359,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         ImGui::End();
     }
     ImGui::SameLine();
-    //fxaa
-    ImGui::Checkbox("FXAA Window", &keyinput.fxaa_window);
-    if (keyinput.fxaa_window)
-    {
-        ImGui::Begin("particle Window", &keyinput.fxaa_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-        if (ImGui::Button("Close Me"))
-            keyinput.fxaa_window = false;
-        ImGui::Checkbox("fxaa on", &keyinput.fxaa_on);
-        ImGui::SliderFloat("fxaa lumaThreshold", &keyinput.fxaa_lumaThreshold, 0.0f, 1.0f);
-        ImGui::SliderFloat("fxaa mulReduce", &keyinput.fxaa_mulReduce, 0.0f, 1.0f);
-        ImGui::SliderFloat("fxaa minReduce", &keyinput.fxaa_minReduce, 0.0f, 1.0f);
-        ImGui::SliderFloat("fxaa maxSpan", &keyinput.fxaa_maxSpan, 0.0f, 16.0f);
-        ImGui::End();
-    }
+
     //animation
     ImGui::Checkbox("animation Window", &keyinput.animation_window);
     if (keyinput.animation_window)
@@ -380,6 +369,43 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
             keyinput.animation_window = false;
         ImGui::Checkbox("change animation", &keyinput.chage_animation);
         ImGui::SliderInt("animation type", &keyinput.animation_type, 0, Animations::MAX);
+        ImGui::End();
+    }
+    //fxaa
+    ImGui::Checkbox("FXAA Window", &keyinput.fxaa_window);
+    if (keyinput.fxaa_window)
+    {
+        ImGui::Begin("FXAA Window", &keyinput.fxaa_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+        if (ImGui::Button("Close Me"))
+            keyinput.fxaa_window = false;
+        ImGui::Checkbox("fxaa on", &keyinput.fxaa_on);
+        ImGui::SliderFloat("fxaa lumaThreshold", &keyinput.fxaa_lumaThreshold, 0.0f, 10.0f);
+        ImGui::SliderFloat("fxaa mulReduce", &keyinput.fxaa_maxReduce, 0.0f, 10.0f);
+        ImGui::SliderFloat("fxaa minReduce", &keyinput.fxaa_minReduce, 0.0f, 10.0f);
+        ImGui::SliderFloat("fxaa maxSpan", &keyinput.fxaa_maxSpan, 0.0f, 160.0f);
+        ImGui::End();
+    }
+    //TAA
+    ImGui::Checkbox("TAA Window", &keyinput.taa_window);
+    if (keyinput.taa_window)
+    {
+        ImGui::Begin("TAA Window", &keyinput.taa_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+        if (ImGui::Button("Close Me"))
+            keyinput.taa_window = false;
+        ImGui::Checkbox("taa on", &keyinput.taa_on);
+        ImGui::SliderFloat("taa diffScale", &keyinput.taa_mixWeight, 0.0f, 1.0f);
+        ImGui::End();
+    }
+    //MLAA
+    ImGui::Checkbox("MLAA Window", &keyinput.mlaa_window);
+    if (keyinput.mlaa_window)
+    {
+        ImGui::Begin("MLAA Window", &keyinput.mlaa_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+        if (ImGui::Button("Close Me"))
+            keyinput.mlaa_window = false;
+        ImGui::Checkbox("mlaa on", &keyinput.mlaa_on);
+        ImGui::SliderFloat("mlaa threShold", &keyinput.mlaa_threShold, 0.0f, 1.0f);
+        ImGui::SliderInt("mlaa searchNum", &keyinput.mlaa_searchNum, 0, 200);
         ImGui::End();
     }
     static int counter = 0;

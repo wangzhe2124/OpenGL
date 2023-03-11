@@ -31,7 +31,7 @@ void main()
     vec3 Color;
     if (gamma)
     {
-        FragColor = vec4(pow(HDRcolor, vec3(1 / 4)) * 1.055f - vec3(0.055f), 1.0);
+        FragColor = vec4(pow(HDRcolor, vec3(1 / 2.4)) * 1.055f - vec3(0.055f), 1.0);
     }
     else
     {

@@ -37,11 +37,12 @@ KeyInput::KeyInput()
     //particles
     particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f), particle_life_reduce(0.018f), show_d3particle(false),
     //fxaa
-    fxaa_window(false), fxaa_on(true), fxaa_lumaThreshold(0.2f), fxaa_maxReduce(0.125f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f),
+    fxaa_window(false), fxaa_on(false), fxaa_showEdge(false), fxaa_lumaThreshold(0.2f), fxaa_maxReduce(0.001f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f),
     //taa
-    taa_window(false), taa_on(true), taa_mixWeight(0.1f),
+    taa_window(false), taa_on(true), taa_mixWeight(0.3f),
     //mlaa
-    mlaa_window(false), mlaa_on(true), mlaa_threShold(0.16f), mlaa_searchNum(86)
+    mlaa_window(false), mlaa_on(true), mlaa_threShold(0.16f), mlaa_searchNum(86),
+    show_times(false), sample_times(false)
 {
 
 }

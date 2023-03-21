@@ -27,6 +27,7 @@ void main(void)
 	vec2 leftDir = vec2(-1, 0) * resolution;
 	vec2 rightDir = vec2(1, 0) * resolution;
 	vec4 curColor = texture(colorTexture, texCoord);
+	//1
 	if (texture(firstTexture, texCoord + downDir).r > 0.99)
 	{
 		//right
@@ -110,6 +111,98 @@ void main(void)
 		{
 			float ratio = (leftNum + 0.5) / (leftNum + rightNum);
 			fragColor = ratio * (rightColor + leftColor) / 2 + (1 - ratio) * curColor;
+		}
+		else
+		{
+			fragColor = curColor;
+		}
+	}
+	//2
+	else if (texture(firstTexture, texCoord).g > 0.99)
+	{
+		//up
+		bool upSign;
+		int upNum;
+		int i;
+		for (i = 1; i < searchNum; i++)
+		{
+			vec2 uv_1 = texCoord + upDir * (i - 1);
+			vec2 signal_1 = texture(firstTexture, uv_1).xy;
+
+			vec2 uv_2 = texCoord + upDir * i;
+			vec2 signal_2 = texture(firstTexture, uv_2).xy;
+
+			if (signal_1.r <0.01 && signal_2.g > 0.99)
+				continue;
+			else if (signal_1.r < 0.01 && signal_2.g < 0.01)
+			{
+				upSign = false;
+				upNum = i - 1;
+				break;
+			}
+			else
+			{
+				upSign = true;
+				upNum = i;
+				break;
+			}
+		}
+		if (i == searchNum)
+			upNum = i - 1;
+		vec4 upColor;
+		if (upSign)
+			upColor = texture(colorTexture, texCoord + upNum * upDir);
+		else
+			upColor = texture(colorTexture, texCoord + leftDir + upNum * upDir);
+		//down
+		bool downSign;
+		int downNum;
+		for (i = 1; i < searchNum; i++)
+		{
+			vec2 uv = texCoord + downDir * i;
+			vec2 signal = texture(firstTexture, uv).xy;
+
+			if (signal.r < 0.01 && signal.g > 0.99)
+				continue;
+			else if (signal.r < 0.01 && signal.g < 0.01)
+			{
+				downSign = false;
+				downNum = i - 1;
+				break;
+			}
+			else
+			{
+				downSign = true;
+				downNum = i;
+				break;
+			}
+		}
+		if (i == searchNum)
+			downNum = i - 1;
+		if (downNum == searchNum && downNum == searchNum)
+		{
+			fragColor = curColor;
+			return;
+		}
+		vec4 downColor;
+		if (downSign)
+			downColor = texture(colorTexture, texCoord + downNum * downDir);
+		else
+			downColor = texture(colorTexture, texCoord + leftDir + downNum * downDir);
+		//mix
+		if (downSign && downSign)
+		{
+			fragColor = mix(downColor, upColor, upNum / (upNum + downNum));
+		}
+		else if (!upSign && downSign)
+		{
+			float ratio = (upNum + 0.5) / (upNum + downNum);
+			fragColor = ratio * (upColor + downColor) / 2 + (1 - ratio) * curColor;
+		}
+		else if (upSign && !downSign)
+		{
+			float ratio = (downNum + 0.5) / (downNum + upNum);
+			fragColor = ratio * (upColor + downColor) / 2 + (1 - ratio) * curColor;
 		}
 		else
 		{

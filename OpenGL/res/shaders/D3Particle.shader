@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 Normal;
 layout(location = 2) in vec2 TexCoord;
@@ -17,7 +17,7 @@ void main()
     fragTexcoord = TexCoord;
 };
 #shader fragment
-#version 420 core
+#version 460 core
 out vec4 FragColor;
 in vec2 fragTexcoord;
 uniform vec4 color;

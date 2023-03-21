@@ -78,7 +78,6 @@
     <None Include="res\shaders\source.shader" />
     <None Include="res\shaders\cube.shader" />
     <None Include="res\shaders\single.shader" />
-    <None Include="res\shaders\blending.shader" />
     <None Include="res\shaders\screen.shader" />
     <None Include="res\shaders\SkyBox.shader" />
     <None Include="res\shaders\model.shader" />
@@ -111,7 +110,6 @@
     <None Include="res\shaders\Health_bar.shader" />
     <None Include="res\shaders\Health_bar_enemy.shader" />
     <None Include="res\shaders\TAA.shader" />
-    <None Include="res\shaders\Defered_unjitterDepth.shader" />
     <None Include="res\shaders\MLAA_first.shader" />
     <None Include="res\shaders\MLAA_second.shader" />
   </ItemGroup>

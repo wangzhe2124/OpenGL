@@ -107,22 +107,25 @@ public:
 class Animations
 {
 public:
-	static enum {walk, death, punching, attack, MAX};
-	Animation* Animation_death;
-	Animation* Animation_punching;
+	static enum {idle, walk, jog, left_punch, right_punch, MAX};
+	Animation* Animation_jog;
+	Animation* Animation_left_punch;
 	Animation* Animation_walk;
-	Animation* Animation_attack;
+	Animation* Animation_right_punch;
+	Animation* Animation_Idle;
 	std::unordered_map<int, Animation*> animations_map;
 	Animations(Model* model)
 	{
-		Animation_death = new Animation("res/objects/death.dae", model);
-		animations_map[death] = Animation_death;
-		Animation_punching = new Animation("res/objects/Punching.dae", model);
-		animations_map[punching] = Animation_punching;
-		Animation_walk = new Animation("res/objects/walking.dae", model);
+		Animation_jog = new Animation("res/objects/Jogging.dae", model);
+		animations_map[jog] = Animation_jog;
+		Animation_left_punch = new Animation("res/objects/leftPunch.dae", model);
+		animations_map[left_punch] = Animation_left_punch;
+		Animation_walk = new Animation("res/objects/Walk.dae", model);
 		animations_map[walk] = Animation_walk;
-		Animation_attack = new Animation("res/objects/attack.dae", model);
-		animations_map[attack] = Animation_attack;
+		Animation_right_punch = new Animation("res/objects/rightPunch.dae", model);
+		animations_map[right_punch] = Animation_right_punch;
+		Animation_Idle = new Animation("res/objects/Idle.dae", model);
+		animations_map[idle] = Animation_Idle;
 	}
 	~Animations()
 	{
@@ -138,10 +141,9 @@ private:
 	float m_CurrentTime;
 	float m_DeltaTime;
 	float Duration;
-	bool is_RootAnime;
 public:
 	glm::mat4 RootTransform;
-	Animator(Animation* animation = nullptr, bool is_root = false) : is_RootAnime(is_root)
+	Animator(Animation* animation = nullptr, bool is_root = false)
 	{
 		m_CurrentTime = 0.0;
 		m_CurrentAnimation = animation;
@@ -214,7 +216,7 @@ public:
 			int index = boneInfoMap[nodeName].id;
 			glm::mat4 offset = boneInfoMap[nodeName].offset;
 			m_FinalBoneMatrices[index] = globalTransformation * offset;
-			if (nodeName == "mixamorig_Hips")
+			if (index == 0)
 			{
 				RootTransform = m_FinalBoneMatrices[index];
 			}
@@ -244,7 +246,7 @@ public:
 	Model Rock = Model("res/objects/rock/rock.obj");
 	Model Floor;
 	Model Sphere = Model();
-	Model Main_character = Model("res/objects/Erika Archer/Erika Archer.dae");
+	Model Main_character = Model("res/objects/arissa/arissa.dae");
 	Model Terrain = Model();
 	Model Sphere_instance = Model();
 	Model Robot_boxing = Main_character;

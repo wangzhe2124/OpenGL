@@ -30,12 +30,14 @@ void main(void)
 	float lumaW = Luminance(textureOffset(u_colorTexture, v_texCoord, ivec2(-1, 0)).rgb);
 
 	float lumaM = Luminance(rgbM);
-	if (abs(lumaM - lumaN) > threShold)
+	//up
+
+	if (abs(lumaM - lumaN) > max(lumaM, lumaN) * threShold)
 		fragColor.r = 1;
 	else
 		fragColor.r = 0;
-
-	if (abs(lumaM - lumaW) > threShold)
+	//left
+	if (abs(lumaM - lumaW) > max(lumaM, lumaW) * threShold)
 		fragColor.g = 1;
 	else
 		fragColor.g = 0;

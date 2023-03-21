@@ -236,7 +236,7 @@ public:
 	Texture floor_specular = Texture("res/textures/bricks.jpg", 3);
 	Texture floor_normal = Texture("res/textures/bricks_normal.jpg", 3);
 	Texture floor_height = Texture("res/textures/bricks_height.jpg", 3);
-	HDRTexture equirectangularMap = HDRTexture("res/textures/Ice_Lake_HiRes_TMap.jpg", 4);
+	HDRTexture equirectangularMap = HDRTexture("res/textures/GCanyon_C_YumaPoint_3k.hdr", 4);
 	std::vector<std::string> faces
 	{
 		"res/textures/storm/stormydays_ft.tga",

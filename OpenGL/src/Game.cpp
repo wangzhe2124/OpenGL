@@ -1,5 +1,7 @@
 #include "Game.h"
 #include <thread>
+#include <Windows.h>
+
 void Generate_Instance(Model& m, int amount);
 void Draw_Instance(Model& m, int amount, Shader& shader);
 
@@ -95,10 +97,12 @@ void Game::Initialize_Models_Positions()
         i++;
         iter->second->position.Translate(glm::vec3(0.0f, 0.0f, i * 5.0f));
         glm::mat4 rootTrans = models->animator_map[iter->first].RootTransform;
+        iter->second->intializeAABB();
         iter->second->updateAABB(rootTrans);
     }
     for (iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
+        iter->second->intializeAABB();
         iter->second->updateAABB();
     }
 
@@ -332,6 +336,8 @@ void Game::Generate_Spot_SM()
 
 void Game::Generate_Defered_basicDATA()
 {
+    drawModelsAABB();
+    glEnable(GL_DEPTH_TEST);
     if (keyinput.show_mesh)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     Shader& shader = shaders->DeferedShader;
@@ -372,6 +378,7 @@ void Game::Generate_Defered_basicDATA()
     //球体
     shader.SetUniformmatri4fv("model", models->Sphere.position.GetModelSpace());
     renderer.DrawElement(*models->Sphere.va, *models->Sphere.ib, shader);
+
     //cube
     /*glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     auto f = [&](Entity::Octree& o) {
@@ -526,8 +533,8 @@ void Game::Generate_Origin_Screen()
 
     framebuffers->PreShadowFBO.BindTexture(9, 1);
     shader.SetUniform1i("prepointshadow", 9);//点光
-    framebuffers->PreShadowFBO.BindTexture(10, 2);
-    shader.SetUniform1i("prespotshadow", 10);//聚光
+    //framebuffers->PreShadowFBO.BindTexture(10, 2);
+    //shader.SetUniform1i("prespotshadow", 10);//聚光
     shader.SetUniform1i("useSSAO", keyinput.useSSAO);
     if (keyinput.useSSAO)
     {
@@ -595,7 +602,7 @@ void Game::Generate_SkyBox()
     shaders->skyboxShader.SetUniformmatri4fv("view", view);
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), float(screenWidth / screenHeight), camera.near_plane, camera.far_plane);
     shaders->skyboxShader.SetUniformmatri4fv("projection", projection);
-    textures->skybox.Bind();
+    pre_framebuffers->envcubemapFBO.BindTexture();
     //envcubemapFBO.BindTexture();
     //envcubemap_spec_convolutionFBO.BindTexture();
     renderer.DrawArray(vertex_arrays->skyboxVa, shaders->skyboxShader);
@@ -652,42 +659,68 @@ void Game::Generate_PostProcess()
     if (keyinput.fxaa_on)
     {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        framebuffers->FXAA_FBO.Write();
+        framebuffers->currentFrame_FBO.Write();
         glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
+        framebuffers->currentFrame_FBO.UnBind();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shaders->FXAA_shader.Bind();
         shaders->FXAA_shader.SetUniform1i("fxaaOn", keyinput.fxaa_on);
+        shaders->FXAA_shader.SetUniform1i("showEdge", keyinput.fxaa_showEdge);
         shaders->FXAA_shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
 
         shaders->FXAA_shader.SetUniform1f("lumaThreshold", keyinput.fxaa_lumaThreshold);
         shaders->FXAA_shader.SetUniform1f("maxReduce", keyinput.fxaa_maxReduce);
         shaders->FXAA_shader.SetUniform1f("minReduce", keyinput.fxaa_minReduce);
         shaders->FXAA_shader.SetUniform1f("maxSpan", keyinput.fxaa_maxSpan);
-        framebuffers->FXAA_FBO.BindTexture();
+        framebuffers->currentFrame_FBO.BindTexture();
         renderer.DrawArray(vertex_arrays->quadVa, shaders->FXAA_shader);
+    }
+    if (keyinput.mlaa_on)
+    {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        framebuffers->currentFrame_FBO.Write();
+        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        framebuffers->currentFrame_FBO.UnBind();
+        //generate signal
+        framebuffers->MLAA_FBO.Bind();
+        shaders->MLAA_first_shader.Bind();
+        shaders->MLAA_first_shader.SetUniform1f("threShold", keyinput.mlaa_threShold);
+        framebuffers->currentFrame_FBO.BindTexture();
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_first_shader);
+        framebuffers->MLAA_FBO.UnBind();
+        //mlaa
+        shaders->MLAA_second_shader.Bind();
+        shaders->MLAA_second_shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
+        shaders->MLAA_second_shader.SetUniform1i("searchNum", keyinput.mlaa_searchNum);
+        framebuffers->MLAA_FBO.BindTexture(0);
+        shaders->MLAA_second_shader.SetUniform1i("firstTexture", 0);
+        framebuffers->currentFrame_FBO.BindTexture(1);
+        shaders->MLAA_second_shader.SetUniform1i("colorTexture", 1);
+        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_second_shader);
     }
     //TAA
     if (keyinput.taa_on)
     {
         ////currentcolor
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        framebuffers->TAA_currentFrame_FBO.Write();
+        framebuffers->currentFrame_FBO.Write();
         glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        framebuffers->TAA_currentFrame_FBO.UnBind();
+        framebuffers->currentFrame_FBO.UnBind();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         Shader& shader = shaders->TAA_shader;
         shader.Bind();
-
+        shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
         shader.SetUniform1f("mixWeight", keyinput.taa_mixWeight);
         framebuffers->TAA_preFrame_FBO.BindTexture(0);
         shader.SetUniform1i("preFrameColor", 0);
 
-        framebuffers->TAA_currentFrame_FBO.BindTexture(1);
+        framebuffers->currentFrame_FBO.BindTexture(1);
         shader.SetUniform1i("currentFrameColor", 1);
 
+        framebuffers->MLAA_FBO.BindTexture(2);
+        shader.SetUniform1i("alias_texture", 2);
         renderer.DrawArray(vertex_arrays->quadVa, shader);
         //precolor
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
@@ -699,29 +732,7 @@ void Game::Generate_PostProcess()
         if (frameIndex >= Halton_Num)
             frameIndex = 0;
     }
-    if (keyinput.mlaa_on)
-    {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        framebuffers->exchange_FBO.Write();
-        glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        framebuffers->exchange_FBO.UnBind();
-        //generate signal
-        framebuffers->MLAA_FBO.Bind();
-        shaders->MLAA_first_shader.Bind();
-        shaders->MLAA_first_shader.SetUniform1f("threShold", keyinput.mlaa_threShold);
-        framebuffers->exchange_FBO.BindTexture();
-        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_first_shader);
-        framebuffers->MLAA_FBO.UnBind();
 
-        shaders->MLAA_second_shader.Bind();
-        shaders->MLAA_second_shader.SetUniform2f("resolution", 1.0f / screenWidth, 1.0f / screenHeight);
-        shaders->MLAA_second_shader.SetUniform1i("searchNum", keyinput.mlaa_searchNum);
-        framebuffers->MLAA_FBO.BindTexture(0);
-        shaders->MLAA_second_shader.SetUniform1i("firstTexture", 0);
-        framebuffers->exchange_FBO.BindTexture(1);
-        shaders->MLAA_second_shader.SetUniform1i("colorTexture", 1);
-        renderer.DrawArray(vertex_arrays->quadVa, shaders->MLAA_second_shader);
-    }
 }
 
 void Game::Generate_CubeTexture()
@@ -768,7 +779,7 @@ void Game::Generate_EnvLight_Diffuse()
     shaders->EnvCubeMap_ConvolutionShader.Bind();
     shaders->EnvCubeMap_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
     pre_framebuffers->envcubemap_convolutionFBO.SetViewPort();
-    textures->skybox.Bind();
+    pre_framebuffers->envcubemapFBO.BindTexture();
     for (unsigned int i = 0; i < 6; ++i)
     {
         pre_framebuffers->envcubemap_convolutionFBO.Bind(i);
@@ -795,7 +806,7 @@ void Game::Generate_EnvLight_Specular()
     shaders->EnvCubeMap_spec_ConvolutionShader.Bind();
     shaders->EnvCubeMap_spec_ConvolutionShader.SetUniformmatri4fv("projection", captureProjection);
     unsigned int maxMipLevels = 5;
-    textures->skybox.Bind();
+    pre_framebuffers->envcubemapFBO.BindTexture();
     for (unsigned int i = 0; i < maxMipLevels; ++i)
     {
         unsigned int mipWidth = 1024 * static_cast<unsigned int>(std::pow(0.5, i));
@@ -1030,6 +1041,7 @@ void Game::Generate_Terrain_gpu()
 
 void Game::Generate_Health_bar()
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     Shader& shader = shaders->Health_bar_shader;
     shader.Bind();
     shader.SetUniform1f("screenHeight", static_cast<float>(screenHeight));
@@ -1048,42 +1060,42 @@ void Game::Generate_Health_bar_enemy()
 {
     Shader& shader = shaders->Health_bar_enemy_shader;
     shader.Bind();
-    std::map<float, std::string> sorted;
     for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
-        if (iter->first != "Main_character")
-        {
-            float distance = glm::length(camera.Position - glm::vec3(iter->second->position.GetVector(3, 0), iter->second->position.GetVector(3, 1), iter->second->position.GetVector(3, 2)));
-            sorted[distance] = iter->first;
-        }
+        Model* model = iter->second;
+        float distance = glm::length(camera.Position - glm::vec3(model->position.GetVector(3, 0), model->position.GetVector(3, 1), model->position.GetVector(3, 2)));
+        sortedModels[distance] = model;
     }
-    csm_dirlight.Set_far_plane(sorted.rbegin()->first * 10);
-    for (std::map<float, std::string>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
+    csm_dirlight.Set_far_plane(sortedModels.end()->first * 10);
+    for (std::map<float, Model*>::reverse_iterator it = sortedModels.rbegin(); it != sortedModels.rend(); ++it)
     {
-        Model& model = *models->anime_models_map[it->second];
-        float health_bar_x = (model.aabb[min_x] + model.aabb[max_x]) * 0.5f;
-        float health_bar_y = model.aabb[max_y] + (model.aabb[max_y] - model.aabb[min_y]) * 0.1f;
-        float health_bar_z = (model.aabb[min_z] + model.aabb[max_z]) * 0.5f;
-        glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_x, health_bar_y, health_bar_z, 1.0f);
-        float life_x = ((health_bar_position.x / health_bar_position.w * 0.5f) + 0.5f) * screenWidth;
-        float life_y = ((health_bar_position.y / health_bar_position.w * 0.5f) + 0.5f) * screenHeight;
-        shader.SetUniform1f("life_y", life_y);
-        shader.SetUniform1f("life_x", life_x);
+        Model& model = *it->second;
+        if (&model != &models->Main_character)
+        {
+            float health_bar_x = (model.aabb[min_x] + model.aabb[max_x]) * 0.5f;
+            float health_bar_y = model.aabb[max_y] + (model.aabb[max_y] - model.aabb[min_y]) * 0.1f;
+            float health_bar_z = (model.aabb[min_z] + model.aabb[max_z]) * 0.5f;
+            glm::vec4 health_bar_position = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(health_bar_x, health_bar_y, health_bar_z, 1.0f);
+            float life_x = ((health_bar_position.x / health_bar_position.w * 0.5f) + 0.5f) * screenWidth;
+            float life_y = ((health_bar_position.y / health_bar_position.w * 0.5f) + 0.5f) * screenHeight;
+            shader.SetUniform1f("life_y", life_y);
+            shader.SetUniform1f("life_x", life_x);
 
-        shader.SetUniform1f("max_life", model.max_life);
-        shader.SetUniform1f("current_life", model.current_life);
+            shader.SetUniform1f("max_life", model.max_life);
+            shader.SetUniform1f("current_life", model.current_life);
 
-        glm::vec3 viewPos;
-        if (keyinput.third_view)
-            viewPos = camera.Get_third_position();
-        else
-            viewPos = camera.Get_first_position();
-        glm::vec3 FragPos = glm::vec3(health_bar_x, health_bar_y, health_bar_z);
-        glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
-        float length = glm::length(FragPos - viewPos);
-        float theta = dot(viewDir, camera.Front);
-        if (theta > 0.707 && length < 20.0f)
-            renderer.DrawArray(vertex_arrays->quadVa, shader);
+            glm::vec3 viewPos;
+            if (keyinput.third_view)
+                viewPos = camera.Get_third_position();
+            else
+                viewPos = camera.Get_first_position();
+            glm::vec3 FragPos = glm::vec3(health_bar_x, health_bar_y, health_bar_z);
+            glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
+            float length = glm::length(FragPos - viewPos);
+            float theta = dot(viewDir, camera.Front);
+            if (theta > 0.707 && length < 20.0f)
+                renderer.DrawArray(vertex_arrays->quadVa, shader);
+        }
     }
 }
 
@@ -1096,11 +1108,11 @@ void Game::ready_render()
     framebuffers = new FrameBuffers(screenWidth, screenHeight);
     vertex_arrays = new VertexArrays;
     vertex_buffers = new VertexBuffers;
-    animations = new Animations(&models->Robot_boxing);
+    animations = new Animations(&models->Main_character);
     Debug();
     for (std::unordered_map<std::string, Animator>::iterator iter = models->animator_map.begin(); iter != models->animator_map.end(); iter++)
     {
-        iter->second.PlayAnimation(animations->Animation_walk);
+        iter->second.PlayAnimation(animations->Animation_Idle);
         iter->second.UpdateAnimation(deltaTime);
     }
     /*thread t1(&Game::read_config, this);
@@ -1109,8 +1121,10 @@ void Game::ready_render()
     thread t3(&Game::Initialize_Pointlight, this);
     t1.join();
     t2.join();
-    t3.join();*/
+    t3.join();
+    SetThreadPriority(t1.native_handle(), 1);*/
     read_config();
+    //initializeBullet();
     Initialize_Models_Positions();
     Initialize_Pointlight();
     Initialize_Vertex_Arrays();
@@ -1133,13 +1147,49 @@ void Game::ready_render()
     {
         octree.update(iter->second);
     }
+
+    glGenQueries(1, &query);
 }
 void Game::ProcessAction()
 {
-    if (camera.is_move && !response_action)
+    models->animator_map["Main_character"].UpdateAnimation(deltaTime);
+    //move
+    if (!response_action)
     {
-        models->animator_map["Main_character"].UpdateAnimation(deltaTime);
+        if (camera.is_move)
+        {
+            if (camera.dash)
+            {
+                readyToMove = false;
+                if (!readyToJog)
+                {
+                    models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->jog]);
+                    readyToJog = true;
+                }
+            }
+            else
+            {
+                readyToJog = false;
+                if (!readyToMove)
+                {
+                    models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->walk]);
+                    readyToMove = true;
+                }
+            }
+            readyToIdle = false;
+        }
+        else
+        {
+            readyToMove = false;
+            readyToJog = false;
+            if (!readyToIdle)
+            {
+                models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->idle]);
+                readyToIdle = true;
+            }
+        }
     }
+
     if (keyinput.chage_animation)
     {
         for (std::unordered_map<std::string, Animator>::iterator iter = models->animator_map.begin(); iter != models->animator_map.end(); iter++)
@@ -1151,12 +1201,12 @@ void Game::ProcessAction()
     }
     if (response_action)
     {
-        models->animator_map["Main_character"].UpdateAnimation(deltaTime);
-        if (models->animator_map["Main_character"].GetCurrentTime() > models->animator_map["Main_character"].GetDuration() * 0.95f)
+        if (models->animator_map["Main_character"].GetRatio() > 0.95f)
         {
-            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->walk]);
-            models->animator_map["Main_character"].UpdateAnimation(deltaTime);
             response_action = false;
+            readyToMove = false;
+            readyToJog = false;
+            readyToIdle = false;
         }
     }
 }
@@ -1195,6 +1245,7 @@ void Game::start_render()
         //blur
         Generate_SSAO_blur();
     }
+
     Generate_PreShadow();
 
     //设置uniform      着色
@@ -1213,6 +1264,7 @@ void Game::start_render()
 void Game::Generate_TextParticle()
 {
     glEnable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     std::string text_render = Collision_detection();
     RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
     if (keyinput.show_particle)
@@ -1229,7 +1281,28 @@ void Game::Generate_TextParticle()
     RenderText(shaders->text_shader, "y: " + std::to_string(camera.Position.y), screenWidth * 0.95f, screenHeight * 0.93f, 0.5f, glm::vec3(1.0f));
     RenderText(shaders->text_shader, "z: " + std::to_string(camera.Position.z), screenWidth * 0.95f, screenHeight * 0.91f, 0.5f, glm::vec3(1.0f));
     RenderText(shaders->text_shader, "FPS: " + std::to_string(int(1.0f / deltaTime)), screenWidth * 0.93f, 0, 0.5f, glm::vec3(1.0f));
-
+    //std::vector<glm::vec3> vertA;
+    //std::vector<float> vertA_aabb = models->Main_character.aabb;
+    //vertA.push_back(glm::vec3(vertA_aabb[min_x], vertA_aabb[min_y], vertA_aabb[min_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[min_x], vertA_aabb[min_y], vertA_aabb[max_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[max_x], vertA_aabb[min_y], vertA_aabb[min_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[max_x], vertA_aabb[min_y], vertA_aabb[max_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[min_x], vertA_aabb[max_y], vertA_aabb[min_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[min_x], vertA_aabb[max_y], vertA_aabb[max_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[max_x], vertA_aabb[max_y], vertA_aabb[min_z]));
+    //vertA.push_back(glm::vec3(vertA_aabb[max_x], vertA_aabb[max_y], vertA_aabb[max_z]));
+    //std::vector<glm::vec3> vertB;
+    //std::vector<float> vertB_aabb = models->Marry.aabb;
+    //vertB.push_back(glm::vec3(vertB_aabb[min_x], vertB_aabb[min_y], vertB_aabb[min_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[min_x], vertB_aabb[min_y], vertB_aabb[max_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[max_x], vertB_aabb[min_y], vertB_aabb[min_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[max_x], vertB_aabb[min_y], vertB_aabb[max_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[min_x], vertB_aabb[max_y], vertB_aabb[min_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[min_x], vertB_aabb[max_y], vertB_aabb[max_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[max_x], vertB_aabb[max_y], vertB_aabb[min_z]));
+    //vertB.push_back(glm::vec3(vertB_aabb[max_x], vertB_aabb[max_y], vertB_aabb[max_z]));
+    //if (Collisions::GJK(vertA, vertB))
+    //    RenderText(shaders->text_shader, "co: ", screenWidth * 0.5f, 0, 0.5f, glm::vec3(1.0f));
     glDisable(GL_BLEND);
 }
 void Game::attack()
@@ -1238,10 +1311,10 @@ void Game::attack()
     {
         if (keyinput.keysPressed[GLFW_KEY_LEFT_SHIFT])
         {    //重击
-            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->attack]);
+            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->right_punch]);
         }
         else
-            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->punching]);
+            models->animator_map["Main_character"].PlayAnimation(animations->animations_map[animations->left_punch]);
         response_action = true;
     }
 }
@@ -1385,90 +1458,86 @@ void Game::cutOffFrustum()
     {
         iter->second->inFrustum = isInFrustum(iter->second->aabb);
     }
-    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        iter->second->inFrustum = isInFrustum(iter->second->aabb);
-    }
 }
 void Game::drawModels(Shader& shader)
 {
     cutOffFrustum();
     for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
+        glGetQueryObjectuiv(iter->second->query, GL_QUERY_RESULT, &iter->second->queryPassed);
+        std::cout << iter->first << ":" << iter->second->queryPassed << std::endl;
+        //glDeleteQueries(1, &iter->second->query);
         if (iter->second->inFrustum)
         {
             shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
             iter->second->Draw(shader);
         }
     }
-    ////遍历map对每个model视锥体相交测试
-    ////视锥体剔除
-    //
-    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {      
-        if (iter->second->inFrustum)
-        {
-            auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
-            for (int i = 0; i < transforms.size(); ++i)
-            {
-                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
-            }
-            shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-            iter->second->Draw(shader);
-        }
-    }
-    //八叉树相交测试
-    //cutList.clear();//八叉树剔除
-    //cutOffTree(octree);
+    //////遍历map对每个model视锥体相交测试
+    //////视锥体剔除
+    ////
     //for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    //{       
-    //    if (iter->second->isMoved)
+    //{      
+    //    if (iter->second->inFrustum)
     //    {
-    //        octree.update(iter->second);
-    //        iter->second->isMoved = false;
-    //    }
-    //    if (std::find(cutList.begin(), cutList.end(), iter->second) == cutList.end())
-    //    {
-    //        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
     //        auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
     //        for (int i = 0; i < transforms.size(); ++i)
     //        {
     //            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
     //        }
+    //        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
     //        iter->second->Draw(shader);
     //    }
     //}
+    //八叉树相交测试
+    inFrustumModels.clear();//八叉树剔除
+    cutOffTree(octree);
+    //update octree
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    {       
+        if (iter->second->isMoved)
+        {
+            octree.update(iter->second);
+            iter->second->isMoved = false;
+        }
+    }
+    for (std::map<float, Model*>::iterator iter = sortedModels.begin(); iter != sortedModels.end(); iter++)
+    {
+        Model* model = iter->second;
+        shader.SetUniformmatri4fv("model", model->position.GetModelSpace());
+        auto f = [&](const std::unordered_map<std::string, Model*>::value_type& pair)
+        {
+            return pair.second == model;
+        };
+        auto it = std::find_if(models->anime_models_map.begin(), models->anime_models_map.end(), f);
+        auto transforms = models->animator_map[it->first].GetFinalBoneMatrices();
+        for (int i = 0; i < transforms.size(); ++i)
+        {
+            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+        }
+        model->Draw(shader);
+    }
+    sortedModels.clear();
 }
 
-void Game::cutOffTree(Entity::Octree& o)
+void Game::cutOffTree(Entity::Octree& o)//add models in frustum to the set
 {
     if (!isInFrustum(o.pointMin, o.pointMax))
     {
-        for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
-        {
-            cutList.push_back(it->first);
-        }
+
     }
     else
     {
-        if (o.children.empty())
+        for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
         {
-            for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
+            if (it->second == 8)
             {
-                if(!isInFrustum(it->first->aabb))
-                    cutList.push_back(it->first);
+                if (isInFrustum(it->first->aabb))
+                    inFrustumModels.insert(it->first);
             }
-        }
-        else
-        {
-            for (std::unordered_map<Model*, int>::iterator it = o.hasModel.begin(); it != o.hasModel.end(); it++)
+            else
             {
-                if (it->second == 8 && !isInFrustum(it->first->aabb))
-                    cutList.push_back(it->first);
-            }
-            for (Entity::Octree& tree : o.children)
-            {
-                cutOffTree(tree);
+                cutOffTree(o.children[it->second]);
             }
         }
     }
@@ -1484,15 +1553,144 @@ void Game::drawModelsShadow(Shader& shader)
     }
     for (std::unordered_map<std::string, Model*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
     {
+        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
         auto transforms = models->animator_map[iter->first].GetFinalBoneMatrices();
         for (int i = 0; i < transforms.size(); ++i)
         {
             shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
         }
-        shader.SetUniformmatri4fv("model", iter->second->position.GetModelSpace());
-        if (iter->second->inFrustum)
-            iter->second->DrawShadow(shader);
+        iter->second->DrawShadow(shader);
     }
 }
 
+void Game::drawModelsAABB()
+{
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    Shader& shader = shaders->basic_shader;
+    shader.Bind();
+    shader.SetUniformmatri4fv("view", camera.GetViewMatrix());
+    shader.SetUniformmatri4fv("projection", camera.GetProjectionMatrix());
+    shader.SetUniform3f("color", glm::vec3(1.0f, 0, 0));
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glDepthMask(GL_FALSE); 
+    for (std::unordered_map<std::string, Model*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
+    {
+        ModelSpace md;
+        std::vector<float> aabb = iter->second->aabb;
+        glm::vec3 center = glm::vec3((aabb[min_x] + aabb[max_x]) * 0.5f, (aabb[min_y] + aabb[max_y]) * 0.5f, (aabb[min_z] + aabb[max_z]) * 0.5f);
+        glm::vec3 extent = glm::vec3((aabb[max_x] - aabb[min_x]) * 0.5f, (aabb[max_y] - aabb[min_y]) * 0.5f, (aabb[max_z] - aabb[min_z]) * 0.5f);
+        md.Translate(center);
+        md.Scale(extent);
+        shader.SetUniformmatri4fv("model", md.GetModelSpace());
+        //
+        glGenQueries(1, &iter->second->query);
+        glBeginQuery(GL_SAMPLES_PASSED, iter->second->query);
+        renderer.DrawQuads(vertex_arrays->cubeQuadVa, shader);
+        glEndQuery(GL_SAMPLES_PASSED);
 
+    }
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+}
+//void Game::initializeBullet()
+//{
+//    ///-----initialization_start-----
+//
+/////collision configuration contains default setup for memory, collision setup. Advanced users can create their own configuration.
+//    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+//
+//    ///use the default collision dispatcher. For parallel processing you can use a diffent dispatcher (see Extras/BulletMultiThreaded)
+//    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+//
+//    ///btDbvtBroadphase is a good general purpose broadphase. You can also try out btAxis3Sweep.
+//    btBroadphaseInterface* overlappingPairCache = new btDbvtBroadphase();
+//
+//    ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
+//    btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+//
+//    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
+//
+//    dynamicsWorld->setGravity(btVector3(0, -10, 0));
+//
+//    {
+//        btCollisionShape* groundShape = new btBoxShape(btVector3(btScalar(50.), btScalar(50.), btScalar(50.)));
+//
+//        collisionShapes.push_back(groundShape);
+//
+//        btTransform groundTransform;
+//        groundTransform.setIdentity();
+//        groundTransform.setOrigin(btVector3(0, -56, 0));
+//
+//        btScalar mass(0.);
+//
+//        //rigidbody is dynamic if and only if mass is non zero, otherwise static
+//        bool isDynamic = (mass != 0.f);
+//
+//        btVector3 localInertia(0, 0, 0);
+//        if (isDynamic)
+//            groundShape->calculateLocalInertia(mass, localInertia);
+//
+//        //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
+//        btDefaultMotionState* myMotionState = new btDefaultMotionState(groundTransform);
+//        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, groundShape, localInertia);
+//        btRigidBody* body = new btRigidBody(rbInfo);
+//
+//        //add the body to the dynamics world
+//        dynamicsWorld->addRigidBody(body);
+//    }
+//
+//    {
+//        //create a dynamic rigidbody
+//
+//        //btCollisionShape* colShape = new btBoxShape(btVector3(1,1,1));
+//        btCollisionShape* colShape = new btSphereShape(btScalar(1.));
+//        collisionShapes.push_back(colShape);
+//
+//        /// Create Dynamic Objects
+//        btTransform startTransform;
+//        startTransform.setIdentity();
+//
+//        btScalar mass(1.f);
+//
+//        //rigidbody is dynamic if and only if mass is non zero, otherwise static
+//        bool isDynamic = (mass != 0.f);
+//
+//        btVector3 localInertia(0, 0, 0);
+//        if (isDynamic)
+//            colShape->calculateLocalInertia(mass, localInertia);
+//
+//        startTransform.setOrigin(btVector3(2, 10, 0));
+//
+//        //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
+//        btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
+//        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, colShape, localInertia);
+//        btRigidBody* body = new btRigidBody(rbInfo);
+//
+//        dynamicsWorld->addRigidBody(body);
+//    }
+//}
+
+glm::vec3 Game::collisionUseBullet()
+{
+    dynamicsWorld->stepSimulation(deltaTime, 10);
+    glm::vec3 vect;
+    //print positions of all objects
+    for (int j = dynamicsWorld->getNumCollisionObjects() - 1; j >= 0; j--)
+    {
+        btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[j];
+        btRigidBody* body = btRigidBody::upcast(obj);
+        btTransform trans;
+        if (body && body->getMotionState())
+        {
+            body->getMotionState()->getWorldTransform(trans);
+            vect = glm::vec3(trans.getOrigin().getX(), trans.getOrigin().getY(), trans.getOrigin().getZ());
+        }
+        else
+        {
+            trans = obj->getWorldTransform();
+        }
+        printf("world pos object %d = %f,%f,%f\n", j, float(trans.getOrigin().getX()), float(trans.getOrigin().getY()), float(trans.getOrigin().getZ()));
+    }
+    return vect;
+}

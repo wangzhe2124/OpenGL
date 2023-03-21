@@ -17,7 +17,8 @@ void main(void)
 out vec4 fragColor;
 uniform sampler2D preFrameColor;
 uniform sampler2D currentFrameColor;
-
+uniform sampler2D alias_texture;
+uniform vec2 resolution;
 in VS_OUT{
 vec2 TexCoord;
 }fs_in;
@@ -29,6 +30,14 @@ void main(void)
 
 	vec4 curColor = texture2D(currentFrameColor, fs_in.TexCoord);
 	vec4 preColor = texture2D(preFrameColor, fs_in.TexCoord);
-
-	fragColor = mix(curColor, preColor, mixWeight);
+	//up
+	vec2 signCur = texture2D(alias_texture, fs_in.TexCoord).xy;
+	float signUp = signCur.r;
+	float signLeft = signCur.g;
+	//float signDown = texture2D(alias_texture, fs_in.TexCoord + vec2(0, -1) * resolution).r;
+	//float signRight = texture2D(alias_texture, fs_in.TexCoord + vec2(1, 0) * resolution).g;
+	if(signUp > 0.99 || signLeft > 0.99 )
+		fragColor = mix(curColor, preColor, mixWeight * 2);
+	else
+		fragColor = mix(curColor, preColor, mixWeight);
 }

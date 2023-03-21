@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec2 Texcoord;
 
@@ -12,7 +12,7 @@ void main()
 };
 
 #shader fragment
-#version 420 core
+#version 460 core
 layout(location = 0) out vec4 FragColor;
 in vec2 fragTexcoord;
 uniform sampler2D image;

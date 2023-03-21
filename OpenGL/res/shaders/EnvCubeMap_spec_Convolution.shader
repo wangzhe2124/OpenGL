@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 position;
 
 uniform mat4 projection;
@@ -14,7 +14,7 @@ void main()
     vs_out.pos = position;
 };
 #shader fragment
-#version 420 core
+#version 460 core
 out vec4 FragColor;
 in VS_OUT
 {

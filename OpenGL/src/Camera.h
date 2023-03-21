@@ -111,8 +111,6 @@ public:
     void ProcessKeyboard(int direction, float deltaTime)
     {
         float velocity = MovementSpeed * deltaTime;
-        if (dash)
-            velocity *= 2;
         float y_value = free_view == true ? Front.y : 0.0f;
         if (direction == 0)
             Position += glm::normalize(glm::vec3(Front.x, y_value ,Front.z)) * velocity;

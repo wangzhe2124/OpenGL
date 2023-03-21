@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Game.h"
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 #include <queue>
+#include <numeric>
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
@@ -61,6 +64,44 @@ public:
         return static_cast<float>(sum / q.size());
     }
 }average_dt;
+class TimeTest
+{
+private:
+    float curtime;
+    std::vector<std::vector<float>> times = std::vector<std::vector<float>>(5);
+public:
+    TimeTest()
+    {
+        curtime = 0;
+        //times.reserve(5);
+    }
+    void update(bool cond, int i)
+    {
+        if (cond)
+        {
+            float t = glfwGetTime();
+            times[i].push_back(t - curtime);
+            curtime = t;
+        }
+    }
+    void show(bool& cond1, bool& cond2)
+    {
+        if (cond1)
+        {
+            std::cout << "render spend:" << std::accumulate(std::begin(times[1]), std::end(times[1]), 0.0) / times[1].size() * 1000 << std::endl;
+            std::cout << "swap spend:" << std::accumulate(std::begin(times[3]), std::end(times[3]), 0.0) / times[3].size() * 1000 << std::endl;
+            for (int i = 0; i < times.size(); i++)
+            {
+                if (!times[i].empty())
+                {
+                    //std::cout << std::to_string(i) + ":" << std::accumulate(std::begin(times[i]), std::end(times[i]), 0.0) / times[i].size() * 1000 << std::endl;
+                    times[i].clear();
+                }              
+            }
+            cond1 = false; cond2 = false;
+        }
+    }
+}timeTest;
 int main(void)
 {
     /* Initialize the library */
@@ -83,7 +124,7 @@ int main(void)
     glfwSwapInterval(0);
     if (glewInit() != GLEW_OK)
         std::cout << "error" << std::endl;
-    glCheckError();
+
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     //鼠标回调函数
@@ -102,7 +143,7 @@ int main(void)
     //glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC1_ALPHA);
     //面剔除
-    //glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);//剔除背面
     glFrontFace(GL_CCW);//逆时针为正向
     //模板测试
@@ -115,6 +156,7 @@ int main(void)
     //glEnable(GL_FRAMEBUFFER_SRGB); 
     game.ready_render();
     SoundEngine->play2D("res/music/girl.mp3", GL_TRUE);
+
     while (!glfwWindowShouldClose(window))
     {
         double currentFrame = glfwGetTime();
@@ -124,9 +166,12 @@ int main(void)
         lastFrame = currentFrame;
         
         game.GetDeltaTime(deltaTime);
+
         if(!game.Get_Response_action())
             game.keyinput.ProcessMovement(window, game.camera, deltaTime, game.my_state.current_energy);//键盘输入移动
+
         game.start_render();
+
         if (game.keyinput.reset_resolution)
         {
             if (game.keyinput.full_screen)
@@ -145,6 +190,7 @@ int main(void)
             }
             game.keyinput.reset_resolution = false;
         }
+        
         //glDisable(GL_DEPTH_TEST);
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //game.shaders->basicscreen_shader.Bind();
@@ -163,14 +209,15 @@ int main(void)
         ////SpotlightMapfbo.BindTexture();
         ////glBindTexture(GL_TEXTURE_2D, Characters[10].TextureID);
         //game.renderer.DrawArray(game.vertex_arrays->quadVa, game.shaders->basicscreen_shader);
-               
 
-        /* Poll for and process events */
-        glfwPollEvents();//触发键盘鼠标输入事件
         //GUI
         GUI_Process(window, game.keyinput);
         /* Swap front and back buffers */
+
         glfwSwapBuffers(window);//储存着GLFW窗口每一个像素颜色值的大缓冲（双缓冲）
+
+        /* Poll for and process events */
+        glfwPollEvents();//
     }
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -229,7 +276,7 @@ void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mo
 }
 void windowSize_callback(GLFWwindow* window, int cx, int cy)
 {
-    std::cout << "called" << std::endl;
+    std::cout << "resolution:" << cx << "," << cy << std::endl;
     game.ResetResolution(cx, cy);
 }
 void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
@@ -243,6 +290,8 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
           // Edit bools storing our window open/close state
     ImGui::Checkbox("Gamma", &keyinput.gamma);
+    ImGui::Checkbox("show times", &keyinput.show_times);
+    ImGui::Checkbox("sample times", &keyinput.sample_times);
     ImGui::Checkbox("use terrain", &keyinput.use_terrain);
     ImGui::Checkbox("HeightMap", &keyinput.useheight);
     ImGui::Checkbox("NormalMap", &keyinput.NormalMap);
@@ -379,10 +428,11 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
         if (ImGui::Button("Close Me"))
             keyinput.fxaa_window = false;
         ImGui::Checkbox("fxaa on", &keyinput.fxaa_on);
-        ImGui::SliderFloat("fxaa lumaThreshold", &keyinput.fxaa_lumaThreshold, 0.0f, 10.0f);
-        ImGui::SliderFloat("fxaa mulReduce", &keyinput.fxaa_maxReduce, 0.0f, 10.0f);
-        ImGui::SliderFloat("fxaa minReduce", &keyinput.fxaa_minReduce, 0.0f, 10.0f);
-        ImGui::SliderFloat("fxaa maxSpan", &keyinput.fxaa_maxSpan, 0.0f, 160.0f);
+        ImGui::Checkbox("fxaa showEdge", &keyinput.fxaa_showEdge);
+        ImGui::SliderFloat("fxaa lumaThreshold", &keyinput.fxaa_lumaThreshold, 0.0f, 1.0f);
+        ImGui::SliderFloat("fxaa mulReduce", &keyinput.fxaa_maxReduce, 0.0f, 1.0f);
+        ImGui::SliderFloat("fxaa minReduce", &keyinput.fxaa_minReduce, 0.0f, 1.0f);
+        ImGui::SliderFloat("fxaa maxSpan", &keyinput.fxaa_maxSpan, 0.0f, 32.0f);
         ImGui::End();
     }
     //TAA
@@ -405,7 +455,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
             keyinput.mlaa_window = false;
         ImGui::Checkbox("mlaa on", &keyinput.mlaa_on);
         ImGui::SliderFloat("mlaa threShold", &keyinput.mlaa_threShold, 0.0f, 1.0f);
-        ImGui::SliderInt("mlaa searchNum", &keyinput.mlaa_searchNum, 0, 200);
+        ImGui::SliderInt("mlaa searchNum", &keyinput.mlaa_searchNum, 0, 96);
         ImGui::End();
     }
     static int counter = 0;

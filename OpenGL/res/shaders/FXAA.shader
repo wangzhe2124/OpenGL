@@ -1,5 +1,5 @@
 #shader vertex
-#version 430 core
+#version 460 core
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 Texcoord;
 
@@ -11,11 +11,11 @@ void main(void)
 	v_texCoord = Texcoord;
 }
 #shader fragment
-#version 430 core
+#version 460 core
 
 uniform sampler2D u_colorTexture;
 uniform vec2 resolution;
-int u_showEdges = 0;
+uniform bool showEdge;
 uniform bool fxaaOn;
 
 uniform float lumaThreshold;
@@ -27,10 +27,6 @@ in vec2 v_texCoord;
 
 out vec4 fragColor;
 
-// see FXAA
-// http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
-// http://iryoku.com/aacourse/downloads/09-FXAA-3.11-in-15-Slides.pdf
-// http://horde3d.org/wiki/index.php5?title=Shading_Technique_-_FXAA
 
 float Luminance(vec3 color)
 {
@@ -65,7 +61,7 @@ void main(void)
 	}
 
 	// Sampling is done along the gradient.
-	vec2 samplingDirection = normalize(vec2(((lumaNW + lumaNE) - (lumaSW + lumaSE)), ((lumaNW + lumaSW) - (lumaNE + lumaSE))));
+	vec2 samplingDirection = normalize(vec2(-((lumaNW + lumaNE) - (lumaSW + lumaSE)), ((lumaNW + lumaSW) - (lumaNE + lumaSE))));
 
 	// Sampling step distance depends on the luma: The brighter the sampled texels, the smaller the final sampling step direction.
 	// This results, that brighter areas are less blurred/more sharper than dark areas. 
@@ -102,10 +98,9 @@ void main(void)
 		// ... no, so use four samples. 
 		fragColor = vec4(rgbFourTab, 1.0);
 	}
-
-	//// Show edges for debug purposes.	
-	//if (u_showEdges != 0)
-	//{
-	//	fragColor.r = 1.0;
-	//}
+	// Show edges for debug purposes.	
+	if (showEdge)
+	{
+		fragColor.r = 1.0;
+	}
 }

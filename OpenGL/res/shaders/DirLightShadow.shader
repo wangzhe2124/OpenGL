@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 Position;		
 layout(location = 5) in ivec4 boneIds;
 layout(location = 6) in vec4 weights;
@@ -34,7 +34,7 @@ void main()
 	//gl_Position = LightSpace * model * vec4(Position, 1.0f);
 };
 #shader fragment
-#version 420 core
+#version 460 core
 //out vec4 fragcolor;
 void main()
 {

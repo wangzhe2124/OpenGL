@@ -21,36 +21,34 @@ public:
     // model data 
     vector<MeshTexture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     vector<Mesh>    meshes;
-    /*vector<float> position_x;
-    vector<float> position_y;
-    vector<float> position_z;*/
 
     vector<float> aabb = vector<float>(6);
     vector<glm::vec3> aabb_vertex;
     bool inFrustum;
     bool isMoved;
+    GLuint query;
+    GLuint queryPassed;
     string directory;
-    bool gammaCorrection;
     ModelSpace position;
     float max_life;
     float current_life;
     VertexArray* va;
     IndexBuffer* ib;
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool gamma = false, float Life = 100.0f) : gammaCorrection(gamma), va(nullptr), ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
+    Model(string const& path, bool gamma = false, float Life = 100.0f) : va(nullptr), ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
     {
         Initialize_aabb();
         loadModel(path);
-        AABB();
+        /*AABB();*/
     }
     void Get_index(const unsigned int* data, unsigned int count) 
     {
         ib = new IndexBuffer(data, count);
     }
-    Model(float Life = 100.0f) : ib(nullptr), gammaCorrection(false), max_life(Life), current_life(Life), isMoved(false)
+    Model(float Life = 100.0f) : ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
     {
         Initialize_aabb();
-        AABB();
+        /*AABB();*/
         va = new VertexArray();
     }
     Model& operator=(const Model& m)
@@ -61,7 +59,6 @@ public:
         aabb_vertex = m.aabb_vertex;
         isMoved = m.isMoved;
         directory = m.directory;
-        gammaCorrection = m.gammaCorrection;
         position = m.position;
         max_life = m.max_life;
         current_life = m.current_life;
@@ -93,7 +90,7 @@ public:
         aabb[min_x] = aabb[min_y] = aabb[min_z] = FLT_MAX;
         aabb[max_x] = aabb[max_y] = aabb[max_z] = -FLT_MAX;
     }
-    void AABB()
+    void intializeAABB()
     {
         aabb_vertex = {
         glm::vec3(aabb[min_x], aabb[min_y],aabb[min_z]),
@@ -438,6 +435,7 @@ static unsigned int TextureFromFile(const char* path, const string& directory, b
 
     return textureID;
 }
+
 struct sphere_data
 {
     std::vector<float> vertex;

@@ -7,7 +7,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <functional>
-
+#include <set>
 #include <irrKlang.h>
 #include "Debugger.h"
 #include "Shader.h"
@@ -33,6 +33,7 @@
 #include "Animator.h"
 #include "ScenGraph.h"
 #include "Tools.h"
+#include "btBulletDynamicsCommon.h"
 constexpr auto CSM_SPLIT_NUM = 4;
 constexpr auto POINT_LIGHTS_NUM = 4;
 constexpr auto PI = 3.14159265359;
@@ -90,10 +91,17 @@ private:
     float deltaTime;
     Animations* animations;
     bool response_action;
+    bool readyToMove;
+    bool readyToJog;
+    bool readyToIdle;
     Entity::Octree octree = Entity::Octree(10);
-    std::vector<Model*> cutList;
+    std::set<Model*> inFrustumModels;
+    std::map<float, Model*> sortedModels;
     int frameIndex;
     glm::mat4 preView;
+    btDiscreteDynamicsWorld* dynamicsWorld;
+    GLuint query;
+
 public:
     Character_state my_state;
     KeyInput keyinput;
@@ -157,6 +165,9 @@ public:
     void drawModels(Shader& shader);
     void cutOffTree(Entity::Octree& o);
     void drawModelsShadow(Shader& shader);
+    void drawModelsAABB();
+    void initializeBullet();
+    glm::vec3 collisionUseBullet();
     void ProcessAction();
     inline unsigned int GetSwidth() { return screenWidth; }
     inline void SetSwidth(unsigned int sw) { screenWidth = sw; }
@@ -201,7 +212,6 @@ public:
 
     void Generate_EnvLight_Specular_BRDF();
 
-    void Generate_Terrain_cpu();
     void Generate_Terrain_gpu();
 
     void Update_Models_Positions();
@@ -218,7 +228,7 @@ public:
     std::string Collision_detection();
     inline void ResetResolution(unsigned int width, unsigned int height)
     {
-        delete framebuffers;
+        framebuffers->~FrameBuffers();
         framebuffers = new FrameBuffers(width, height);
     }
 };

@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 Position;
 layout(location = 1) in vec2 TexCoord;
 
@@ -14,10 +14,10 @@ void main()
 };
 
 #shader fragment
-#version 420 core
-layout(location = 0) out vec4 DirPreShadow;
+#version 460 core
+layout(location = 0) out vec2 DirSpotPreShadow;
 layout(location = 1) out vec4 PointPreShadow;
-layout(location = 2) out vec4 SpotPreShadow;
+//layout(location = 2) out vec4 SpotPreShadow;
 #define SPLITNUM 4
 #define POINT_LIGHTS_NUM 4
 const float PI = 3.14159265359;
@@ -117,13 +117,13 @@ void main()
 	vec2 Texcoord = fs_in.TexCoord;
 	vec3 FragPos = texture(gPosition, Texcoord).rgb;
 	vec3 normal = texture(gNormal, Texcoord).rgb;
-	DirPreShadow = vec4(DirShadowCalculation(normal, FragPos), 0.0, 0.0, 1.0);
+	DirSpotPreShadow = vec2(DirShadowCalculation(normal, FragPos), SpotShadowCalculation(normal, FragPos));
 	PointPreShadow = vec4(
 		PointShadowCalculation(0, normal, FragPos),
 		PointShadowCalculation(1, normal, FragPos),
 		PointShadowCalculation(2, normal, FragPos),
 		PointShadowCalculation(3, normal, FragPos));
-	SpotPreShadow = vec4(SpotShadowCalculation( normal,FragPos), 0.0, 0.0, 1.0);
+	//SpotPreShadow = vec4(SpotShadowCalculation( normal,FragPos), 0.0, 0.0, 1.0);
 };
 uniform float sun_sm_bias;
 uniform bool sun_pcf;

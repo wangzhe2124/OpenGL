@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 Position;
 layout(location = 1) in vec2 TexCoord;
 
@@ -14,7 +14,7 @@ void main()
 };
 
 #shader fragment
-#version 420 core
+#version 460 core
 layout(location = 0) out vec4 color;
 #define SPLITNUM 4
 #define POINT_LIGHTS_NUM 4
@@ -119,7 +119,7 @@ void main()
 vec3 CalcDirLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 {
 	vec3 Albedo = texture(gAlbedoSpec, Texcoord).rgb;
-	float Specular = texture(gAlbedoSpec, Texcoord).a;
+	/*float Specular = texture(gAlbedoSpec, Texcoord).a;*/
 	vec3 viewDir = normalize(camera.viewPos - FragPos);
 	vec3 lightDir = normalize(dirlight.direction);
 	float shadow = texture(predirshadow, Texcoord).r;
@@ -140,7 +140,8 @@ vec3 CalcDirLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 	Lo = (kD * Albedo / PI + specular) * radiance;
 	vec3 ambient = vec3(0.03) * Albedo * occlusion;
-	vec3 color = ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) *(1 - shadow);
+	vec3 color = ambient  + Lo *(1 - shadow);
+	color = color / (vec3(1.0f) + color);
 	return color * dirlight.LightIntensity;
 }
 
@@ -181,7 +182,8 @@ vec3 CalcPointLight(int i, vec3 normal, vec2 Texcoord, vec3 FragPos, float occlu
 		vec3 specular = (NDF * G * F) / (4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, -lightDir), 0.0) + 0.001);
 		Lo = (kD * Albedo / PI + specular) * radiance;
 		vec3 ambient = vec3(0.03) * Albedo * occlusion;
-		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0) + Lo) * (1 - shadow)) * attenuation;
+		color = (ambient + Lo * (1 - shadow)) * attenuation;
+		color = color / (vec3(1.0f) + color);
 	}
 	else
 		color = vec3(0);
@@ -193,7 +195,7 @@ vec3 CalcSpotLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	vec3 Albedo = texture(gAlbedoSpec, Texcoord).rgb;
 	vec3 viewDir = normalize(camera.viewPos - FragPos);
 	vec3 lightDir = normalize(FragPos - spotlight.position);
-	float shadow = texture(prespotshadow, fs_in.TexCoord).r;
+	float shadow = texture(predirshadow, Texcoord).g;
 	//DFG	
 	vec3 Lo = vec3(0.0);
 	vec3 F0 = vec3(0.04);
@@ -216,7 +218,10 @@ vec3 CalcSpotLight(vec3 normal, vec2 Texcoord, vec3 FragPos, float occlusion)
 	float intensity = pow(clamp((theta - spotlight.outer_CutOff) / epsilon, 0.0, 1.0),2);
 	vec3 color;
 	if (distance < spotlight.far_plane)
-		color = (ambient / (vec3(1.0) + ambient) + Lo / (vec3(1.0f) + Lo) * (1 - shadow)) * intensity * attenuation;
+	{
+		color = (ambient+ Lo * (1 - shadow)) * intensity * attenuation;
+		color = color / (vec3(1.0f) + color);
+	}
 	else
 		color = vec3(0);
 	return color * spotlight.LightIntensity;

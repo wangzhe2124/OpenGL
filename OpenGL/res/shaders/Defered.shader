@@ -1,5 +1,5 @@
 #shader vertex
-#version 420 core
+#version 460 core
 layout(location = 0) in vec3 Position;
 layout(location = 1) in vec3 Normal;
 layout(location = 2) in vec2 TexCoord;
@@ -77,7 +77,7 @@ void main()
 };
 
 #shader fragment
-#version 420 core
+#version 460 core
 layout(location = 0) out vec4 gPosition;
 layout(location = 1) out vec4 gNormal;
 layout(location = 2) out vec4 gAlbedoSpec;
@@ -130,7 +130,7 @@ vec2 ParallaxMapping(vec2 TexCoord, vec3 viewDir, vec3 normal)
 	vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
 	// get depth after and before collision for linear interpolation
 	float afterDepth = currentLayerDepth - currentDepthMapValue;
-	float beforeDepth = texture(material.texture_height, prevTexCoords).r - currentLayerDepth + layerDepth;
+	float beforeDepth = texture(material.texture_height, prevTexCoords).r - (currentLayerDepth - layerDepth);
 
 	// interpolation of texture coordinates
 	float weight = afterDepth / (afterDepth + beforeDepth);

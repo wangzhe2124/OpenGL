@@ -14,7 +14,7 @@ public:
 		this->modelspace = ms.modelspace; 
 		return *this;
 	}
-	void SetModel(glm::mat4& mo)
+	void SetModel(const glm::mat4& mo)
 	{
 		modelspace = mo;
 	};

@@ -56,11 +56,13 @@ public:
     //particle
     bool particle_window; bool show_particle; float particle_scale; float particle_offset; int new_particle_num; float particle_vel; float particle_life_reduce; bool show_d3particle;
     //fxaa
-    bool fxaa_window; bool fxaa_on; float fxaa_lumaThreshold; float fxaa_maxReduce; float fxaa_minReduce; float fxaa_maxSpan;
+    bool fxaa_window; bool fxaa_on; bool fxaa_showEdge; float fxaa_lumaThreshold; float fxaa_maxReduce; float fxaa_minReduce; float fxaa_maxSpan;
     //TAA
     bool taa_window; bool taa_on; float taa_mixWeight;
     //MLAA
     bool mlaa_window; bool mlaa_on; float mlaa_threShold; int mlaa_searchNum;
+    //
+    bool show_times; bool sample_times;
     KeyInput();
     void RecordKey(int key, int action);
     void ProcessKey(GLFWwindow* window, int key, int action);

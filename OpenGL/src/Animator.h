@@ -155,7 +155,10 @@ public:
 		if(m_CurrentAnimation)
 			Duration = m_CurrentAnimation->GetDuration();
 	}
-
+	~Animator()
+	{
+		delete m_CurrentAnimation;
+	}
 	void UpdateAnimation(float dt)
 	{
 		m_DeltaTime = dt;
@@ -244,6 +247,10 @@ public:
 	{
 
 	}
+	~animeModel()
+	{
+		delete animator;
+	}
 };
 class Models
 {
@@ -252,7 +259,6 @@ private:
 public:
 
 	std::set<animeModel*> models_map;
-	std::set<animeModel*> anime_models_map;
 	animeModel Nano = animeModel("res/objects/nanosuit_upgrade/nanosuit.obj", "Nano");
 	animeModel Marry = animeModel("res/objects/Marry/Marry.obj", "Marry");
 	animeModel Planet = animeModel("res/objects/planet/planet.obj", "Planet");
@@ -275,11 +281,11 @@ public:
 		models_map.insert(&Floor);
 		models_map.insert(&Sphere);
 		models_map.insert(&Terrain);
-		anime_models_map.insert(&Main_character);
-		anime_models_map.insert(&Robot_boxing);
-		anime_models_map.insert(&Robot_pray);
-		anime_models_map.insert(&Robot_death);
-		anime_models_map.insert(&Robot_walk);
+		models_map.insert(&Main_character);
+		models_map.insert(&Robot_boxing);
+		models_map.insert(&Robot_pray);
+		models_map.insert(&Robot_death);
+		models_map.insert(&Robot_walk);
 
 
 	}

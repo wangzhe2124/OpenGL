@@ -91,20 +91,23 @@ void Game::Initialize_Models_Positions()
 
 
     int i = 0;
-    for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        i++;
-        animeModel* model = *iter;
-        model->position.Translate(glm::vec3(0.0f, 0.0f, i * 5.0f));
-        glm::mat4 rootTrans = model->animator->RootTransform;
-        model->intializeAABB();
-        model->updateAABB(rootTrans);
-    }
+
     for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
         animeModel* model = *iter;
-        model->intializeAABB();
-        model->updateAABB();
+        if (model->animator)
+        {
+            i++;
+            model->position.Translate(glm::vec3(0.0f, 0.0f, i * 5.0f));
+            glm::mat4 rootTrans = model->animator->RootTransform;
+            model->intializeAABB();
+            model->updateAABB(rootTrans);
+        }
+        else
+        {
+            model->intializeAABB();
+            model->updateAABB();
+        }
     }
 
 }
@@ -927,20 +930,7 @@ std::string Game::Collision_detection()
             text += std::string(model->name);
         }
     }
-    for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        animeModel* model = *iter;
-        x_collision = ((max(models->Main_character.aabb[1], model->aabb[1]) - min(models->Main_character.aabb[0], model->aabb[0]))
-            < (model->aabb[1] - model->aabb[0] + models->Main_character.aabb[1] - models->Main_character.aabb[0]));
-        y_collision = ((max(models->Main_character.aabb[3], model->aabb[3]) - min(models->Main_character.aabb[2], model->aabb[2]))
-            < (model->aabb[3] - model->aabb[2] + models->Main_character.aabb[3] - models->Main_character.aabb[2]));
-        z_collision = ((max(models->Main_character.aabb[5], model->aabb[5]) - min(models->Main_character.aabb[4], model->aabb[4]))
-            < (model->aabb[5] - model->aabb[4] + models->Main_character.aabb[5] - models->Main_character.aabb[4]));
-        if (x_collision && y_collision && z_collision)
-        {
-            text += std::string(model->name);
-        }
-    }
+
     return text;
 }
 
@@ -1106,11 +1096,14 @@ void Game::ready_render()
     vertex_buffers = new VertexBuffers;
     animations = new Animations(&models->Main_character);
     Debug();
-    for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+    for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
     {
         animeModel* model = *iter;
-        model->animator->PlayAnimation(animations->Animation_Idle);
-        model->animator->UpdateAnimation(deltaTime);
+        if (model->animator)
+        {
+            model->animator->PlayAnimation(animations->Animation_Idle);
+            model->animator->UpdateAnimation(deltaTime);
+        }
     }
     /*thread t1(&Game::read_config, this);
     
@@ -1140,15 +1133,11 @@ void Game::ready_render()
     glCheckError();
     Generate_Instance(models->Rock, 1000);
     {//≥ı ºªØoctree
-        for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-        {
-            animeModel* model = *iter;
-            octree.update(model);
-        }
+
         for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
         {
             animeModel* model = *iter;
-            octree.update(static_cast<animeModel*>(model));
+            octree.update(model);
         }
     }
 }
@@ -1213,10 +1202,11 @@ void Game::ProcessAction()
 
     if (keyinput.chage_animation)
     {
-        for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+        for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
         {
             animeModel* model = *iter;
-            model->animator->PlayAnimation(animations->animations_map[keyinput.animation_type]);
+            if(model->animator)
+                model->animator->PlayAnimation(animations->animations_map[keyinput.animation_type]);
         }
         keyinput.chage_animation = false;
         response_action = true;
@@ -1489,26 +1479,18 @@ void Game::drawModels(Shader& shader)
             if (model->queryPassed > 0)
             {
                 shader.SetUniformmatri4fv("model", model->position.GetModelSpace());
-                model->Draw(shader);
-            }
-        }
-        for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-        {
-            animeModel* model = *iter;
-            glGetQueryObjectuiv(model->query, GL_QUERY_RESULT, &model->queryPassed);
-            //std::cout << iter->first << ":" << iter->second->queryPassed << std::endl;
-            glDeleteQueries(1, &model->query);
-            if (model->queryPassed > 0)
-            {
-                shader.SetUniformmatri4fv("model", model->position.GetModelSpace());
-                auto transforms = model->animator->GetFinalBoneMatrices();
-                for (int i = 0; i < transforms.size(); ++i)
+                if (model->animator)
                 {
-                    shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+                    auto transforms = model->animator->GetFinalBoneMatrices();
+                    for (int i = 0; i < transforms.size(); ++i)
+                    {
+                        shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+                    }
                 }
                 model->Draw(shader);
             }
         }
+
     }
     else
     {
@@ -1525,7 +1507,7 @@ void Game::drawModels(Shader& shader)
         }
         csm_dirlight.Set_far_plane((--sortedModels.end())->first * 10);
         //update octree
-        for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
+        for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
         {
             animeModel* model = *iter;
             if (model->isMoved)
@@ -1580,19 +1562,17 @@ void Game::drawModelsShadow(Shader& shader)
     {
         animeModel* model = *iter;
         shader.SetUniformmatri4fv("model", model->position.GetModelSpace());
-        model->DrawShadow(shader);
-    }
-    for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        animeModel* model = *iter;
-        shader.SetUniformmatri4fv("model", model->position.GetModelSpace());
-        auto transforms = model->animator->GetFinalBoneMatrices();
-        for (int i = 0; i < transforms.size(); ++i)
+        if (model->animator)
         {
-            shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            auto transforms = model->animator->GetFinalBoneMatrices();
+            for (int i = 0; i < transforms.size(); ++i)
+            {
+                shader.SetUniformmatri4fv("finalBonesMatrices[" + std::to_string(i) + "]", transforms[i]);
+            }
         }
         model->DrawShadow(shader);
     }
+
 }
 
 void Game::drawModelsAABB()
@@ -1622,23 +1602,7 @@ void Game::drawModelsAABB()
         glEndQuery(GL_SAMPLES_PASSED);
 
     }
-    for (std::set<animeModel*>::iterator iter = models->anime_models_map.begin(); iter != models->anime_models_map.end(); iter++)
-    {
-        animeModel* model = *iter;
-        ModelSpace md;
-        std::vector<float> aabb = model->aabb;
-        glm::vec3 center = glm::vec3((aabb[min_x] + aabb[max_x]) * 0.5f, (aabb[min_y] + aabb[max_y]) * 0.5f, (aabb[min_z] + aabb[max_z]) * 0.5f);
-        glm::vec3 extent = glm::vec3((aabb[max_x] - aabb[min_x]) * 0.5f, (aabb[max_y] - aabb[min_y]) * 0.5f, (aabb[max_z] - aabb[min_z]) * 0.5f);
-        md.Translate(center);
-        md.Scale(extent);
-        shader.SetUniformmatri4fv("model", md.GetModelSpace());
-        //
-        glGenQueries(1, &model->query);
-        glBeginQuery(GL_SAMPLES_PASSED, model->query);
-        renderer.DrawQuads(vertex_arrays->cubeQuadVa, shader);
-        glEndQuery(GL_SAMPLES_PASSED);
 
-    }
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDepthMask(GL_TRUE);
 }

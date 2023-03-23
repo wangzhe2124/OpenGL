@@ -298,12 +298,5 @@ public:
 		Get_models();
 		Get_anime_models();
 	}
-	~Models()
-	{
-		for (std::set<animeModel*>::iterator it = models_map.begin(); it != models_map.end(); it++)
-		{
-			animeModel* model = *it;
-			model->~animeModel();
-		}
-	}
+
 };

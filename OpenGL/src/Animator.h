@@ -234,16 +234,17 @@ public:
 		return m_FinalBoneMatrices;
 	}
 };
+
 class animeModel : public Model
 {
 public:
-	Animator* animator = nullptr;
-	animeModel(const std::string& path,const std::string& n, bool anime = false, float Life = 100.0f) : Model(path, n, Life)
+	Animator* animator;
+	animeModel(const std::string& path,const std::string& n, bool anime = false, float Life = 100.0f) : Model(path, n, Life), animator(nullptr)
 	{
 		if (anime)
 			animator = new Animator();
 	}
-	animeModel(const std::string& n, float Life = 100.0f) : Model(n, Life)
+	animeModel(const std::string& n, float Life = 100.0f) : Model(n, Life), animator(nullptr)
 	{
 
 	}
@@ -252,6 +253,7 @@ public:
 		delete animator;
 	}
 };
+
 class Models
 {
 private:
@@ -286,8 +288,6 @@ public:
 		models_map.insert(&Robot_pray);
 		models_map.insert(&Robot_death);
 		models_map.insert(&Robot_walk);
-
-
 	}
 	void Get_anime_models()
 	{
@@ -298,5 +298,12 @@ public:
 		Get_models();
 		Get_anime_models();
 	}
-
+	~Models()
+	{
+		for (std::set<animeModel*>::iterator it = models_map.begin(); it != models_map.end(); it++)
+		{
+			animeModel* model = *it;
+			model->~animeModel();
+		}
+	}
 };

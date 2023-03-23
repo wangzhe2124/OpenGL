@@ -95,13 +95,13 @@ private:
     bool readyToJog;
     bool readyToIdle;
     Entity::Octree octree = Entity::Octree(10);
-    std::set<Model*> inFrustumModels;
-    std::map<float, Model*> sortedModels;
+    std::set<animeModel*> inFrustumModels;
+    std::map<float, animeModel*> sortedModels;
     int frameIndex;
     glm::mat4 preView;
     btDiscreteDynamicsWorld* dynamicsWorld;
-    GLuint query;
-
+    int action;
+    int state;
 public:
     Character_state my_state;
     KeyInput keyinput;

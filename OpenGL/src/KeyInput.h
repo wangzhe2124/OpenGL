@@ -63,6 +63,8 @@ public:
     bool mlaa_window; bool mlaa_on; float mlaa_threShold; int mlaa_searchNum;
     //
     bool show_times; bool sample_times;
+    //
+    bool cutoff_query;
     KeyInput();
     void RecordKey(int key, int action);
     void ProcessKey(GLFWwindow* window, int key, int action);

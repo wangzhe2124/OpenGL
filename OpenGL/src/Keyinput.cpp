@@ -42,7 +42,9 @@ KeyInput::KeyInput()
     taa_window(false), taa_on(true), taa_mixWeight(0.3f),
     //mlaa
     mlaa_window(false), mlaa_on(true), mlaa_threShold(0.16f), mlaa_searchNum(86),
-    show_times(false), sample_times(false)
+    show_times(false), sample_times(false),
+    //cutoff
+    cutoff_query(false)
 {
 
 }

@@ -231,57 +231,66 @@ public:
 		return m_FinalBoneMatrices;
 	}
 };
+class animeModel : public Model
+{
+public:
+	Animator* animator = nullptr;
+	animeModel(const std::string& path,const std::string& n, bool anime = false, float Life = 100.0f) : Model(path, n, Life)
+	{
+		if (anime)
+			animator = new Animator();
+	}
+	animeModel(const std::string& n, float Life = 100.0f) : Model(n, Life)
+	{
 
+	}
+};
 class Models
 {
 private:
 
 public:
-	std::unordered_map<std::string, Model*> models_map;
-	std::unordered_map<std::string, Model*> anime_models_map;
-	std::unordered_map<std::string, Animator> animator_map;
-	Model Nano = Model("res/objects/nanosuit_upgrade/nanosuit.obj");
-	Model Marry = Model("res/objects/Marry/Marry.obj");
-	Model Planet = Model("res/objects/planet/planet.obj");
-	Model Rock = Model("res/objects/rock/rock.obj");
-	Model Floor;
-	Model Sphere = Model();
-	Model Main_character = Model("res/objects/arissa/arissa.dae");
-	Model Terrain = Model();
-	Model Sphere_instance = Model();
-	Model Robot_boxing = Main_character;
-	Model Robot_pray = Main_character;
-	Model Robot_death = Main_character;
-	Model Robot_walk = Main_character;
+
+	std::set<animeModel*> models_map;
+	std::set<animeModel*> anime_models_map;
+	animeModel Nano = animeModel("res/objects/nanosuit_upgrade/nanosuit.obj", "Nano");
+	animeModel Marry = animeModel("res/objects/Marry/Marry.obj", "Marry");
+	animeModel Planet = animeModel("res/objects/planet/planet.obj", "Planet");
+	animeModel Rock = animeModel("res/objects/rock/rock.obj", "Rock");
+	animeModel Floor = animeModel("Floor");
+	animeModel Sphere = animeModel("sphere");
+	animeModel Terrain = animeModel("terrain");
+	animeModel Main_character = animeModel("res/objects/arissa/arissa.dae", "Main_character", true);
+
+	animeModel Robot_boxing = Main_character;
+	animeModel Robot_pray = Main_character;
+	animeModel Robot_death = Main_character;
+	animeModel Robot_walk = Main_character;
 	void Get_models()
 	{
+		models_map.insert(&Nano);
+		models_map.insert(&Marry);
+		models_map.insert(&Planet);
+		models_map.insert(&Rock);
+		models_map.insert(&Floor);
+		models_map.insert(&Sphere);
+		models_map.insert(&Terrain);
+		anime_models_map.insert(&Main_character);
+		anime_models_map.insert(&Robot_boxing);
+		anime_models_map.insert(&Robot_pray);
+		anime_models_map.insert(&Robot_death);
+		anime_models_map.insert(&Robot_walk);
 
-		models_map["Nano"] = &Nano;
-		models_map["Marry"] = &Marry;
-		models_map["Planet"] = &Planet;
-		models_map["Rock"] = &Rock;
+
 	}
 	void Get_anime_models()
 	{
-		anime_models_map["Main_character"] = &Main_character;
-		anime_models_map["Robot_boxing"] = &Robot_boxing;
-		anime_models_map["Robot_pray"] = &Robot_pray;
-		anime_models_map["Robot_death"] = &Robot_death;
-		anime_models_map["Robot_walk"] = &Robot_walk;
-		for (std::unordered_map<std::string, Model*>::iterator iter = anime_models_map.begin(); iter != anime_models_map.end(); iter++)
-		{
-			animator_map[iter->first] = Animator();
-		}
+
 	}
 	Models()
 	{
 		Get_models();
 		Get_anime_models();
-	}
-	void CreatModel(string const& path, string const& name, float life = 100.0f)
-	{
-		Model* newmodel = new Model(path, life);
-		models_map[name] = newmodel;
 	}
 
 };

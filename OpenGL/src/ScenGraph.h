@@ -13,7 +13,8 @@ namespace Entity
     class Octree
     {
     public:
-        std::unordered_map<Model*, int> hasModel;
+        #define dateType animeModel*
+        std::unordered_map<dateType, int> hasModel;
         glm::vec3 pointMin;
         glm::vec3 pointMax;
         std::vector<Octree> children;
@@ -34,12 +35,12 @@ namespace Entity
             pointMin = glm::vec3(-min_size);
             pointMax = glm::vec3(min_size);
         }
-        void update(Model* m)
+        void update(dateType m)
         {
             searchRemove(m);
             updateModel(m);
         }
-        bool updateModel(Model* m)
+        bool updateModel(dateType m)
         {    
             if (inScen(m))
             {
@@ -60,7 +61,7 @@ namespace Entity
             else
                 return false;
         }
-        bool searchRemove(Model* model)
+        bool searchRemove(dateType model)
         {
             if (hasModel.find(model) != hasModel.end())
             {

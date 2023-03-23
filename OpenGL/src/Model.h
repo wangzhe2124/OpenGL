@@ -21,7 +21,7 @@ public:
     // model data 
     vector<MeshTexture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     vector<Mesh>    meshes;
-
+    std::string name;
     vector<float> aabb = vector<float>(6);
     vector<glm::vec3> aabb_vertex;
     bool inFrustum;
@@ -35,7 +35,7 @@ public:
     VertexArray* va;
     IndexBuffer* ib;
     // constructor, expects a filepath to a 3D model.
-    Model(string const& path, bool gamma = false, float Life = 100.0f) : va(nullptr), ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
+    Model(const std::string& path, const std::string& n,  float Life = 100.0f) : va(nullptr), ib(nullptr), max_life(Life), current_life(Life), isMoved(false), name(n)
     {
         Initialize_aabb();
         loadModel(path);
@@ -45,7 +45,7 @@ public:
     {
         ib = new IndexBuffer(data, count);
     }
-    Model(float Life = 100.0f) : ib(nullptr), max_life(Life), current_life(Life), isMoved(false)
+    Model(const std::string& n, float Life = 100.0f) : ib(nullptr), max_life(Life), current_life(Life), isMoved(false), name(n)
     {
         Initialize_aabb();
         /*AABB();*/
@@ -55,6 +55,7 @@ public:
     {
         textures_loaded = m.textures_loaded;
         meshes = m.meshes;
+        name = m.name;
         aabb = m.aabb;
         aabb_vertex = m.aabb_vertex;
         isMoved = m.isMoved;
@@ -67,7 +68,7 @@ public:
         return *this;
     }
     // draws the model, and thus all its meshes
-    ~Model()
+    virtual ~Model()
     {
         delete va;
         delete ib;

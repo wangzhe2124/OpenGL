@@ -290,8 +290,7 @@ void GUI_Process(GLFWwindow* window, KeyInput& keyinput)
     ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
           // Edit bools storing our window open/close state
     ImGui::Checkbox("Gamma", &keyinput.gamma);
-    ImGui::Checkbox("show times", &keyinput.show_times);
-    ImGui::Checkbox("sample times", &keyinput.sample_times);
+    ImGui::Checkbox("cutoff query/octree", &keyinput.cutoff_query);
     ImGui::Checkbox("use terrain", &keyinput.use_terrain);
     ImGui::Checkbox("HeightMap", &keyinput.useheight);
     ImGui::Checkbox("NormalMap", &keyinput.NormalMap);

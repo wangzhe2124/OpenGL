@@ -360,4 +360,14 @@ MigrationBackup/
 .ionide/
 
 # Fody - auto-generated XML schema
+<<<<<<< HEAD
 FodyWeavers.xsd
+=======
+FodyWeavers.xsd
+
+#custom
+*.vcxproj
+*.filters
+OpenGL/res
+no_model/res
+>>>>>>> add lock enermy mode

@@ -157,7 +157,6 @@ public:
 	}
 	~Animator()
 	{
-		delete m_CurrentAnimation;
 	}
 	void UpdateAnimation(float dt)
 	{
@@ -250,7 +249,32 @@ public:
 	}
 	~animeModel()
 	{
-		delete animator;
+		if (animator)
+		{
+			delete animator;
+			animator = nullptr;
+		}
+	}
+	animeModel& operator=(const animeModel& m)
+	{
+		animator = new Animator();
+		textures_loaded = m.textures_loaded;
+		meshes = m.meshes;
+		name = m.name;
+		aabb = m.aabb;
+		aabb_vertex = m.aabb_vertex;
+		isMoved = m.isMoved;
+		directory = m.directory;
+		position = m.position;
+		max_life = m.max_life;
+		current_life = m.current_life;
+		va = m.va;
+		ib = m.ib;
+		return *this;
+	}
+	animeModel(const animeModel& m) : Model(m)
+	{
+		animator = new Animator();
 	}
 };
 
@@ -298,5 +322,8 @@ public:
 		Get_models();
 		Get_anime_models();
 	}
+	~Models()
+	{
 
+	}
 };

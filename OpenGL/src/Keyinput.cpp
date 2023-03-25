@@ -35,7 +35,7 @@ KeyInput::KeyInput()
     //pointlight
     pointlight_window(false), point_sm_radius(2.0f), point_sm_pcf(false), pointlight_Intensity(0.0f), point_far_plane(5.0f), point_color(1.0f),
     //particles
-    particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f), particle_life_reduce(0.018f), show_d3particle(false),
+    particle_window(false), show_particle(false), particle_scale(30.0f), particle_offset(1.0f), new_particle_num(5), particle_vel(1.0f), particle_life_reduce(0.037f), show_d3particle(false),
     //fxaa
     fxaa_window(false), fxaa_on(false), fxaa_showEdge(false), fxaa_lumaThreshold(0.2f), fxaa_maxReduce(0.001f), fxaa_minReduce(0.001f), fxaa_maxSpan(8.0f),
     //taa
@@ -50,8 +50,7 @@ KeyInput::KeyInput()
 }
 void KeyInput::ProcessMovement(GLFWwindow* window, Camera& camera, float deltaTime, float& energy)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
@@ -175,9 +174,9 @@ void KeyInput::RecordKey(int key, int action)
         //processSequence();
     }
 }
-void KeyInput::ProcessKey(GLFWwindow* window, int key, int action)
+void KeyInput::ProcessKey(int key, int action)
 {
-  
+
     //°´BÇÐ»»blinn_phongºÍphong
     if (key == GLFW_KEY_B && action == GLFW_PRESS)
     {

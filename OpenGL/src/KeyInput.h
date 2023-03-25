@@ -67,7 +67,7 @@ public:
     bool cutoff_query;
     KeyInput();
     void RecordKey(int key, int action);
-    void ProcessKey(GLFWwindow* window, int key, int action);
+    void ProcessKey(int key, int action);
     void ProcessMovement(GLFWwindow *window, Camera& camera, float deltaTime, float& energy);
 };
 

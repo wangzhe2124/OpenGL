@@ -91,9 +91,6 @@ private:
     float deltaTime;
     Animations* animations;
     bool response_action;
-    bool readyToMove;
-    bool readyToJog;
-    bool readyToIdle;
     Entity::Octree octree = Entity::Octree(10);
     std::set<animeModel*> inFrustumModels;
     std::map<float, animeModel*> sortedModels;
@@ -119,6 +116,8 @@ public:
     SpotLight_DATA spotlight;
     PointLight_DATA pointlight;
     bool Last_CSM_update = true;
+    bool lockEnermyMode;
+    animeModel* lockedEnermy = nullptr;
     glm::mat4 Last_CSM_update_matrix;
     Particle_Generator particle_generator = Particle_Generator(500, 1, 0.002f);
     D3Particle_Generator d3particle_generator = D3Particle_Generator(500, 1, 0.002f);
@@ -158,7 +157,21 @@ public:
 
     void start_render();
     void Generate_TextParticle();
-    void attack();
+
+    void processUserActionInuput(int key, int action, int mode);
+    void processUserFunctionalInuput(int key, int action, int mode);
+    void updateLockedModel()
+    {
+        std::map<float, animeModel*>::iterator it = sortedModels.begin();
+        int t;
+        if (camera.third_view)
+            t = 1;
+        else
+            t = 0;
+        if(sortedModels.size() > t)
+            it++;
+        lockedEnermy = it->second;
+    }
     bool isInFrustum(std::vector<float>& aabb);
     bool isInFrustum(glm::vec3& pointMin, glm::vec3& pointMax);
     void cutOffFrustum();
@@ -174,6 +187,7 @@ public:
     inline unsigned int GetSheight() { return screenHeight; }
     inline void SetSheight(unsigned int sh) { screenHeight = sh; }
     inline bool Get_Response_action() { return response_action; }
+    inline void set_Response_action(bool b) { response_action = b; }
     void Update_Sun();
 
     void Update_Spotlight();

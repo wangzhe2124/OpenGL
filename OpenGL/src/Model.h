@@ -67,6 +67,21 @@ public:
         ib = m.ib;
         return *this;
     }
+    Model(const Model& m)
+    {
+        textures_loaded = m.textures_loaded;
+        meshes = m.meshes;
+        name = m.name;
+        aabb = m.aabb;
+        aabb_vertex = m.aabb_vertex;
+        isMoved = m.isMoved;
+        directory = m.directory;
+        position = m.position;
+        max_life = m.max_life;
+        current_life = m.current_life;
+        va = m.va;
+        ib = m.ib;
+    }
     // draws the model, and thus all its meshes
     virtual ~Model()
     {

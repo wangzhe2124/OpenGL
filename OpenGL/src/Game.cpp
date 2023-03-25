@@ -89,7 +89,7 @@ void Game::Initialize_Models_Positions()
     models->Floor.position.Rotate(-90.0, glm::vec3(1.0, 0.0, 0.0));
     models->Sphere.position.Translate(glm::vec3(-2.0f, 1.0f, 0.0));
 
-
+    models->Main_character.position.Scale(0.7f);
     int i = 0;
 
     for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
@@ -119,6 +119,7 @@ void Game::Update_Models_Positions()
     theta = camera.Front.x > 0 ? theta : static_cast<float>((2 * PI - theta));
     float character_view = static_cast<float>(theta * 180.0f / PI);
     ModelSpace modd;
+    modd.Scale(0.75f);
     modd.Rotate(180.0f + character_view, glm::vec3(0.0, -1.0, 0.0));
     if (!camera.third_view)
     {
@@ -1070,18 +1071,30 @@ void Game::Generate_Health_bar_enemy()
             shader.SetUniform1f("max_life", model.max_life);
             shader.SetUniform1f("current_life", model.current_life);
 
-            glm::vec3 viewPos;
-            if (keyinput.third_view)
-                viewPos = camera.Get_third_position();
-            else
-                viewPos = camera.Get_first_position();
-            glm::vec3 FragPos = glm::vec3(health_bar_x, health_bar_y, health_bar_z);
-            glm::vec3 viewDir = glm::normalize(FragPos - viewPos);
-            float length = glm::length(FragPos - viewPos);
-            float theta = dot(viewDir, camera.Front);
-            if (theta > 0.707 && length < 20.0f)
+            if (it->first < 20)
                 renderer.DrawArray(vertex_arrays->quadVa, shader);
         }
+    }
+    if (lockEnermyMode)
+    {
+        std::vector<float> aabb = lockedEnermy->aabb;
+        glm::vec3 center = glm::vec3((aabb[min_x] + aabb[max_x]) * 0.5f, (aabb[min_y] + aabb[max_y]) * 0.5f, (aabb[min_z] + aabb[max_z]) * 0.5f);
+        glm::vec3 cameraPos = camera.Get_first_position();
+        glm::vec3 viewDir = glm::normalize(center - cameraPos);
+        float yaw = atan2(viewDir.x, -viewDir.z);
+        float pitch = atan2(viewDir.y, sqrt(viewDir.x * viewDir.x + viewDir.z * viewDir.z));
+        camera.Yaw = yaw * 180.f / PI;
+        camera.Pitch = pitch * 180.0f / PI;
+        camera.ProcessMouseMovement(0, 0);
+        Shader& shader = shaders->Particle_shader;
+        shader.Bind();
+        glm::mat4 projection = glm::ortho(0.0f, float(screenWidth), 0.0f, float(screenHeight));
+        shader.SetUniformmatri4fv("projection", projection);
+        shader.SetUniform1f("scale", 10.0f);
+        textures->Particle_texture.Bind();
+        shader.SetUniform2f("offset", glm::vec2(screenWidth * 0.5f, screenHeight * 0.5f));
+        shader.SetUniform4f("color", glm::vec4(1.0f, 0.0f, 0.0f, 0.4f));
+        renderer.DrawArray(vertex_arrays->particleVa, shader);
     }
 }
 
@@ -1144,62 +1157,20 @@ void Game::ready_render()
 void Game::ProcessAction()
 {
     models->Main_character.animator->UpdateAnimation(deltaTime);
-    //if (camera.is_move)
-    //{
-    //    if (camera.dash)
-    //    {
-    //        action = animations->jog;
-    //    }
-    //    else
-    //        action = animations->walk;
-    //}
-    //else
-    //    action = animations->idle;
-    //if (!response_action)
-    //{
-    //    if (state != action)
-    //    {
-    //        models->animator_map["Main_character"].PlayAnimation(animations->animations_map[action]);
-    //        state = action;
-    //    }
-    //}
-    //move
-    if (!response_action)
+    //check action
+    if (camera.is_move)
     {
-        if (camera.is_move)
+        if (camera.dash)
         {
-            if (camera.dash)
-            {
-                readyToMove = false;
-                if (!readyToJog)
-                {
-                    models->Main_character.animator->PlayAnimation(animations->animations_map[animations->jog]);
-                    readyToJog = true;
-                }
-            }
-            else
-            {
-                readyToJog = false;
-                if (!readyToMove)
-                {
-                    models->Main_character.animator->PlayAnimation(animations->animations_map[animations->walk]);
-                    readyToMove = true;
-                }
-            }
-            readyToIdle = false;
+            action = Animations::jog;
         }
         else
-        {
-            readyToMove = false;
-            readyToJog = false;
-            if (!readyToIdle)
-            {
-                models->Main_character.animator->PlayAnimation(animations->animations_map[animations->idle]);
-                readyToIdle = true;
-            }
-        }
+            action = Animations::walk;
     }
+    else
+        action = Animations::idle;
 
+    //ui change anime
     if (keyinput.chage_animation)
     {
         for (std::set<animeModel*>::iterator iter = models->models_map.begin(); iter != models->models_map.end(); iter++)
@@ -1211,14 +1182,22 @@ void Game::ProcessAction()
         keyinput.chage_animation = false;
         response_action = true;
     }
+    //action change anime
     if (response_action)
     {
         if (models->Main_character.animator->GetRatio() > 0.95f)
         {
             response_action = false;
-            readyToMove = false;
-            readyToJog = false;
-            readyToIdle = false;
+            state = Animations::idle;
+            models->Main_character.animator->PlayAnimation(animations->animations_map[state]);
+        }
+    }
+    else
+    {
+        if (state != action)
+        {
+            models->Main_character.animator->PlayAnimation(animations->animations_map[action]);
+            state = action;
         }
     }
 }
@@ -1277,7 +1256,6 @@ void Game::start_render()
 void Game::Generate_TextParticle()
 {
     glEnable(GL_BLEND);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     std::string text_render = Collision_detection();
     RenderText(shaders->text_shader, text_render, 0.0f, 600.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
     if (keyinput.show_particle)
@@ -1318,19 +1296,28 @@ void Game::Generate_TextParticle()
     //    RenderText(shaders->text_shader, "co: ", screenWidth * 0.5f, 0, 0.5f, glm::vec3(1.0f));
     glDisable(GL_BLEND);
 }
-void Game::attack()
+
+void Game::processUserActionInuput(int key, int action, int mode)
 {
-    if (!response_action)
+    std::cout << mode << std::endl;
+    if (key == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
-        if (keyinput.keysPressed[GLFW_KEY_LEFT_SHIFT])
+        if (mode == 1)
         {    //ÖØ»÷
             models->Main_character.animator->PlayAnimation(animations->animations_map[animations->right_punch]);
         }
         else
             models->Main_character.animator->PlayAnimation(animations->animations_map[animations->left_punch]);
-        response_action = true;
     }
+    response_action = true;
 }
+
+void Game::processUserFunctionalInuput(int key, int action, int mode)
+{
+    keyinput.RecordKey(key, action);
+    keyinput.ProcessKey(key, action);
+}
+
 
 void Generate_Instance(Model& m, int amount)
 {

@@ -209,7 +209,6 @@ int main(void)
         ////SpotlightMapfbo.BindTexture();
         ////glBindTexture(GL_TEXTURE_2D, Characters[10].TextureID);
         //game.renderer.DrawArray(game.vertex_arrays->quadVa, game.shaders->basicscreen_shader);
-
         //GUI
         GUI_Process(window, game.keyinput);
         /* Swap front and back buffers */
@@ -244,18 +243,32 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 
     lastX = xpos;
     lastY = ypos;
-    if(!game.keyinput.ui)
+    if(!game.keyinput.ui && !game.lockEnermyMode)
         game.camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mode)
 {
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-        game.keyinput.gamma  = !game.keyinput.gamma;
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && !game.keyinput.ui)
+    if (!game.Get_Response_action() && !game.keyinput.ui)
     {
-        game.attack();
+        game.processUserActionInuput(button, action, mode);
     }
+}
+
+void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        game.lockEnermyMode = !game.lockEnermyMode;
+        if (game.lockEnermyMode)
+        {
+            game.updateLockedModel();
+        }
+    }
+    game.processUserFunctionalInuput(key, action, mode);
+    //mode's value: shift(1), ctrl(2), alt(4), win(8), and multi is the add;
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -269,11 +282,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void keys_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
-{
-    game.keyinput.RecordKey(key, action);
-    game.keyinput.ProcessKey(window, key, action);
-}
+
 void windowSize_callback(GLFWwindow* window, int cx, int cy)
 {
     std::cout << "resolution:" << cx << "," << cy << std::endl;

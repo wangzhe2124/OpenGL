@@ -369,6 +369,6 @@ FodyWeavers.xsd
 *.vcxproj
 *.filters
 OpenGL/res
-!OpenGL/res/shaders
+!OpenGL/res/shaders 
 no_model/res
 >>>>>>> add lock enermy mode
